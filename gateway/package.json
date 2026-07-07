@@ -1,0 +1,39 @@
+{
+  "name": "valence-gateway",
+  "version": "1.0.0",
+  "description": "Zero-trust, fail-closed LLM security gateway proxy: prompt injection screening, PII tokenization, and streaming surrogate reconstitution.",
+  "license": "Apache-2.0",
+  "private": false,
+  "main": "dist/app.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/app.js",
+    "dev": "tsx watch src/app.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist",
+    "test": "npm run test:vault && npm run test:security && npm run test:streaming && npm run test:hardening && npm run test:e2e",
+    "test:vault": "tsx tests/vault.smoke.ts",
+    "test:security": "tsx tests/security.smoke.ts",
+    "test:streaming": "tsx tests/streaming.smoke.ts",
+    "test:hardening": "tsx tests/hardening.smoke.ts",
+    "test:e2e": "tsx tests/e2e.smoke.ts"
+  },
+  "dependencies": {
+    "axios": "^1.12.0",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.17.12",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

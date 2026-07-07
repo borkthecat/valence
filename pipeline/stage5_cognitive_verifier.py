@@ -3,7 +3,7 @@
 
 Asynchronous controller that takes the high-integrity pool emitted by the
 Stage 4 Razor Engine, sanitizes it against indirect prompt injection, routes
-it through the GuardVantage security proxy for cognitive adjudication, and
+it through the Valence Gateway security proxy for cognitive adjudication, and
 returns a single immutable verdict. Any upstream, proxy, or schema anomaly
 triggers a fail-closed protocol so unverified profiles never leak downstream.
 
@@ -28,9 +28,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 PROXY_HOST: Final[str] = "localhost"
-PROXY_PORT: Final[int] = 8080
+PROXY_PORT: Final[int] = 8443
 PROXY_PATH: Final[str] = "/v1/chat/completions"
-PROXY_MODEL: Final[str] = "guardvantage-cognitive-1"
+PROXY_MODEL: Final[str] = "valence-cognitive-1"
 
 MAX_POOL_SIZE: Final[int] = 5
 MAX_FIELD_BYTES: Final[int] = 512
@@ -65,11 +65,11 @@ class CognitivePipelineCompromisedError(ValenceStage5Error):
 
 
 class ProxyConnectionError(ValenceStage5Error):
-    """The GuardVantage proxy could not be reached or the socket dropped."""
+    """The Valence Gateway proxy could not be reached or the socket dropped."""
 
 
 class ProxyRejectionError(ValenceStage5Error):
-    """The GuardVantage proxy returned a security rejection status."""
+    """The Valence Gateway proxy returned a security rejection status."""
 
     def __init__(self, status: int) -> None:
         super().__init__(f"proxy rejected with status {status}")
@@ -148,7 +148,7 @@ class ProxyClient(Protocol):
 class AsyncHttpProxyClient:
     """Non-blocking HTTP/1.1 client built on native asyncio stream primitives.
 
-    Used in real deployments to reach the local GuardVantage proxy. The load
+    Used in real deployments to reach the local Valence Gateway proxy. The load
     simulation injects a mock instead, so no socket is opened during testing.
     """
 
