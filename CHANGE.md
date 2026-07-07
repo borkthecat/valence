@@ -2,6 +2,12 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.4.1
+
+- Refined the Valence Local Console with a more professional dashboard layout and system UI font stack.
+- Added concise dashboard copy explaining what the local validation is for.
+- Added browser-based Docker setup help when Docker Desktop is missing or not running.
+
 ## 1.4.0
 
 - Added a browser-based Valence Local Console at `http://localhost:8090/`.

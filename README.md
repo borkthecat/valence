@@ -129,7 +129,7 @@ The gateway also exposes `GET /metrics` in Prometheus text format, protected by 
 
 Both components build into slim images and run together on an isolated bridge network, where the pipeline reaches the gateway by its service name:
 
-On Windows, the shortest local path is double-clicking `START-VALENCE.cmd`. It starts the local Docker stack and opens the browser dashboard automatically.
+On Windows, the shortest local path is double-clicking `START-VALENCE.cmd`. It starts the local Docker stack and opens the browser dashboard automatically. If Docker Desktop is missing or not running, Valence opens a setup help page with the exact next steps.
 
 If you prefer PowerShell, run:
 
@@ -341,7 +341,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.4.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.4.1`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.4.0`
+Current release target: `v1.4.1`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.4.0` and `valence-pipeline:1.4.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.4.1` and `valence-pipeline:1.4.1` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,17 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.4.0 -m "Valence v1.4.0"
-git push origin main v1.4.0
+git tag -a v1.4.1 -m "Valence v1.4.1"
+git push origin main v1.4.1
 ```
 
 ## Release Notes
+
+`v1.4.1` polishes the local console and setup experience:
+
+- Refines the Valence Local Console with a more professional dashboard layout and system UI font stack.
+- Adds concise dashboard copy explaining what the local validation is for.
+- Opens a browser setup help page when Docker Desktop is missing or not running.
 
 `v1.4.0` adds a no-command browser validation flow:
 

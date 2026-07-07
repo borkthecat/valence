@@ -1,6 +1,6 @@
 {
   "name": "valence-gateway",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Zero-trust, fail-closed LLM security gateway proxy: prompt injection screening, PII tokenization, and streaming surrogate reconstitution.",
   "license": "Apache-2.0",
   "author": "Arai Nanami Rachel",

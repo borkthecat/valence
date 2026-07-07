@@ -684,14 +684,17 @@ _DASHBOARD_HTML: Final[str] = """
   <style>
     :root {
       color-scheme: light;
-      --bg: #f7f8fb;
+      --bg: #f5f7fa;
       --panel: #ffffff;
-      --ink: #17202a;
+      --ink: #111827;
       --muted: #667085;
-      --line: #d7dde8;
-      --ok: #087f5b;
+      --line: #d9e0ea;
+      --line-strong: #b8c2d2;
+      --ok: #067647;
       --bad: #b42318;
-      --accent: #2457c5;
+      --warn: #b54708;
+      --accent: #1f4e79;
+      --accent-strong: #173b5c;
     }
     * { box-sizing: border-box; }
     body {
@@ -699,24 +702,52 @@ _DASHBOARD_HTML: Final[str] = """
       min-height: 100vh;
       background: var(--bg);
       color: var(--ink);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: Aptos, "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+      font-size: 14px;
     }
     main {
-      width: min(1080px, calc(100vw - 32px));
+      width: min(1160px, calc(100vw - 32px));
       margin: 0 auto;
-      padding: 32px 0;
+      padding: 24px 0 32px;
     }
-    header {
+    .topbar {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
-      gap: 24px;
-      margin-bottom: 24px;
+      gap: 16px;
+      padding: 14px 0 18px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 20px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+    }
+    .brand-subtitle {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
     }
     h1 {
-      margin: 0 0 8px;
-      font-size: 32px;
-      line-height: 1.1;
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.2;
       letter-spacing: 0;
     }
     p {
@@ -724,109 +755,175 @@ _DASHBOARD_HTML: Final[str] = """
       color: var(--muted);
       line-height: 1.5;
     }
+    .overview {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, .9fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .intro, .panel, .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .intro {
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+      min-height: 172px;
+    }
+    .intro p {
+      max-width: 760px;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
     button {
       appearance: none;
       border: 0;
       background: var(--accent);
       color: #fff;
-      min-height: 44px;
-      padding: 0 18px;
+      min-height: 40px;
+      padding: 0 16px;
       border-radius: 6px;
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
     }
+    button:hover { background: var(--accent-strong); }
     button:disabled {
       cursor: wait;
       opacity: .72;
     }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
+    .secondary-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      color: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
     }
-    .stat, .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
+    .summary {
+      display: grid;
+      gap: 12px;
     }
     .stat {
-      padding: 16px;
-      min-height: 96px;
+      padding: 15px 16px;
+      min-height: 84px;
     }
     .label {
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
       margin-bottom: 8px;
     }
     .value {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 800;
+      letter-spacing: 0;
     }
     .panel {
       overflow: hidden;
     }
     .panel-head {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding: 16px;
+      padding: 15px 16px;
       border-bottom: 1px solid var(--line);
+    }
+    .panel-title {
+      font-size: 15px;
+      font-weight: 800;
     }
     .checks {
       display: grid;
     }
     .check {
       display: grid;
-      grid-template-columns: 180px 96px 1fr;
+      grid-template-columns: 210px 92px minmax(0, 1fr);
       gap: 14px;
-      padding: 14px 16px;
+      padding: 13px 16px;
       border-bottom: 1px solid var(--line);
       align-items: center;
     }
     .check:last-child { border-bottom: 0; }
+    .check strong {
+      font-weight: 750;
+    }
     .pill {
       width: fit-content;
-      min-width: 72px;
+      min-width: 68px;
       text-align: center;
       border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
+      padding: 3px 9px;
+      font-size: 11px;
       font-weight: 800;
+      letter-spacing: .02em;
     }
-    .pass { background: #d3f9e8; color: var(--ok); }
+    .pass { background: #dcfae6; color: var(--ok); }
     .fail { background: #fee4e2; color: var(--bad); }
     .idle { background: #eef2f7; color: var(--muted); }
+    .note {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: 1px solid #fedf89;
+      border-radius: 8px;
+      background: #fffbeb;
+      color: #713b12;
+      line-height: 1.45;
+    }
     .links {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 14px;
       margin-top: 16px;
+      color: var(--muted);
     }
     a {
       color: var(--accent);
       font-weight: 700;
       text-decoration: none;
     }
+    a:hover { text-decoration: underline; }
     @media (max-width: 760px) {
-      header { display: block; }
-      button { width: 100%; margin-top: 16px; }
-      .grid { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; }
+      .overview { grid-template-columns: 1fr; }
+      .actions { display: grid; }
+      button { width: 100%; }
       .check { grid-template-columns: 1fr; gap: 8px; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <div>
-        <h1>Valence Local Console</h1>
-        <p>Run the local validation path, inspect service health, and confirm the gateway blocks unsafe model traffic.</p>
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark">V</div>
+        <div>
+          <div class="brand-title">Valence</div>
+          <div class="brand-subtitle">Local safety validation console</div>
+        </div>
       </div>
-      <button id="run">Run validation</button>
-    </header>
-    <section class="grid">
+      <a class="secondary-link" href="/docs">API reference</a>
+    </div>
+    <section class="overview">
+      <div class="intro">
+      <div>
+          <h1>Validate the local LLM safety gateway</h1>
+          <p>Valence checks that the verifier, sanitizer, gateway block path, and metrics are working before you connect real applications or provider credentials.</p>
+        </div>
+        <div class="actions">
+          <button id="run">Run validation</button>
+          <a class="secondary-link" href="http://localhost:8080/healthz">Gateway health</a>
+          <a class="secondary-link" href="/openapi.json">OpenAPI JSON</a>
+        </div>
+        <div class="note">Local validation uses mock-provider mode for verifier checks, so no external model calls or API keys are required.</div>
+      </div>
+      <div class="summary">
       <div class="stat">
         <div class="label">System status</div>
         <div class="value" id="status">Ready</div>
@@ -839,10 +936,11 @@ _DASHBOARD_HTML: Final[str] = """
         <div class="label">Passed checks</div>
         <div class="value" id="passed">0 / 0</div>
       </div>
+      </div>
     </section>
     <section class="panel">
       <div class="panel-head">
-        <strong>Validation checks</strong>
+        <div class="panel-title">Validation checks</div>
         <span class="label" id="updated">Not run yet</span>
       </div>
       <div class="checks" id="checks">
@@ -857,6 +955,7 @@ _DASHBOARD_HTML: Final[str] = """
       <a href="/docs">Swagger API</a>
       <a href="/openapi.json">OpenAPI JSON</a>
       <a href="http://localhost:8080/healthz">Gateway health</a>
+      <span>Dashboard validation is local-only and safe to rerun.</span>
     </nav>
   </main>
   <script>
