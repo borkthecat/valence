@@ -2,12 +2,19 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.2.0
+
+- Raised deterministic pipeline scale validation to 2,000,000 profiles, processed in staggered 100,000-profile windows.
+- Added local Docker Compose mock-provider testing for no-cost Stage 5 requests.
+- Fixed gateway production image audit-log directory permissions for the non-root `node` user.
+
 ## 1.1.0
 
 - Raised deterministic pipeline scale validation from 10,000 to 100,000 profiles.
 - Added calibrated Stage 4 scoring with target-channel priority and continuous era proximity.
 - Added synthetic oracle quality validation for ranking accuracy and top-5 recall.
 - Added Stage 5-ready pool export with final Stage 4 scores.
+- Added a local Docker Compose override for no-cost mock-provider testing.
 
 - Added protected Prometheus metrics for gateway request, security, and latency counters.
 - Added HS256 JWT authentication with RBAC scope checks and tenant context.

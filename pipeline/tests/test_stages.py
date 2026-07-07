@@ -35,8 +35,10 @@ def test_stage3_distribution() -> None:
 
 
 def test_stage3_scale_and_determinism() -> None:
-    s3._run_scale_validation()
-    assert s3.SCALE_VALIDATION_PROFILE_COUNT == 100_000
+    report = s3._run_scale_validation()
+    assert report.profiles == 2_000_000
+    assert report.windows == 20
+    assert report.winners > 0
 
 
 def test_stage4_verification() -> None:

@@ -136,6 +136,14 @@ docker compose up --build
 
 The gateway is exposed on port 8080 and the Stage 5 verification service on port 8090. The gateway image is a multi-stage Node build; the pipeline image runs its self-verifying stages under the strict warnings-as-errors flag as a build-time integrity gate.
 
+For local testing without real upstream model credentials, use the local override:
+
+```
+docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.example up --build
+```
+
+That starts the pipeline with `MOCK_AI_PROVIDER=true`, so `POST http://localhost:8090/v1/valence/stage5/verify` returns deterministic mock adjudications at zero external cost. Enterprise deployments should set `MOCK_AI_PROVIDER=false` and provide real gateway/provider credentials.
+
 ## Unified demo
 
 `run_system_demo.sh` starts the gateway in the background, runs the full analytical pipeline (Stage 3 fuzz generation through Stage 5 verification), prints each tool's dashboard, and cleans up all background processes on exit:
@@ -170,7 +178,7 @@ pip install -r requirements-dev.txt
 python -W error -m pytest -q
 ```
 
-Stage 3/4 scale validation now drives 100,000 deterministic generated profiles through the reranker, and Stage 4 includes a synthetic oracle quality check for top-1 accuracy and top-5 recall.
+Stage 3/4 scale validation now drives 2,000,000 deterministic generated profiles through the reranker in 100,000-profile windows, and Stage 4 includes a synthetic oracle quality check for top-1 accuracy and top-5 recall.
 
 ### Continuous integration
 
@@ -195,7 +203,7 @@ Apache-2.0. See [LICENSE](LICENSE).
 
 ## Releases
 
-The current release target is `v1.1.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.2.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

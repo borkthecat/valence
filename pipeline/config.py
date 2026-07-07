@@ -26,6 +26,8 @@ class Settings:
     proxy_port: int
     gateway_api_key: str | None
     mock_ai_provider: bool
+    scale_validation_profiles: int
+    scale_validation_window: int
 
 
 def _int(name: str, default: int) -> int:
@@ -67,4 +69,6 @@ def get_settings() -> Settings:
         proxy_port=_int("GATEWAY_PORT", _int("PROXY_PORT", 8443)),
         gateway_api_key=gateway_key if gateway_key else None,
         mock_ai_provider=_bool("MOCK_AI_PROVIDER", False),
+        scale_validation_profiles=_int("VALENCE_SCALE_VALIDATION_PROFILES", 2_000_000),
+        scale_validation_window=_int("VALENCE_SCALE_VALIDATION_WINDOW", 100_000),
     )

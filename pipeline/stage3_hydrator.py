@@ -12,6 +12,7 @@ Runs clean under `python -W error`. Standard library only.
 from __future__ import annotations
 
 import random
+from hashlib import sha256
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Final
@@ -21,7 +22,8 @@ from config import get_settings
 NEGATIVE_AGE_RATE: Final[float] = 0.05
 UNAUTHORIZED_CHANNEL_RATE: Final[float] = 0.05
 ERA_ANOMALY_RATE: Final[float] = 0.10
-SCALE_VALIDATION_PROFILE_COUNT: Final[int] = 100_000
+DEFAULT_SCALE_VALIDATION_PROFILE_COUNT: Final[int] = 2_000_000
+DEFAULT_SCALE_VALIDATION_WINDOW: Final[int] = 100_000
 
 _COLORWAYS: Final[tuple[str, ...]] = (
     "midnight-sapphire",
@@ -54,6 +56,15 @@ class GenerationReport:
     era_anomalies: int
 
 
+@dataclass(frozen=True, slots=True)
+class ScaleValidationReport:
+    profiles: int
+    windows: int
+    batches: int
+    winners: int
+    fingerprint: str
+
+
 class FuzzDataGenerator:
     """Generates randomized candidate profiles with a controlled fault mix."""
 
@@ -67,12 +78,12 @@ class FuzzDataGenerator:
     def report(self) -> GenerationReport:
         return self._report
 
-    def generate(self, count: int) -> list[dict[str, Any]]:
+    def generate(self, count: int, start_index: int = 0) -> list[dict[str, Any]]:
         if count <= 0:
             raise ValueError("count must be positive")
         self._report = GenerationReport(count, 0, 0, 0)
         profiles: list[dict[str, Any]] = []
-        for index in range(count):
+        for index in range(start_index, start_index + count):
             profiles.append(self._generate_one(index))
         return profiles
 
@@ -117,6 +128,15 @@ def batched(items: list[dict[str, Any]], size: int) -> Iterator[list[dict[str, A
         yield items[start : start + size]
 
 
+def _add_report(left: GenerationReport, right: GenerationReport) -> GenerationReport:
+    return GenerationReport(
+        total=left.total + right.total,
+        negative_ages=left.negative_ages + right.negative_ages,
+        unauthorized_channels=left.unauthorized_channels + right.unauthorized_channels,
+        era_anomalies=left.era_anomalies + right.era_anomalies,
+    )
+
+
 _DASH_WIDTH: Final[int] = 60
 
 
@@ -147,8 +167,18 @@ def render_dashboard(report: GenerationReport) -> str:
     return "\n".join(lines)
 
 
-def _run_scale_validation() -> None:
-    """Generate a large deterministic corpus and drive it through Stage 4."""
+def _scale_settings() -> tuple[int, int]:
+    settings = get_settings()
+    profiles = settings.scale_validation_profiles
+    window = settings.scale_validation_window
+    if profiles < 1_000_000:
+        raise ValueError("VALENCE_SCALE_VALIDATION_PROFILES must be >= 1000000")
+    if window < 1_000 or window > profiles:
+        raise ValueError("VALENCE_SCALE_VALIDATION_WINDOW must be between 1000 and profile count")
+    return profiles, window
+
+
+def _run_scale_pass(profile_count: int, window_size: int) -> ScaleValidationReport:
     from stage4_razor_reranker import (
         MAX_BATCH_SIZE,
         InsufficientEligibleCandidatesError,
@@ -156,49 +186,81 @@ def _run_scale_validation() -> None:
         _default_context,
     )
 
-    profiles = FuzzDataGenerator(seed=1337).generate(SCALE_VALIDATION_PROFILE_COUNT)
-    for profile in profiles:
-        assert set(profile.keys()) == {
-            "id",
-            "age",
-            "anniversary",
-            "channel",
-            "colorway",
-            "era_year",
-        }, "generated profile shape must match the Stage 4 schema"
-
     context = _default_context()
+    digest = sha256()
+    windows = 0
+    batches = 0
+    winners = 0
 
-    def run_pipeline() -> list[str]:
+    for start in range(0, profile_count, window_size):
+        count = min(window_size, profile_count - start)
+        generator = FuzzDataGenerator(seed=1337 + windows)
+        profiles = generator.generate(count, start_index=start)
         engine = RazorReranker()
-        winners: list[str] = []
+        windows += 1
+
+        for profile in profiles:
+            assert set(profile.keys()) == {
+                "id",
+                "age",
+                "anniversary",
+                "channel",
+                "colorway",
+                "era_year",
+            }, "generated profile shape must match the Stage 4 schema"
+
         for batch in batched(profiles, MAX_BATCH_SIZE):
             if len(batch) < 5:
                 continue
+            batches += 1
             try:
                 result = engine.rerank(batch, context)
             except InsufficientEligibleCandidatesError:
                 continue
             for candidate in result.selected:
-                winners.append(candidate.id)
+                winners += 1
                 assert candidate.channel in context.authorized_channels, "unauthorized actor leaked"
                 assert 0 <= candidate.age <= 120, "structurally anomalous age leaked"
-        return winners
+                digest.update(candidate.id.encode("ascii"))
+                digest.update(b"\0")
 
-    first = run_pipeline()
-    second = run_pipeline()
-    assert first == second, "Stage 4 output must be identical across identical runs"
-    assert len(first) > 0, "scale run produced no winners"
+    return ScaleValidationReport(
+        profiles=profile_count,
+        windows=windows,
+        batches=batches,
+        winners=winners,
+        fingerprint=digest.hexdigest(),
+    )
+
+
+def _run_scale_validation() -> ScaleValidationReport:
+    """Generate a large deterministic corpus and drive it through Stage 4."""
+    profile_count, window_size = _scale_settings()
+    first = _run_scale_pass(profile_count, window_size)
+    second = _run_scale_pass(profile_count, window_size)
+    assert first.fingerprint == second.fingerprint, "Stage 4 output must be identical across identical runs"
+    assert first.winners == second.winners, "winner count changed across identical runs"
+    assert first.winners > 0, "scale run produced no winners"
+    return first
 
 
 def main() -> int:
-    generator = FuzzDataGenerator(seed=1337)
-    generator.generate(SCALE_VALIDATION_PROFILE_COUNT)
+    profile_count, window_size = _scale_settings()
+    aggregate = GenerationReport(0, 0, 0, 0)
+    for window, start in enumerate(range(0, profile_count, window_size)):
+        count = min(window_size, profile_count - start)
+        generator = FuzzDataGenerator(seed=1337 + window)
+        generator.generate(count, start_index=start)
+        aggregate = _add_report(aggregate, generator.report)
     print()
-    print(render_dashboard(generator.report))
+    print(render_dashboard(aggregate))
     print()
-    _run_scale_validation()
-    print("  Stage 3 fuzz generation and Stage 4 scale validation passed.")
+    report = _run_scale_validation()
+    print(
+        "  Stage 3 staggered generation and Stage 4 scale validation passed "
+        f"({report.profiles:,} profiles, {report.windows:,} windows, "
+        f"{report.batches:,} batches)."
+    )
     print()
     return 0
 

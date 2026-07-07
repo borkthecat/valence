@@ -1,0 +1,10 @@
+services:
+  gateway:
+    env_file: .env.example
+
+  pipeline:
+    env_file: .env.example
+    environment:
+      PROXY_HOST: gateway
+      PROXY_PORT: "8080"
+      MOCK_AI_PROVIDER: "true"
