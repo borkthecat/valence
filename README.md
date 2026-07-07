@@ -170,6 +170,8 @@ pip install -r requirements-dev.txt
 python -W error -m pytest -q
 ```
 
+Stage 3/4 scale validation now drives 100,000 deterministic generated profiles through the reranker, and Stage 4 includes a synthetic oracle quality check for top-1 accuracy and top-5 recall.
+
 ### Continuous integration
 
 Every push and pull request to `main` runs the workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml), which builds and typechecks the gateway with a high-severity dependency audit, runs the pipeline test matrix under strict warnings-as-errors, and validates and builds the container topology.
@@ -190,6 +192,10 @@ Every push and pull request to `main` runs the workflow in [.github/workflows/ci
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+## Releases
+
+The current release target is `v1.1.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

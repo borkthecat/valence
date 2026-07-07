@@ -36,6 +36,7 @@ def test_stage3_distribution() -> None:
 
 def test_stage3_scale_and_determinism() -> None:
     s3._run_scale_validation()
+    assert s3.SCALE_VALIDATION_PROFILE_COUNT == 100_000
 
 
 def test_stage4_verification() -> None:
@@ -48,6 +49,12 @@ def test_stage4_determinism() -> None:
     first = [c.id for c in s4.RazorReranker().rerank(batch, context).selected]
     second = [c.id for c in s4.RazorReranker().rerank(batch, context).selected]
     assert first == second
+
+
+def test_stage4_quality_validation() -> None:
+    report = s4.run_quality_validation(batches=200, batch_size=s4.MAX_BATCH_SIZE)
+    assert report.top1_accuracy >= 0.90
+    assert report.top5_recall >= 0.99
 
 
 def test_stage5_json_healer() -> None:

@@ -21,6 +21,7 @@ from config import get_settings
 NEGATIVE_AGE_RATE: Final[float] = 0.05
 UNAUTHORIZED_CHANNEL_RATE: Final[float] = 0.05
 ERA_ANOMALY_RATE: Final[float] = 0.10
+SCALE_VALIDATION_PROFILE_COUNT: Final[int] = 100_000
 
 _COLORWAYS: Final[tuple[str, ...]] = (
     "midnight-sapphire",
@@ -147,7 +148,7 @@ def render_dashboard(report: GenerationReport) -> str:
 
 
 def _run_scale_validation() -> None:
-    """Generate 10,000 profiles and drive them through Stage 4 at scale."""
+    """Generate a large deterministic corpus and drive it through Stage 4."""
     from stage4_razor_reranker import (
         MAX_BATCH_SIZE,
         InsufficientEligibleCandidatesError,
@@ -155,7 +156,7 @@ def _run_scale_validation() -> None:
         _default_context,
     )
 
-    profiles = FuzzDataGenerator(seed=1337).generate(10_000)
+    profiles = FuzzDataGenerator(seed=1337).generate(SCALE_VALIDATION_PROFILE_COUNT)
     for profile in profiles:
         assert set(profile.keys()) == {
             "id",
@@ -192,7 +193,7 @@ def _run_scale_validation() -> None:
 
 def main() -> int:
     generator = FuzzDataGenerator(seed=1337)
-    generator.generate(10_000)
+    generator.generate(SCALE_VALIDATION_PROFILE_COUNT)
     print()
     print(render_dashboard(generator.report))
     print()

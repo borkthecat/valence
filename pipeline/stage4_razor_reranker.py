@@ -22,10 +22,11 @@ Scoring matrix (base score 100.0 per candidate):
   - Age structurally anomalous (< 0 or > 120): -40.0 and DISQUALIFIED.
   - Age > 80 (but <= 120): -10.0.
   - Anniversary marker True: +15.0.
-  - Channel in the authorized allowlist: +20.0.
+  - Exact target channel: +25.0.
+  - Other authorized channel: +12.0.
   - Channel not authorized: -50.0 and DISQUALIFIED (never leaks past).
-  - Colorway exact match to target: +10.0.
-  - Historical era deviation > 100 years: -45.0; else > 50 years: -15.0.
+  - Colorway exact match to target: +12.0.
+  - Historical era deviation: continuous -0.45/year, capped at -45.0.
 
 Disqualification is a hard gate applied before ranking. The penalty is still
 recorded on the score for telemetry and audit transparency, but a
@@ -52,11 +53,12 @@ OUTPUT_POOL_SIZE: Final[int] = 5
 AGE_ANOMALY_PENALTY: Final[float] = -40.0
 AGE_ELEVATED_PENALTY: Final[float] = -10.0
 ANNIVERSARY_BOOST: Final[float] = 15.0
-CHANNEL_AUTHORIZED_BOOST: Final[float] = 20.0
+CHANNEL_TARGET_BOOST: Final[float] = 25.0
+CHANNEL_AUTHORIZED_BOOST: Final[float] = 12.0
 CHANNEL_UNAUTHORIZED_PENALTY: Final[float] = -50.0
-COLORWAY_MATCH_BOOST: Final[float] = 10.0
+COLORWAY_MATCH_BOOST: Final[float] = 12.0
 ERA_FAR_PENALTY: Final[float] = -45.0
-ERA_NEAR_PENALTY: Final[float] = -15.0
+ERA_PENALTY_PER_YEAR: Final[float] = 0.45
 
 AGE_ANOMALY_LOW: Final[float] = 0.0
 AGE_ANOMALY_HIGH: Final[float] = 120.0
@@ -166,6 +168,27 @@ class RerankResult:
     disqualified_count: int
     anomaly_count: int
     latency_ms: float
+    score_margin: float
+
+
+@dataclass(frozen=True, slots=True)
+class QualityReport:
+    evaluated_batches: int
+    top1_matches: int
+    top5_contains_oracle: int
+    fail_closed_batches: int
+
+    @property
+    def top1_accuracy(self) -> float:
+        return self.top1_matches / self.evaluated_batches if self.evaluated_batches else 0.0
+
+    @property
+    def top5_recall(self) -> float:
+        return (
+            self.top5_contains_oracle / self.evaluated_batches
+            if self.evaluated_batches
+            else 0.0
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +278,9 @@ class RazorReranker:
         if candidate.anniversary:
             adjustments.append(("anniversary_marker", ANNIVERSARY_BOOST))
 
-        if candidate.channel in context.authorized_channels:
+        if candidate.channel == context.target_channel:
+            adjustments.append(("channel_target_match", CHANNEL_TARGET_BOOST))
+        elif candidate.channel in context.authorized_channels:
             adjustments.append(("channel_authorized", CHANNEL_AUTHORIZED_BOOST))
         else:
             adjustments.append(("channel_unauthorized", CHANNEL_UNAUTHORIZED_PENALTY))
@@ -266,10 +291,16 @@ class RazorReranker:
             adjustments.append(("colorway_match", COLORWAY_MATCH_BOOST))
 
         deviation = abs(candidate.era_year - context.target_era_year)
-        if deviation > ERA_FAR_THRESHOLD:
-            adjustments.append(("era_deviation_far", ERA_FAR_PENALTY))
-        elif deviation > ERA_NEAR_THRESHOLD:
-            adjustments.append(("era_deviation_near", ERA_NEAR_PENALTY))
+        if deviation > 0:
+            penalty = max(ERA_FAR_PENALTY, -(deviation * ERA_PENALTY_PER_YEAR))
+            label = (
+                "era_deviation_far"
+                if deviation > ERA_FAR_THRESHOLD
+                else "era_deviation_near"
+                if deviation > ERA_NEAR_THRESHOLD
+                else "era_proximity"
+            )
+            adjustments.append((label, round(penalty, 3)))
 
         final_score = BASE_SCORE + sum(delta for _, delta in adjustments)
 
@@ -324,6 +355,11 @@ class RazorReranker:
         eligible.sort(key=lambda b: (-b.final_score, b.candidate_id))
         top = eligible[:OUTPUT_POOL_SIZE]
         selected = tuple(by_id[b.candidate_id] for b in top)
+        score_margin = (
+            top[0].final_score - top[1].final_score
+            if len(top) > 1
+            else top[0].final_score
+        )
 
         latency_ms = (time.perf_counter() - started) * 1000.0
 
@@ -341,7 +377,24 @@ class RazorReranker:
             disqualified_count=disqualified_count,
             anomaly_count=anomaly_count,
             latency_ms=latency_ms,
+            score_margin=score_margin,
         )
+
+
+def result_to_stage5_pool(result: RerankResult) -> list[dict[str, Any]]:
+    score_by_id = {b.candidate_id: b.final_score for b in result.breakdowns}
+    return [
+        {
+            "id": candidate.id,
+            "age": candidate.age,
+            "anniversary": candidate.anniversary,
+            "channel": candidate.channel,
+            "colorway": candidate.colorway,
+            "era_year": int(candidate.era_year),
+            "score": round(score_by_id[candidate.id], 3),
+        }
+        for candidate in result.selected
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -409,6 +462,75 @@ def render_pool(result: RerankResult) -> str:
             f"{candidate.id[:20]:<20}  {candidate.channel}"
         )
     return "\n".join(rows)
+
+
+def _synthetic_oracle_score(candidate: Candidate, context: RerankContext) -> float | None:
+    if (
+        candidate.age < AGE_ANOMALY_LOW
+        or candidate.age > AGE_ANOMALY_HIGH
+        or candidate.channel not in context.authorized_channels
+    ):
+        return None
+
+    score = BASE_SCORE
+    score += 30.0 if candidate.channel == context.target_channel else 10.0
+    score += 18.0 if candidate.anniversary else 0.0
+    score += 16.0 if candidate.colorway.casefold() == context.target_colorway.casefold() else 0.0
+    score -= min(abs(candidate.era_year - context.target_era_year) * 0.5, 55.0)
+    if candidate.age > AGE_ELEVATED_THRESHOLD:
+        score -= min((candidate.age - AGE_ELEVATED_THRESHOLD) * 0.75, 25.0)
+    return score
+
+
+def run_quality_validation(
+    batches: int = 1_000,
+    batch_size: int = MAX_BATCH_SIZE,
+    seed: int = 20260708,
+) -> QualityReport:
+    from stage3_hydrator import FuzzDataGenerator
+
+    context = _default_context()
+    generator = FuzzDataGenerator(seed=seed)
+    engine = RazorReranker()
+    evaluated = 0
+    top1_matches = 0
+    top5_contains = 0
+    fail_closed = 0
+
+    for batch_index in range(batches):
+        raw_batch = generator.generate(batch_size)
+        for index, candidate in enumerate(raw_batch):
+            candidate["id"] = f"quality-{batch_index:04d}-{index:02d}"
+
+        candidates = [validate_candidate(raw) for raw in raw_batch]
+        oracle_scores = [
+            (_synthetic_oracle_score(candidate, context), candidate.id)
+            for candidate in candidates
+        ]
+        eligible_oracle = [
+            (score, candidate_id)
+            for score, candidate_id in oracle_scores
+            if score is not None
+        ]
+        if len(eligible_oracle) < OUTPUT_POOL_SIZE:
+            fail_closed += 1
+            continue
+
+        evaluated += 1
+        oracle_winner = sorted(eligible_oracle, key=lambda item: (-item[0], item[1]))[0][1]
+        result = engine.rerank(raw_batch, context)
+        selected_ids = [candidate.id for candidate in result.selected]
+        if selected_ids[0] == oracle_winner:
+            top1_matches += 1
+        if oracle_winner in selected_ids:
+            top5_contains += 1
+
+    return QualityReport(
+        evaluated_batches=evaluated,
+        top1_matches=top1_matches,
+        top5_contains_oracle=top5_contains,
+        fail_closed_batches=fail_closed,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -488,7 +610,7 @@ def _run_verification() -> None:
          "era_year": 1998}
     )
     b = engine.score_candidate(perfect, context)
-    assert b.final_score == 145.0, b.final_score  # 100 +15 +20 +10
+    assert b.final_score == 152.0, b.final_score  # 100 +15 +25 +12
     assert not b.disqualified
 
     elevated = validate_candidate(
@@ -497,7 +619,7 @@ def _run_verification() -> None:
          "era_year": 1938}  # deviation 60 -> near penalty
     )
     b = engine.score_candidate(elevated, context)
-    assert b.final_score == 95.0, b.final_score  # 100 -10 +20 -15
+    assert b.final_score == 75.0, b.final_score  # 100 -10 +12 -27
 
     far_era = validate_candidate(
         {"id": "far", "age": 30, "anniversary": False,
@@ -505,7 +627,7 @@ def _run_verification() -> None:
          "era_year": 1800}  # deviation 198 -> far penalty
     )
     b = engine.score_candidate(far_era, context)
-    assert b.final_score == 75.0, b.final_score  # 100 +20 -45
+    assert b.final_score == 67.0, b.final_score  # 100 +12 -45
 
     # 2. Disqualification gates.
     unauthorized = engine.score_candidate(
@@ -557,6 +679,10 @@ def _run_verification() -> None:
     assert "cand-corrupt" not in selected_ids, "anomalous actor leaked"
     assert result.disqualified_count == 2, result.disqualified_count
     assert result.anomaly_count == 2, result.anomaly_count
+    assert result.score_margin > 0.0, result.score_margin
+    stage5_pool = result_to_stage5_pool(result)
+    assert stage5_pool[0]["id"] == result.selected[0].id
+    assert isinstance(stage5_pool[0]["score"], float)
 
     # Determinism: same input, same order.
     again = RazorReranker().rerank(_sample_batch(), context)
@@ -586,6 +712,10 @@ def _run_verification() -> None:
         pass
     else:
         raise AssertionError("engine should fail closed on thin eligible pool")
+
+    quality = run_quality_validation(batches=200, batch_size=MAX_BATCH_SIZE)
+    assert quality.top1_accuracy >= 0.90, quality
+    assert quality.top5_recall >= 0.99, quality
 
 
 # ---------------------------------------------------------------------------
