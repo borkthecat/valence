@@ -129,14 +129,16 @@ The gateway also exposes `GET /metrics` in Prometheus text format, protected by 
 
 Both components build into slim images and run together on an isolated bridge network, where the pipeline reaches the gateway by its service name:
 
-On Windows, the shortest local path is:
+On Windows, the shortest local path is double-clicking `START-VALENCE.cmd`. It starts the local Docker stack and opens the browser dashboard automatically.
+
+If you prefer PowerShell, run:
 
 ```powershell
 .\START-VALENCE.ps1
 .\CHECK-VALENCE.ps1
 ```
 
-The first script copies `.env.example` to `.env` if needed, builds and starts the Docker stack, waits for gateway health, and prints the browser URLs. The second script runs the known-good verifier request, confirms the gateway blocks an injection request with `403`, and checks metrics.
+The first script copies `.env.example` to `.env` if needed, builds and starts the Docker stack, waits for gateway health, and opens `http://localhost:8090/`. The browser dashboard runs the known-good verifier request, confirms sanitizer behavior, confirms the gateway blocks an injection request with `403`, and checks metrics. The second script runs the same smoke path from PowerShell for CI-style local confirmation.
 
 ```
 cp .env.example .env
@@ -168,6 +170,7 @@ If your Docker CLI already points at Docker Desktop, the same commands work with
 
 Open these in a browser:
 
+- `http://localhost:8090/`: Valence Local Console with a one-click validation button.
 - `http://localhost:8080/healthz`: gateway liveness. Expected body: `{"status":"ok"}`.
 - `http://localhost:8090/docs`: interactive FastAPI Swagger view for the Stage 5 verifier.
 - `http://localhost:8090/openapi.json`: raw Stage 5 API schema.
@@ -275,7 +278,7 @@ docker --context desktop-linux compose -f docker-compose.yml -f docker-compose.l
 docker --context desktop-linux compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.example logs -f pipeline
 ```
 
-The browser-visible dashboard today is the Stage 5 Swagger UI at `/docs`, plus Prometheus text metrics at `/metrics`. The box-drawn Valence dashboards are terminal dashboards printed by the Python stage scripts and `run_system_demo.sh`; they are not yet a full web console.
+The browser-visible dashboard is the Valence Local Console at `/`. Swagger UI remains available at `/docs`, Prometheus text metrics remain available at `/metrics`, and the box-drawn Valence dashboards are terminal dashboards printed by the Python stage scripts and `run_system_demo.sh`.
 
 ## Unified demo
 
@@ -338,7 +341,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.3.1`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.4.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

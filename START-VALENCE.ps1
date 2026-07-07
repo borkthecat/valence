@@ -36,7 +36,10 @@ do {
 Write-Host ""
 Write-Host "Valence is running."
 Write-Host "Gateway health: http://localhost:8080/healthz"
+Write-Host "Valence dashboard: http://localhost:8090/"
 Write-Host "Stage 5 API dashboard: http://localhost:8090/docs"
 Write-Host "Metrics: curl.exe -H `"x-valence-key: replace-with-a-random-32-plus-character-secret`" http://localhost:8080/metrics"
 Write-Host ""
-Write-Host "Run .\CHECK-VALENCE.ps1 for a smoke test."
+Write-Host "Opening the Valence dashboard..."
+
+Start-Process "http://localhost:8090/"

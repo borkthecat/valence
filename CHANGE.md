@@ -2,6 +2,13 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.4.0
+
+- Added a browser-based Valence Local Console at `http://localhost:8090/`.
+- Added a one-click dashboard validation endpoint covering pipeline health, Stage 5 verifier behavior, sanitizer behavior, gateway injection blocking, and metrics.
+- Added `START-VALENCE.cmd` for double-click startup on Windows.
+- Updated `START-VALENCE.ps1` to open the browser dashboard automatically.
+
 ## 1.3.1
 
 - Added `START-VALENCE.ps1` for one-command local Docker startup on Windows.

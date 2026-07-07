@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.3.1`
+Current release target: `v1.4.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.3.1` and `valence-pipeline:1.3.1` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.4.0` and `valence-pipeline:1.4.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,18 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.3.1 -m "Valence v1.3.1"
-git push origin main v1.3.1
+git tag -a v1.4.0 -m "Valence v1.4.0"
+git push origin main v1.4.0
 ```
 
 ## Release Notes
+
+`v1.4.0` adds a no-command browser validation flow:
+
+- Adds a browser-based Valence Local Console at `http://localhost:8090/`.
+- Adds a one-click dashboard validation endpoint covering pipeline health, Stage 5 verifier behavior, sanitizer behavior, gateway injection blocking, and metrics.
+- Adds `START-VALENCE.cmd` for double-click startup on Windows.
+- Updates `START-VALENCE.ps1` to open the browser dashboard automatically.
 
 `v1.3.1` adds release-ready local startup and smoke-test scripts:
 
