@@ -2,6 +2,12 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.2.2
+
+- Added a local guided validation workflow to the README.
+- Documented the live browser inspection surfaces, deterministic Stage 5 checks, gateway injection block test, metrics, and logs.
+- Clarified that the current dashboard surfaces are Swagger UI, Prometheus metrics, Docker logs, and terminal dashboards.
+
 ## 1.2.1
 
 - Added `NOTICE` with copyright attribution to Arai Nanami Rachel.

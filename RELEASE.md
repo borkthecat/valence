@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.2.1`
+Current release target: `v1.2.2`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.2.1` and `valence-pipeline:1.2.1` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.2.2` and `valence-pipeline:1.2.2` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,16 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.2.1 -m "Valence v1.2.1"
-git push origin main v1.2.1
+git tag -a v1.2.2 -m "Valence v1.2.2"
+git push origin main v1.2.2
 ```
 
 ## Release Notes
+
+`v1.2.2` is a documentation patch release:
+
+- Adds a local guided validation workflow to the README.
+- Documents the browser-visible Swagger UI, gateway metrics, live logs, known-good Stage 5 request, sanitizer check, and direct gateway block test.
 
 `v1.2.1` is a source cleanup and attribution patch release:
 

@@ -329,7 +329,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.2.1`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.2.2`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 
