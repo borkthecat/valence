@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createHmac, createSign, generateKeyPairSync } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { NextFunction, Response } from 'express';
@@ -8,7 +8,8 @@ import { createJwtAuth, verifyJwt } from '../src/middleware/jwtAuth';
 import { createTenantRateLimiter } from '../src/middleware/rateLimiter';
 import type { AuthenticatedRequest } from '../src/middleware/types';
 import { MetricsRegistry } from '../src/observability/metrics';
-import { HashChainedAuditLog } from '../src/observability/auditLog';
+import { HashChainedAuditLog, verifyAuditLog } from '../src/observability/auditLog';
+import { FileSecretsProvider } from '../src/config/secrets';
 
 const SECRET = 'jwt-secret-0123456789abcdef0123456789abcdef';
 
@@ -20,7 +21,7 @@ function b64url(value: unknown): string {
     .replace(/\//g, '_');
 }
 
-function sign(payload: Record<string, unknown>): string {
+function signHs256(payload: Record<string, unknown>): string {
   const header = b64url({ alg: 'HS256', typ: 'JWT' });
   const body = b64url(payload);
   const signature = createHmac('sha256', SECRET)
@@ -29,6 +30,16 @@ function sign(payload: Record<string, unknown>): string {
     .replace(/=/g, '')
     .replace(/\+/g, '-')
     .replace(/\//g, '_');
+  return `${header}.${body}.${signature}`;
+}
+
+function signRs256(payload: Record<string, unknown>, privateKeyPem: string): string {
+  const header = b64url({ alg: 'RS256', typ: 'JWT', kid: 'local-test-key' });
+  const body = b64url(payload);
+  const signer = createSign('RSA-SHA256');
+  signer.update(`${header}.${body}`);
+  signer.end();
+  const signature = signer.sign(privateKeyPem, 'base64url');
   return `${header}.${body}.${signature}`;
 }
 
@@ -51,7 +62,7 @@ function fakeResponse(): { res: Response; state: { status: number; body: unknown
 }
 
 async function run(): Promise<void> {
-  const token = sign({
+  const token = signHs256({
     tenant: 'tenant-a',
     scope: 'valence:proxy profile:read',
     exp: Math.floor(Date.now() / 1000) + 60,
@@ -81,6 +92,25 @@ async function run(): Promise<void> {
     (() => undefined) as NextFunction,
   );
   assert.equal(denied.state.status, 403);
+
+  const pair = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const rsToken = signRs256(
+    {
+      sub: 'tenant-rs',
+      scopes: ['valence:proxy'],
+      exp: Math.floor(Date.now() / 1000) + 60,
+    },
+    pair.privateKey,
+  );
+  const rsClaims = verifyJwt(rsToken, '', {
+    algorithm: 'RS256',
+    publicKeyPem: pair.publicKey,
+  });
+  assert.equal(rsClaims.sub, 'tenant-rs');
 
   let now = 1_000;
   const limiter = createTenantRateLimiter({
@@ -117,6 +147,25 @@ async function run(): Promise<void> {
     const records = readFileSync(path, 'utf8').trim().split(/\r?\n/).map((line) => JSON.parse(line));
     assert.equal(records.length, 2);
     assert.equal(records[1].previous_hash, records[0].hash);
+    assert.deepEqual(verifyAuditLog(path), { valid: true, records: 2 });
+    records[0].event.reason = 'tampered';
+    writeFileSync(path, `${records.map((record) => JSON.stringify(record)).join('\n')}\n`);
+    const tampered = verifyAuditLog(path);
+    assert.equal(tampered.valid, false);
+    assert.equal(tampered.error, 'hash mismatch');
+
+    const secretsPath = join(temp, 'secrets.json');
+    writeFileSync(
+      secretsPath,
+      JSON.stringify({
+        UPSTREAM_API_KEY: 'sk-provider-0123456789',
+        GATEWAY_API_KEY: 'gateway-key-0123456789abcdef0123456789abcdef',
+        JWT_PUBLIC_KEY_PEM: pair.publicKey,
+      }),
+    );
+    const secrets = new FileSecretsProvider(secretsPath).loadGatewaySecrets();
+    assert.equal(secrets.upstreamApiKey, 'sk-provider-0123456789');
+    assert.equal(secrets.jwtPublicKeyPem, pair.publicKey);
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }

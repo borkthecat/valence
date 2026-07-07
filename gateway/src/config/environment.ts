@@ -1,10 +1,12 @@
 import { z } from 'zod';
-import { EnvironmentSecretsProvider } from './secrets';
+import { createSecretsProvider } from './secrets';
 
 export const SECURITY_MODES = ['FAIL_CLOSED', 'FAIL_OPEN'] as const;
 export type SecurityMode = (typeof SECURITY_MODES)[number];
 export const AUTH_MODES = ['api_key', 'jwt'] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];
+export const JWT_ALGORITHMS = ['HS256', 'RS256'] as const;
+export type JwtAlgorithm = (typeof JWT_ALGORITHMS)[number];
 
 const MIN_UPSTREAM_KEY_LENGTH = 16;
 const MIN_GATEWAY_KEY_LENGTH = 32;
@@ -65,7 +67,9 @@ const environmentSchema = z.object({
 
   SECURITY_MODE: z.enum(SECURITY_MODES).default('FAIL_CLOSED'),
   AUTH_MODE: z.enum(AUTH_MODES).default('api_key'),
+  JWT_ALGORITHM: z.enum(JWT_ALGORITHMS).default('HS256'),
   JWT_SECRET: z.string().trim().min(MIN_JWT_SECRET_LENGTH).optional(),
+  JWT_PUBLIC_KEY_PEM: z.string().trim().min(64).optional(),
   JWT_REQUIRED_SCOPE: z.string().trim().min(1).default('valence:proxy'),
   JWT_ISSUER: z.string().trim().min(1).optional(),
   JWT_AUDIENCE: z.string().trim().min(1).optional(),
@@ -87,11 +91,26 @@ const environmentSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('production'),
 }).superRefine((value, ctx) => {
-  if (value.AUTH_MODE === 'jwt' && value.JWT_SECRET === undefined) {
+  if (
+    value.AUTH_MODE === 'jwt' &&
+    value.JWT_ALGORITHM === 'HS256' &&
+    value.JWT_SECRET === undefined
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['JWT_SECRET'],
-      message: 'JWT_SECRET is required when AUTH_MODE=jwt',
+      message: 'JWT_SECRET is required when AUTH_MODE=jwt and JWT_ALGORITHM=HS256',
+    });
+  }
+  if (
+    value.AUTH_MODE === 'jwt' &&
+    value.JWT_ALGORITHM === 'RS256' &&
+    value.JWT_PUBLIC_KEY_PEM === undefined
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_PUBLIC_KEY_PEM'],
+      message: 'JWT_PUBLIC_KEY_PEM is required when AUTH_MODE=jwt and JWT_ALGORITHM=RS256',
     });
   }
 });
@@ -108,12 +127,15 @@ function formatValidationIssues(error: z.ZodError): string {
 }
 
 function loadEnvironment(): Environment {
-  const secrets = new EnvironmentSecretsProvider().loadGatewaySecrets();
+  const secrets = createSecretsProvider().loadGatewaySecrets();
   const result = environmentSchema.safeParse({
     ...process.env,
     UPSTREAM_API_KEY: secrets.upstreamApiKey,
     GATEWAY_API_KEY: secrets.gatewayApiKey,
     ...(secrets.jwtSecret === undefined ? {} : { JWT_SECRET: secrets.jwtSecret }),
+    ...(secrets.jwtPublicKeyPem === undefined
+      ? {}
+      : { JWT_PUBLIC_KEY_PEM: secrets.jwtPublicKeyPem }),
   });
 
   if (!result.success) {

@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",
     "dev": "tsx watch src/app.ts",
+    "audit:verify": "node dist/observability/verifyAuditLogCli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist",
     "test": "npm run test:vault && npm run test:security && npm run test:streaming && npm run test:hardening && npm run test:enterprise && npm run test:e2e",

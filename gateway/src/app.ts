@@ -76,7 +76,11 @@ export function buildApp(logger: Logger): Express {
     environment.AUTH_MODE === 'jwt'
       ? createJwtAuth(
           {
-            secret: environment.JWT_SECRET ?? '',
+            algorithm: environment.JWT_ALGORITHM,
+            ...(environment.JWT_SECRET === undefined ? {} : { secret: environment.JWT_SECRET }),
+            ...(environment.JWT_PUBLIC_KEY_PEM === undefined
+              ? {}
+              : { publicKeyPem: environment.JWT_PUBLIC_KEY_PEM }),
             requiredScope: environment.JWT_REQUIRED_SCOPE,
             ...(environment.JWT_ISSUER === undefined
               ? {}

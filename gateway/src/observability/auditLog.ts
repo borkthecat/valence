@@ -13,6 +13,12 @@ interface AuditRecord {
   readonly hash: string;
 }
 
+export interface AuditVerificationResult {
+  readonly valid: boolean;
+  readonly records: number;
+  readonly error?: string;
+}
+
 const GENESIS_HASH = '0'.repeat(64);
 
 function digest(sequence: number, timestamp: string, previousHash: string, event: AuditEvent): string {
@@ -35,6 +41,61 @@ function readTail(path: string): { sequence: number; hash: string } {
     throw new Error('audit log tail is malformed');
   }
   return { sequence: parsed.sequence, hash: parsed.hash };
+}
+
+function isAuditRecord(value: unknown): value is AuditRecord {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  const record = value as Partial<AuditRecord>;
+  return (
+    Number.isInteger(record.sequence) &&
+    typeof record.timestamp === 'string' &&
+    typeof record.previous_hash === 'string' &&
+    record.event !== null &&
+    typeof record.event === 'object' &&
+    typeof record.hash === 'string'
+  );
+}
+
+export function verifyAuditLog(path: string): AuditVerificationResult {
+  if (!existsSync(path)) {
+    return { valid: true, records: 0 };
+  }
+
+  let previousHash = GENESIS_HASH;
+  let expectedSequence = 1;
+  const lines = readFileSync(path, 'utf8').split(/\r?\n/).filter(Boolean);
+  for (const line of lines) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      return { valid: false, records: expectedSequence - 1, error: 'invalid json line' };
+    }
+    if (!isAuditRecord(parsed)) {
+      return { valid: false, records: expectedSequence - 1, error: 'malformed audit record' };
+    }
+    if (parsed.sequence !== expectedSequence) {
+      return { valid: false, records: expectedSequence - 1, error: 'sequence gap' };
+    }
+    if (parsed.previous_hash !== previousHash) {
+      return { valid: false, records: expectedSequence - 1, error: 'previous hash mismatch' };
+    }
+    const expectedHash = digest(
+      parsed.sequence,
+      parsed.timestamp,
+      parsed.previous_hash,
+      parsed.event,
+    );
+    if (parsed.hash !== expectedHash) {
+      return { valid: false, records: expectedSequence - 1, error: 'hash mismatch' };
+    }
+    previousHash = parsed.hash;
+    expectedSequence += 1;
+  }
+
+  return { valid: true, records: lines.length };
 }
 
 export class HashChainedAuditLog {
