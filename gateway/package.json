@@ -14,11 +14,12 @@
     "dev": "tsx watch src/app.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist",
-    "test": "npm run test:vault && npm run test:security && npm run test:streaming && npm run test:hardening && npm run test:e2e",
+    "test": "npm run test:vault && npm run test:security && npm run test:streaming && npm run test:hardening && npm run test:enterprise && npm run test:e2e",
     "test:vault": "tsx tests/vault.smoke.ts",
     "test:security": "tsx tests/security.smoke.ts",
     "test:streaming": "tsx tests/streaming.smoke.ts",
     "test:hardening": "tsx tests/hardening.smoke.ts",
+    "test:enterprise": "tsx tests/enterprise.smoke.ts",
     "test:e2e": "tsx tests/e2e.smoke.ts"
   },
   "dependencies": {

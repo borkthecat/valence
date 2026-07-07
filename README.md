@@ -44,6 +44,8 @@ Stage 4 reduces a large candidate batch to a small high-integrity pool. Stage 5 
 An inline, stateless reverse proxy that enforces a fail-closed security model for LLM traffic. It mitigates the OWASP Top 10 for LLM Applications:
 
 - Constant-time credential verification on every request.
+- Optional HS256 JWT verification with required RBAC scopes and per-tenant request context.
+- Per-tenant fixed-window rate limiting before payload parsing or upstream spend.
 - Injection screening (instruction override, persona jailbreaks, control-token smuggling, exfiltration attempts) with bounded, backtracking-safe rules.
 - PII and secret tokenization against an in-memory vault with a hard five-minute TTL. The upstream provider only ever sees opaque surrogates.
 - Per-request restoration scope, so a response can only restore the surrogates minted for its own request. Concurrent callers can never receive one another's data.
@@ -121,6 +123,8 @@ The gateway parses its variables through a type-safe Zod schema and refuses to b
 
 Two operational switches are worth calling out. Set `VALENCE_JSON_LOGS=true` to emit machine-readable structured log records (ISO timestamp, level, component, trace id, and a nested context object) for ingestion by Datadog, Splunk, or Cloud Logging; the human-facing dashboards remain unaffected. Set `MOCK_AI_PROVIDER=true` to intercept outbound verification calls locally with deterministic, schema-valid mock responses, which lets you drive very large sequential or concurrent load runs at zero external cost.
 
+The gateway also exposes `GET /metrics` in Prometheus text format, protected by the gateway API key. Security-relevant events are written to `AUDIT_LOG_PATH` as hash-chained JSON lines unless the path is set to `off`.
+
 ## Running with Docker
 
 Both components build into slim images and run together on an isolated bridge network, where the pipeline reaches the gateway by its service name:
@@ -174,6 +178,7 @@ Every push and pull request to `main` runs the workflow in [.github/workflows/ci
 
 - Fail-closed everywhere: any subsystem error removes candidates, blocks requests, or severs connections rather than degrading quietly.
 - No secrets in source: the gateway reads all credentials from the validated environment and refuses to boot on an invalid configuration.
+- Tamper-evident audit events: auth failures, rate limits, prompt blocks, fail-open bypasses, disconnects, and forwarded requests are recorded with a hash chain.
 - Bounded work: every scanner rule uses bounded quantifiers, and streaming holdback is constant in stream length, so no payload can exhaust the event loop.
 - Dependency hygiene: production dependencies are pinned with caret ranges and audited (`npm audit --omit=dev` reports zero vulnerabilities at release).
 

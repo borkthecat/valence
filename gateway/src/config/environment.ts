@@ -1,33 +1,14 @@
-/**
- * Valence Gateway - Environment Configuration Boundary
- *
- * Single source of truth for all process-level configuration. Every value
- * consumed anywhere in the gateway MUST flow through this module; direct
- * `process.env` access outside this file is a lint-enforced violation.
- *
- * Validation is fail-fast: an invalid or incomplete environment terminates
- * the process with exit code 1 before the proxy can bind a socket. A gateway
- * that boots with a malformed security posture is worse than one that does
- * not boot at all.
- */
-
 import { z } from 'zod';
+import { EnvironmentSecretsProvider } from './secrets';
 
-/**
- * Security posture of the gateway when an internal control (scanner,
- * classifier, vault) errors at request time:
- *
- * - FAIL_CLOSED: the request is rejected. This is the only posture
- *   appropriate for production zero-trust deployments.
- * - FAIL_OPEN:   the request is forwarded unscanned. Permitted solely for
- *   controlled evaluation environments; the gateway logs a persistent
- *   warning banner when this mode is active.
- */
 export const SECURITY_MODES = ['FAIL_CLOSED', 'FAIL_OPEN'] as const;
 export type SecurityMode = (typeof SECURITY_MODES)[number];
+export const AUTH_MODES = ['api_key', 'jwt'] as const;
+export type AuthMode = (typeof AUTH_MODES)[number];
 
 const MIN_UPSTREAM_KEY_LENGTH = 16;
 const MIN_GATEWAY_KEY_LENGTH = 32;
+const MIN_JWT_SECRET_LENGTH = 32;
 
 const portSchema = z.coerce
   .number({ invalid_type_error: 'port must be a numeric TCP port' })
@@ -36,13 +17,8 @@ const portSchema = z.coerce
   .max(65535, 'port must be <= 65535');
 
 const environmentSchema = z.object({
-  /** TCP port the gateway listens on. Alias GATEWAY_PORT takes precedence. */
   PORT: portSchema.default(8443),
-
-  /** Canonical listen port for containerized deployments; overrides PORT. */
   GATEWAY_PORT: portSchema.optional(),
-
-  /** Maximum inbound JSON body size in kilobytes. */
   MAX_PAYLOAD_KB: z.coerce
     .number({ invalid_type_error: 'MAX_PAYLOAD_KB must be numeric' })
     .int('MAX_PAYLOAD_KB must be an integer')
@@ -50,7 +26,6 @@ const environmentSchema = z.object({
     .max(65536, 'MAX_PAYLOAD_KB must be <= 65536')
     .default(512),
 
-  /** Base URL of the upstream LLM provider (e.g. https://api.anthropic.com). */
   UPSTREAM_PROVIDER_URL: z
     .string()
     .trim()
@@ -61,8 +36,6 @@ const environmentSchema = z.object({
         if (parsed.protocol === 'https:') {
           return true;
         }
-        // Plaintext HTTP is tolerated only for loopback targets so that
-        // local integration harnesses can stub the upstream provider.
         return (
           parsed.protocol === 'http:' &&
           ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
@@ -74,7 +47,6 @@ const environmentSchema = z.object({
       },
     ),
 
-  /** Credential presented by the gateway to the upstream provider. */
   UPSTREAM_API_KEY: z
     .string()
     .trim()
@@ -83,7 +55,6 @@ const environmentSchema = z.object({
       `UPSTREAM_API_KEY must be at least ${MIN_UPSTREAM_KEY_LENGTH} characters`,
     ),
 
-  /** Credential clients must present to the gateway itself. */
   GATEWAY_API_KEY: z
     .string()
     .trim()
@@ -92,21 +63,41 @@ const environmentSchema = z.object({
       `GATEWAY_API_KEY must be at least ${MIN_GATEWAY_KEY_LENGTH} characters (require high-entropy keys)`,
     ),
 
-  /** Fail-closed / fail-open posture. Defaults to the safe posture. */
   SECURITY_MODE: z.enum(SECURITY_MODES).default('FAIL_CLOSED'),
+  AUTH_MODE: z.enum(AUTH_MODES).default('api_key'),
+  JWT_SECRET: z.string().trim().min(MIN_JWT_SECRET_LENGTH).optional(),
+  JWT_REQUIRED_SCOPE: z.string().trim().min(1).default('valence:proxy'),
+  JWT_ISSUER: z.string().trim().min(1).optional(),
+  JWT_AUDIENCE: z.string().trim().min(1).optional(),
+  RATE_LIMIT_WINDOW_MS: z.coerce
+    .number({ invalid_type_error: 'RATE_LIMIT_WINDOW_MS must be numeric' })
+    .int('RATE_LIMIT_WINDOW_MS must be an integer')
+    .min(1000, 'RATE_LIMIT_WINDOW_MS must be >= 1000')
+    .max(3_600_000, 'RATE_LIMIT_WINDOW_MS must be <= 3600000')
+    .default(60_000),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce
+    .number({ invalid_type_error: 'RATE_LIMIT_MAX_REQUESTS must be numeric' })
+    .int('RATE_LIMIT_MAX_REQUESTS must be an integer')
+    .min(1, 'RATE_LIMIT_MAX_REQUESTS must be >= 1')
+    .max(100_000, 'RATE_LIMIT_MAX_REQUESTS must be <= 100000')
+    .default(120),
+  AUDIT_LOG_PATH: z.string().trim().min(1).default('audit/valence-audit.log'),
 
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('production'),
+}).superRefine((value, ctx) => {
+  if (value.AUTH_MODE === 'jwt' && value.JWT_SECRET === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_SECRET'],
+      message: 'JWT_SECRET is required when AUTH_MODE=jwt',
+    });
+  }
 });
 
 export type Environment = Readonly<z.infer<typeof environmentSchema>>;
 
-/**
- * Formats Zod issues for operator-facing stderr output. Only variable names
- * and constraint descriptions are emitted - never the offending values, so
- * a mistyped secret cannot leak into logs or crash reports.
- */
 function formatValidationIssues(error: z.ZodError): string {
   return error.issues
     .map((issue) => {
@@ -117,7 +108,13 @@ function formatValidationIssues(error: z.ZodError): string {
 }
 
 function loadEnvironment(): Environment {
-  const result = environmentSchema.safeParse(process.env);
+  const secrets = new EnvironmentSecretsProvider().loadGatewaySecrets();
+  const result = environmentSchema.safeParse({
+    ...process.env,
+    UPSTREAM_API_KEY: secrets.upstreamApiKey,
+    GATEWAY_API_KEY: secrets.gatewayApiKey,
+    ...(secrets.jwtSecret === undefined ? {} : { JWT_SECRET: secrets.jwtSecret }),
+  });
 
   if (!result.success) {
     process.stderr.write(
@@ -137,8 +134,6 @@ function loadEnvironment(): Environment {
     );
   }
 
-  // GATEWAY_PORT is the canonical name; when present it wins over PORT so a
-  // single container variable controls the listen port.
   const effective = {
     ...result.data,
     PORT: result.data.GATEWAY_PORT ?? result.data.PORT,
@@ -147,9 +142,4 @@ function loadEnvironment(): Environment {
   return Object.freeze(effective);
 }
 
-/**
- * Validated, frozen configuration. Importing this module in an invalid
- * environment terminates the process; downstream code may therefore treat
- * every field as present and well-formed.
- */
 export const environment: Environment = loadEnvironment();

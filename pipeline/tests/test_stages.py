@@ -13,6 +13,7 @@ import observability
 import stage3_hydrator as s3
 import stage4_razor_reranker as s4
 import stage5_cognitive_verifier as s5
+from message_broker import InMemoryMessageBroker
 
 
 def test_stage3_distribution() -> None:
@@ -73,3 +74,13 @@ def test_stage5_concurrent_simulation() -> None:
 
 def test_stage5_mock_provider_scale() -> None:
     asyncio.run(s5._run_mock_scale_check(500))
+
+
+def test_message_broker_stub_round_trip() -> None:
+    async def scenario() -> None:
+        broker: InMemoryMessageBroker[str] = InMemoryMessageBroker()
+        await broker.publish("stage3.to.stage4", "candidate-batch")
+        subscriber = broker.subscribe("stage3.to.stage4")
+        assert await anext(subscriber) == "candidate-batch"
+
+    asyncio.run(scenario())

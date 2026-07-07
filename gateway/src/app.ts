@@ -1,18 +1,3 @@
-/**
- * Valence Gateway - Application Bootstrap and Composition Root
- *
- * The only module allowed to touch validated environment configuration
- * and construct concrete subsystem instances. Everything below this file
- * receives its dependencies by injection, which is what keeps every other
- * module testable without a booted environment.
- *
- * Middleware order is a security property, not a style choice:
- *
- *   request-id -> helmet -> logger -> health (unauthenticated liveness)
- *   -> [auth -> json parser -> proxy] on /v1 only
- *   -> 404 catchall -> error boundary (terminal)
- */
-
 import { createServer, Server } from 'node:http';
 import type { Socket } from 'node:net';
 import { randomUUID } from 'node:crypto';
@@ -35,23 +20,26 @@ import {
   NullGuardModelClient,
 } from './core/filters/injectionShield';
 import { createGatewayAuth } from './middleware/auth';
+import { createJwtAuth } from './middleware/jwtAuth';
+import { createTenantRateLimiter } from './middleware/rateLimiter';
 import {
   createErrorHandler,
   installProcessGuards,
   scrubSensitiveTraces,
 } from './middleware/errorHandler';
 import { createReverseProxy } from './proxy/reverseProxy';
+import { createGatewayMetrics } from './observability/metrics';
+import { createAuditLog } from './observability/auditLog';
 
 const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
 const SHUTDOWN_GRACE_MS = 10_000;
+const DEFAULT_PROXY_SCOPE = 'valence:proxy';
 
 export function buildApp(logger: Logger): Express {
   const vault = TokenVault.getInstance();
 
   const scanner = new PiiScanner(vault, [
     new HeuristicPiiDetector(),
-    // Swap the Null client for a real ClassifierClient implementation to
-    // enable the cognitive tier; the scanner contract does not change.
     new EmbeddingClassifierDetector(new NullClassifierClient()),
   ]);
 
@@ -60,7 +48,13 @@ export function buildApp(logger: Logger): Express {
     new GuardModelDetector(new NullGuardModelClient()),
   ]);
 
-  const authenticate = createGatewayAuth(environment.GATEWAY_API_KEY, {
+  const metrics = createGatewayMetrics();
+  const audit = createAuditLog(environment.AUDIT_LOG_PATH);
+  const apiKeyAuth = createGatewayAuth(environment.GATEWAY_API_KEY, {
+    tenantContext: {
+      tenantId: 'api-key',
+      scopes: [environment.JWT_REQUIRED_SCOPE ?? DEFAULT_PROXY_SCOPE],
+    },
     onRejected: (context) => {
       logger.warn(
         {
@@ -70,8 +64,59 @@ export function buildApp(logger: Logger): Express {
         },
         'gateway auth rejected',
       );
+      audit?.record({
+        type: 'auth_rejected',
+        reason: context.reason,
+        method: context.method,
+        path: context.path,
+      });
     },
   });
+  const authenticate =
+    environment.AUTH_MODE === 'jwt'
+      ? createJwtAuth(
+          {
+            secret: environment.JWT_SECRET ?? '',
+            requiredScope: environment.JWT_REQUIRED_SCOPE,
+            ...(environment.JWT_ISSUER === undefined
+              ? {}
+              : { issuer: environment.JWT_ISSUER }),
+            ...(environment.JWT_AUDIENCE === undefined
+              ? {}
+              : { audience: environment.JWT_AUDIENCE }),
+          },
+          {
+            onRejected: (context) => {
+              logger.warn(context, 'jwt auth rejected');
+              audit?.record({
+                type: 'jwt_rejected',
+                reason: context.reason,
+                method: context.method,
+                path: context.path,
+              });
+            },
+          },
+        )
+      : apiKeyAuth;
+
+  const rateLimiter = createTenantRateLimiter(
+    {
+      maxRequests: environment.RATE_LIMIT_MAX_REQUESTS,
+      windowMs: environment.RATE_LIMIT_WINDOW_MS,
+    },
+    {
+      onRateLimited: (context) => {
+        metrics.rateLimitedTotal.inc({ tenant: context.tenantId });
+        audit?.record({
+          type: 'rate_limited',
+          tenant_id: context.tenantId,
+          method: context.method,
+          path: context.path,
+          retry_after_seconds: context.retryAfterSeconds,
+        });
+      },
+    },
+  );
 
   const proxy = createReverseProxy({
     upstreamBaseUrl: environment.UPSTREAM_PROVIDER_URL,
@@ -81,12 +126,48 @@ export function buildApp(logger: Logger): Express {
     scanner,
     shield,
     sink: {
-      onPromptBlocked: (event) => logger.warn(event, 'prompt rejected'),
-      onFailOpenBypass: (event) =>
-        logger.error(event, 'SECURITY BYPASS: subsystem failed in FAIL_OPEN'),
-      onForwarded: (event) => logger.info(event, 'request forwarded'),
-      onClientDisconnect: (event) =>
-        logger.warn(event, 'client disconnected; upstream task aborted'),
+      onPromptBlocked: (event) => {
+        metrics.injectionsBlockedTotal.inc();
+        logger.warn(event, 'prompt rejected');
+        audit?.record({
+          type: 'prompt_blocked',
+          request_id: event.requestId,
+          score: event.score,
+          rule_count: event.ruleIds.length,
+        });
+      },
+      onFailOpenBypass: (event) => {
+        metrics.failOpenBypassTotal.inc({ subsystem: event.subsystem });
+        logger.error(event, 'SECURITY BYPASS: subsystem failed in FAIL_OPEN');
+        audit?.record({
+          type: 'fail_open_bypass',
+          request_id: event.requestId,
+          subsystem: event.subsystem,
+          error_name: event.errorName,
+        });
+      },
+      onForwarded: (event) => {
+        metrics.piiRedactionsTotal.inc({ tenant: event.tenantId }, event.surrogatesInjected);
+        metrics.upstreamForwardLatencyMs.observe(event.forwardLatencyMs);
+        logger.info(event, 'request forwarded');
+        audit?.record({
+          type: 'request_forwarded',
+          request_id: event.requestId,
+          tenant_id: event.tenantId,
+          upstream_status: event.upstreamStatus,
+          surrogates_injected: event.surrogatesInjected,
+          streamed: event.streamed,
+        });
+      },
+      onClientDisconnect: (event) => {
+        metrics.clientDisconnectsTotal.inc({ phase: event.phase });
+        logger.warn(event, 'client disconnected; upstream task aborted');
+        audit?.record({
+          type: 'client_disconnect',
+          request_id: event.requestId,
+          phase: event.phase,
+        });
+      },
     },
   });
 
@@ -94,10 +175,6 @@ export function buildApp(logger: Logger): Express {
   app.disable('x-powered-by');
   app.set('trust proxy', false);
 
-  // Request identity plus uniform trace cleanup on every outcome.
-  // Both events are handled because they are not equivalent: 'finish'
-  // fires on a completed response, 'close' fires on aborted ones too.
-  // The registry is idempotent, so the overlap costs nothing.
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.set('x-request-id', randomUUID());
     res.on('finish', () => {
@@ -125,13 +202,29 @@ export function buildApp(logger: Logger): Express {
     }),
   );
 
-  // Liveness endpoint: unauthenticated by design so orchestrators can
-  // probe it, and it discloses nothing about configuration.
   app.get('/healthz', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok' });
   });
 
+  app.get('/metrics', apiKeyAuth, (_req: Request, res: Response) => {
+    res.type('text/plain; version=0.0.4; charset=utf-8').send(metrics.registry.render());
+  });
+
   app.use('/v1', authenticate);
+  app.use('/v1', rateLimiter);
+  app.use('/v1', (req: Request, res: Response, next: NextFunction) => {
+    res.on('finish', () => {
+      const tenantId =
+        (req as Request & { valence?: { tenantId: string } }).valence?.tenantId ??
+        'unidentified';
+      metrics.requestsTotal.inc({
+        tenant: tenantId,
+        method: req.method,
+        status_class: `${Math.floor(res.statusCode / 100)}xx`,
+      });
+    });
+    next();
+  });
   app.use('/v1', express.json({ limit: JSON_BODY_LIMIT }));
   app.post('/v1/*', proxy);
 
@@ -149,9 +242,6 @@ export function buildApp(logger: Logger): Express {
 }
 
 export function startGateway(): Server {
-  // Structured JSON logging shaped for cloud log processors: every record
-  // carries an ISO `timestamp`, a string `level`, and a `component` tag so
-  // Datadog/Splunk/Cloud Logging can index and alert on specific fields.
   const logger = pino({
     level: environment.NODE_ENV === 'production' ? 'info' : 'debug',
     base: { component: 'gateway-proxy' },
@@ -166,8 +256,6 @@ export function startGateway(): Server {
   const app = buildApp(logger);
   const server = createServer(app);
 
-  // Track live sockets so shutdown can sever stragglers after the grace
-  // period instead of hanging on a slow or hostile client forever.
   const sockets = new Set<Socket>();
   server.on('connection', (socket) => {
     sockets.add(socket);
@@ -190,8 +278,6 @@ export function startGateway(): Server {
   const shutdown = (signal: string): void => {
     logger.info({ signal }, 'graceful shutdown initiated');
     server.close(() => {
-      // Vault teardown last: in-flight streams may still detokenize
-      // until the final response completes.
       TokenVault.resetInstance();
       logger.info('shutdown complete');
       process.exit(0);

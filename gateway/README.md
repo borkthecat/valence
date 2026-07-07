@@ -33,6 +33,8 @@ Key properties:
 - Upstream requests are cancelled the moment the client disconnects, so an abandoned stream cannot keep consuming provider tokens or hold sockets open.
 - Every subsystem failure is governed by SECURITY_MODE. Under FAIL_CLOSED (the default and the only recommended production posture), a broken scanner blocks traffic instead of passing it unscanned.
 - Mid-stream failures sever the socket rather than closing the stream cleanly, so a truncated response can never masquerade as a complete one.
+- JWT mode verifies HS256 bearer tokens, enforces a required scope, and uses the tenant claim for rate-limit isolation.
+- Prometheus metrics and hash-chained audit records cover request outcomes, prompt blocks, fail-open bypasses, client disconnects, redactions, rate limits, and upstream latency.
 
 ## OWASP LLM Top 10 coverage
 
@@ -80,6 +82,14 @@ All configuration is validated at boot with Zod. An invalid environment terminat
 | `UPSTREAM_API_KEY` | yes | min 16 chars | Credential the gateway presents upstream |
 | `GATEWAY_API_KEY` | yes | min 32 chars | Credential clients present to the gateway |
 | `SECURITY_MODE` | no (default FAIL_CLOSED) | FAIL_CLOSED or FAIL_OPEN | Subsystem failure posture |
+| `AUTH_MODE` | no (default api_key) | api_key or jwt | Client authentication mode for `/v1/*` |
+| `JWT_SECRET` | when `AUTH_MODE=jwt` | min 32 chars | HS256 token verification secret |
+| `JWT_REQUIRED_SCOPE` | no (default valence:proxy) | non-empty string | Scope required on JWT-authenticated proxy calls |
+| `JWT_ISSUER` | no | non-empty string | Optional issuer check |
+| `JWT_AUDIENCE` | no | non-empty string | Optional audience check |
+| `RATE_LIMIT_WINDOW_MS` | no (default 60000) | 1000-3600000 | Fixed-window tenant limit interval |
+| `RATE_LIMIT_MAX_REQUESTS` | no (default 120) | 1-100000 | Requests allowed per tenant per window |
+| `AUDIT_LOG_PATH` | no (default audit/valence-audit.log) | path or off | Hash-chained audit JSONL destination |
 | `NODE_ENV` | no (default production) | development, test, production | Log verbosity and hardening profile |
 
 ### SECURITY_MODE semantics
@@ -94,7 +104,8 @@ SECURITY_MODE governs what happens when an internal control (scanner, shield, re
 | Route | Auth | Purpose |
 | --- | --- | --- |
 | `GET /healthz` | none | Liveness probe; discloses nothing about configuration |
-| `POST /v1/*` | gateway key | Proxied completion endpoints (path is forwarded to the provider) |
+| `GET /metrics` | gateway key | Prometheus text-format operational metrics |
+| `POST /v1/*` | gateway key or JWT | Proxied completion endpoints (path is forwarded to the provider) |
 
 Authentication accepts either header form:
 
@@ -102,6 +113,8 @@ Authentication accepts either header form:
 - `Authorization: Bearer <key>`
 
 Comparison is constant-time (SHA-256 digest both sides, then `crypto.timingSafeEqual`). Missing, malformed, oversized, and wrong credentials all produce a byte-identical generic 401.
+
+With `AUTH_MODE=jwt`, `/v1/*` accepts `Authorization: Bearer <jwt>`. Tokens must be HS256-signed with `JWT_SECRET`, include `tenant` or `sub`, and include `JWT_REQUIRED_SCOPE` in either `scope` or `scopes`. `/metrics` remains protected by the static gateway key so scrapers do not need tenant JWTs.
 
 ## Error contract
 

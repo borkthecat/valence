@@ -49,6 +49,7 @@ import {
   registerSensitiveTrace,
   scrubSensitiveTraces,
 } from '../middleware/errorHandler';
+import type { AuthenticatedRequest } from '../middleware/types';
 
 const MESSAGE_CONTENT_MAX_CHARS = 200_000;
 const UPSTREAM_TIMEOUT_MS = 120_000;
@@ -107,9 +108,11 @@ export interface ProxyEventSink {
   }): void;
   onForwarded(event: {
     readonly requestId: string;
+    readonly tenantId: string;
     readonly upstreamStatus: number;
     readonly surrogatesInjected: number;
     readonly streamed: boolean;
+    readonly forwardLatencyMs: number;
   }): void;
   onClientDisconnect?(event: {
     readonly requestId: string;
@@ -181,9 +184,11 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
     matches: [],
   };
 
-  return function reverseProxyHandler(req, res, next): void {
+  return function reverseProxyHandler(req: AuthenticatedRequest, res, next): void {
     void (async (): Promise<void> => {
       const requestId = requestIdOf(res);
+      const tenantId = req.valence?.tenantId ?? 'unidentified';
+      const startedAt = process.hrtime.bigint();
       let streaming = false;
 
       const parsed = proxyBodySchema.safeParse(req.body);
@@ -321,9 +326,11 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
 
       deps.sink?.onForwarded({
         requestId,
+        tenantId,
         upstreamStatus: upstream.status,
         surrogatesInjected,
         streamed: body.stream === true,
+        forwardLatencyMs: Number(process.hrtime.bigint() - startedAt) / 1e6,
       });
 
       pipeline(

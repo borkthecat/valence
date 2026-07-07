@@ -41,6 +41,9 @@ async function run(): Promise<void> {
   process.env.UPSTREAM_API_KEY = 'sk-test-0123456789abcdef';
   process.env.GATEWAY_API_KEY = GATEWAY_KEY;
   process.env.SECURITY_MODE = 'FAIL_CLOSED';
+  process.env.AUTH_MODE = 'api_key';
+  process.env.AUDIT_LOG_PATH = 'off';
+  process.env.RATE_LIMIT_MAX_REQUESTS = '1000';
   process.env.NODE_ENV = 'test';
 
   const appModule = await import(new URL('../src/app.ts', import.meta.url).href);
