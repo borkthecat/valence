@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.2.0`
+Current release target: `v1.2.1`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.2.0` and `valence-pipeline:1.2.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.2.1` and `valence-pipeline:1.2.1` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,17 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.2.0 -m "Valence v1.2.0"
-git push origin main v1.2.0
+git tag -a v1.2.1 -m "Valence v1.2.1"
+git push origin main v1.2.1
 ```
 
 ## Release Notes
+
+`v1.2.1` is a source cleanup and attribution patch release:
+
+- Adds Apache-style `NOTICE` attribution for Arai Nanami Rachel.
+- Removes nonessential comments from source, tests, Dockerfiles, and demo scripts.
+- Enables comment stripping in compiled TypeScript output.
 
 `v1.2.0` hardens Valence for production evaluation and local testing:
 

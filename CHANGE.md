@@ -2,6 +2,12 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.2.1
+
+- Added `NOTICE` with copyright attribution to Arai Nanami Rachel.
+- Removed nonessential comments from source, tests, Dockerfiles, and demo scripts.
+- Enabled comment stripping in compiled TypeScript output.
+
 ## 1.2.0
 
 - Raised deterministic pipeline scale validation to 2,000,000 profiles, processed in staggered 100,000-profile windows.
