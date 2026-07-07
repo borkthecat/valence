@@ -129,6 +129,15 @@ The gateway also exposes `GET /metrics` in Prometheus text format, protected by 
 
 Both components build into slim images and run together on an isolated bridge network, where the pipeline reaches the gateway by its service name:
 
+On Windows, the shortest local path is:
+
+```powershell
+.\START-VALENCE.ps1
+.\CHECK-VALENCE.ps1
+```
+
+The first script copies `.env.example` to `.env` if needed, builds and starts the Docker stack, waits for gateway health, and prints the browser URLs. The second script runs the known-good verifier request, confirms the gateway blocks an injection request with `403`, and checks metrics.
+
 ```
 cp .env.example .env
 docker compose up --build
@@ -329,7 +338,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.3.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.3.1`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

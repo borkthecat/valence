@@ -2,6 +2,12 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.3.1
+
+- Added `START-VALENCE.ps1` for one-command local Docker startup on Windows.
+- Added `CHECK-VALENCE.ps1` for a local smoke test covering health, Stage 5 verifier behavior, gateway injection blocking, and metrics.
+- Updated README release-run guidance for users downloading GitHub release assets.
+
 ## 1.3.0
 
 - Added complex adversarial Stage 3 profile generation across boundary ages, fractional ages, near-threshold eras, unauthorized high-signal actors, and case/whitespace normalization.

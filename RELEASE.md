@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.3.0`
+Current release target: `v1.3.1`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.3.0` and `valence-pipeline:1.3.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.3.1` and `valence-pipeline:1.3.1` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,17 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.3.0 -m "Valence v1.3.0"
-git push origin main v1.3.0
+git tag -a v1.3.1 -m "Valence v1.3.1"
+git push origin main v1.3.1
 ```
 
 ## Release Notes
+
+`v1.3.1` adds release-ready local startup and smoke-test scripts:
+
+- Adds `START-VALENCE.ps1` for one-command Docker startup on Windows.
+- Adds `CHECK-VALENCE.ps1` to validate health, Stage 5 verifier behavior, gateway injection blocking, and metrics.
+- Keeps the `v1.3.0` accuracy calibration unchanged.
 
 `v1.3.0` improves scale-test realism and Stage 4 ranking calibration:
 
