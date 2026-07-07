@@ -17,7 +17,7 @@ The platform ships as a single package with two cooperating components:
             v
  +-----------------------------+
  |  pipeline/stage3           |   Candidate Hydrator and Fuzz Generator
- |  10,000+ profiles on demand |   controlled edge-case distribution
+ |  2,000,000 profiles         |   controlled edge-case distribution
  +-----------------------------+
             |
             v
@@ -84,7 +84,7 @@ Self-contained stages, each of which runs its own verification and simulation ro
 
 ### Stage 3: Candidate Hydrator and Fuzz Generator
 
-`pipeline/stage3_hydrator.py`. Pure standard library. Provides a `FuzzDataGenerator` that produces 10,000 or more randomized candidate profiles on demand with a controlled distribution of edge cases (5 percent structurally impossible ages, 5 percent unauthorized channels, 10 percent historical era anomalies). Its scale validation drives the full generated set through Stage 4 in batches and asserts that output ordering is identical across runs and that no disqualified profile ever reaches a result pool.
+`pipeline/stage3_hydrator.py`. Pure standard library. Provides a `FuzzDataGenerator` that produces deterministic candidate profiles with controlled edge-case distribution across structurally impossible ages, unauthorized channels, historical era anomalies, and complex adversarial cases. The default scale validation drives 2,000,000 generated profiles through Stage 4 in 100,000-profile windows and asserts that output ordering is identical across runs and that no disqualified profile ever reaches a result pool.
 
 ### Stage 4: Razor Reranking Engine
 
@@ -302,7 +302,7 @@ pip install -r requirements-dev.txt
 python -W error -m pytest -q
 ```
 
-Stage 3/4 scale validation now drives 2,000,000 deterministic generated profiles through the reranker in 100,000-profile windows, and Stage 4 includes a synthetic oracle quality check for top-1 accuracy and top-5 recall.
+Stage 3/4 scale validation now drives 2,000,000 deterministic generated profiles through the reranker in 100,000-profile windows. The generator includes complex adversarial cases such as boundary ages, fractional ages, near-threshold era offsets, unauthorized-but-otherwise-perfect actors, and case/whitespace normalization. Stage 4 includes a calibrated synthetic oracle quality check for top-1 accuracy and top-5 recall.
 
 ### Continuous integration
 
@@ -329,7 +329,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.2.2`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.3.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

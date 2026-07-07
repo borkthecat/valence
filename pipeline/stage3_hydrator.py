@@ -13,6 +13,7 @@ from config import get_settings
 NEGATIVE_AGE_RATE: Final[float] = 0.05
 UNAUTHORIZED_CHANNEL_RATE: Final[float] = 0.05
 ERA_ANOMALY_RATE: Final[float] = 0.10
+COMPLEX_PROFILE_RATE: Final[float] = 0.15
 DEFAULT_SCALE_VALIDATION_PROFILE_COUNT: Final[int] = 2_000_000
 DEFAULT_SCALE_VALIDATION_WINDOW: Final[int] = 100_000
 
@@ -36,6 +37,7 @@ class FuzzProfile:
     negative_age: bool
     unauthorized_channel: bool
     era_anomaly: bool
+    complex_profile: bool
 
 
 @dataclass(slots=True)
@@ -44,6 +46,7 @@ class GenerationReport:
     negative_ages: int
     unauthorized_channels: int
     era_anomalies: int
+    complex_profiles: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +64,7 @@ class FuzzDataGenerator:
         self._rng = random.Random(seed)
         self._settings = get_settings()
         self._authorized = tuple(sorted(self._settings.authorized_channels))
-        self._report = GenerationReport(0, 0, 0, 0)
+        self._report = GenerationReport(0, 0, 0, 0, 0)
 
     @property
     def report(self) -> GenerationReport:
@@ -70,7 +73,7 @@ class FuzzDataGenerator:
     def generate(self, count: int, start_index: int = 0) -> list[dict[str, Any]]:
         if count <= 0:
             raise ValueError("count must be positive")
-        self._report = GenerationReport(count, 0, 0, 0)
+        self._report = GenerationReport(count, 0, 0, 0, 0)
         profiles: list[dict[str, Any]] = []
         for index in range(start_index, start_index + count):
             profiles.append(self._generate_one(index))
@@ -78,28 +81,30 @@ class FuzzDataGenerator:
 
     def _generate_one(self, index: int) -> dict[str, Any]:
         rng = self._rng
+        if rng.random() < COMPLEX_PROFILE_RATE:
+            profile = self._generate_complex_one(index)
+            self._record_profile(profile, complex_profile=True)
+            return profile
+
         target_era = self._settings.target_era
 
         if rng.random() < NEGATIVE_AGE_RATE:
             age: float = float(rng.choice([-rng.randint(1, 40), rng.randint(121, 400)]))
-            self._report.negative_ages += 1
         else:
             age = float(rng.randint(1, 75))
 
         if rng.random() < UNAUTHORIZED_CHANNEL_RATE:
             channel = rng.choice(_UNAUTHORIZED_CHANNELS)
-            self._report.unauthorized_channels += 1
         else:
             channel = rng.choice(self._authorized)
 
         if rng.random() < ERA_ANOMALY_RATE:
             offset = rng.randint(101, 400) * rng.choice((-1, 1))
             era_year = target_era + offset
-            self._report.era_anomalies += 1
         else:
             era_year = target_era + rng.randint(-30, 30)
 
-        return {
+        profile = {
             "id": f"fuzz-{index:06d}",
             "age": age,
             "anniversary": bool(rng.getrandbits(1)),
@@ -107,6 +112,56 @@ class FuzzDataGenerator:
             "colorway": rng.choice(_COLORWAYS),
             "era_year": era_year,
         }
+        self._record_profile(profile, complex_profile=False)
+        return profile
+
+    def _generate_complex_one(self, index: int) -> dict[str, Any]:
+        target_era = self._settings.target_era
+        target_channel = self._settings.target_channel
+        target_colorway = self._settings.target_colorway
+        authorized_alt = self._authorized[index % len(self._authorized)]
+        archetype = index % 8
+
+        if archetype == 0:
+            age, channel, colorway, era_year = 0.0, target_channel, target_colorway.upper(), target_era
+        elif archetype == 1:
+            age, channel, colorway, era_year = 120.0, authorized_alt, f" {target_colorway} ", target_era + 100
+        elif archetype == 2:
+            age, channel, colorway, era_year = 80.1, target_channel, "graphite-slate", target_era + 51
+        elif archetype == 3:
+            age, channel, colorway, era_year = 26.5, _UNAUTHORIZED_CHANNELS[index % len(_UNAUTHORIZED_CHANNELS)], target_colorway, target_era
+        elif archetype == 4:
+            age, channel, colorway, era_year = -1.0, target_channel, target_colorway, target_era
+        elif archetype == 5:
+            age, channel, colorway, era_year = 37.0, authorized_alt, target_colorway.swapcase(), target_era + 101
+        elif archetype == 6:
+            age, channel, colorway, era_year = 119.9, target_channel, target_colorway, target_era - 50
+        else:
+            age, channel, colorway, era_year = 81.0, authorized_alt, "crimson-ember", target_era - 100
+
+        return {
+            "id": f"fuzz-{index:06d}",
+            "age": age,
+            "anniversary": bool((index // 8) % 2),
+            "channel": channel,
+            "colorway": colorway,
+            "era_year": era_year,
+        }
+
+    def _record_profile(self, profile: dict[str, Any], complex_profile: bool) -> None:
+        target_era = self._settings.target_era
+        age = float(profile["age"])
+        channel = str(profile["channel"])
+        era_year = int(profile["era_year"])
+
+        if age < 0 or age > 120:
+            self._report.negative_ages += 1
+        if channel not in self._authorized:
+            self._report.unauthorized_channels += 1
+        if abs(era_year - target_era) > 100:
+            self._report.era_anomalies += 1
+        if complex_profile:
+            self._report.complex_profiles += 1
 
 
 def batched(items: list[dict[str, Any]], size: int) -> Iterator[list[dict[str, Any]]]:
@@ -122,6 +177,7 @@ def _add_report(left: GenerationReport, right: GenerationReport) -> GenerationRe
         negative_ages=left.negative_ages + right.negative_ages,
         unauthorized_channels=left.unauthorized_channels + right.unauthorized_channels,
         era_anomalies=left.era_anomalies + right.era_anomalies,
+        complex_profiles=left.complex_profiles + right.complex_profiles,
     )
 
 
@@ -150,6 +206,7 @@ def render_dashboard(report: GenerationReport) -> str:
         metric("Negative / impossible ages", f"{report.negative_ages:,} ({report.negative_ages / total * 100:.1f}%)"),
         metric("Unauthorized channels", f"{report.unauthorized_channels:,} ({report.unauthorized_channels / total * 100:.1f}%)"),
         metric("Historical era anomalies", f"{report.era_anomalies:,} ({report.era_anomalies / total * 100:.1f}%)"),
+        metric("Complex adversarial profiles", f"{report.complex_profiles:,} ({report.complex_profiles / total * 100:.1f}%)"),
         border,
     ]
     return "\n".join(lines)
@@ -233,7 +290,7 @@ def _run_scale_validation() -> ScaleValidationReport:
 
 def main() -> int:
     profile_count, window_size = _scale_settings()
-    aggregate = GenerationReport(0, 0, 0, 0)
+    aggregate = GenerationReport(0, 0, 0, 0, 0)
     for window, start in enumerate(range(0, profile_count, window_size)):
         count = min(window_size, profile_count - start)
         generator = FuzzDataGenerator(seed=1337 + window)

@@ -18,14 +18,15 @@ MAX_BATCH_SIZE: Final[int] = 50
 OUTPUT_POOL_SIZE: Final[int] = 5
 
 AGE_ANOMALY_PENALTY: Final[float] = -40.0
-AGE_ELEVATED_PENALTY: Final[float] = -10.0
-ANNIVERSARY_BOOST: Final[float] = 15.0
-CHANNEL_TARGET_BOOST: Final[float] = 25.0
-CHANNEL_AUTHORIZED_BOOST: Final[float] = 12.0
+AGE_ELEVATED_MAX_PENALTY: Final[float] = -25.0
+AGE_ELEVATED_PENALTY_PER_YEAR: Final[float] = -0.75
+ANNIVERSARY_BOOST: Final[float] = 18.0
+CHANNEL_TARGET_BOOST: Final[float] = 30.0
+CHANNEL_AUTHORIZED_BOOST: Final[float] = 10.0
 CHANNEL_UNAUTHORIZED_PENALTY: Final[float] = -50.0
-COLORWAY_MATCH_BOOST: Final[float] = 12.0
-ERA_FAR_PENALTY: Final[float] = -45.0
-ERA_PENALTY_PER_YEAR: Final[float] = 0.45
+COLORWAY_MATCH_BOOST: Final[float] = 16.0
+ERA_FAR_PENALTY: Final[float] = -55.0
+ERA_PENALTY_PER_YEAR: Final[float] = 0.50
 
 AGE_ANOMALY_LOW: Final[float] = 0.0
 AGE_ANOMALY_HIGH: Final[float] = 120.0
@@ -215,7 +216,11 @@ class RazorReranker:
             disqualifiers.append("age_structurally_anomalous")
             anomalies += 1
         elif candidate.age > AGE_ELEVATED_THRESHOLD:
-            adjustments.append(("age_elevated", AGE_ELEVATED_PENALTY))
+            penalty = max(
+                AGE_ELEVATED_MAX_PENALTY,
+                (candidate.age - AGE_ELEVATED_THRESHOLD) * AGE_ELEVATED_PENALTY_PER_YEAR,
+            )
+            adjustments.append(("age_elevated", round(penalty, 3)))
 
         if candidate.anniversary:
             adjustments.append(("anniversary_marker", ANNIVERSARY_BOOST))
@@ -409,12 +414,15 @@ def _synthetic_oracle_score(candidate: Candidate, context: RerankContext) -> flo
         return None
 
     score = BASE_SCORE
-    score += 30.0 if candidate.channel == context.target_channel else 10.0
-    score += 18.0 if candidate.anniversary else 0.0
-    score += 16.0 if candidate.colorway.casefold() == context.target_colorway.casefold() else 0.0
-    score -= min(abs(candidate.era_year - context.target_era_year) * 0.5, 55.0)
+    score += CHANNEL_TARGET_BOOST if candidate.channel == context.target_channel else CHANNEL_AUTHORIZED_BOOST
+    score += ANNIVERSARY_BOOST if candidate.anniversary else 0.0
+    score += COLORWAY_MATCH_BOOST if candidate.colorway.casefold() == context.target_colorway.casefold() else 0.0
+    score -= min(abs(candidate.era_year - context.target_era_year) * ERA_PENALTY_PER_YEAR, abs(ERA_FAR_PENALTY))
     if candidate.age > AGE_ELEVATED_THRESHOLD:
-        score -= min((candidate.age - AGE_ELEVATED_THRESHOLD) * 0.75, 25.0)
+        score += max(
+            AGE_ELEVATED_MAX_PENALTY,
+            (candidate.age - AGE_ELEVATED_THRESHOLD) * AGE_ELEVATED_PENALTY_PER_YEAR,
+        )
     return score
 
 
@@ -540,7 +548,7 @@ def _run_verification() -> None:
          "era_year": 1998}
     )
     b = engine.score_candidate(perfect, context)
-    assert b.final_score == 152.0, b.final_score
+    assert b.final_score == 164.0, b.final_score
     assert not b.disqualified
 
     elevated = validate_candidate(
@@ -549,7 +557,7 @@ def _run_verification() -> None:
          "era_year": 1938}
     )
     b = engine.score_candidate(elevated, context)
-    assert b.final_score == 75.0, b.final_score
+    assert b.final_score == 72.5, b.final_score
 
     far_era = validate_candidate(
         {"id": "far", "age": 30, "anniversary": False,
@@ -557,7 +565,7 @@ def _run_verification() -> None:
          "era_year": 1800}
     )
     b = engine.score_candidate(far_era, context)
-    assert b.final_score == 67.0, b.final_score
+    assert b.final_score == 55.0, b.final_score
 
 
     unauthorized = engine.score_candidate(
@@ -582,6 +590,37 @@ def _run_verification() -> None:
     )
     assert anomalous_age.disqualified
     assert "age_structurally_anomalous" in anomalous_age.disqualifiers
+
+    boundary = engine.score_candidate(
+        validate_candidate(
+            {"id": "boundary", "age": 120, "anniversary": True,
+             "channel": "boutique-authorized", "colorway": " MIDNIGHT-SAPPHIRE ",
+             "era_year": 1998}
+        ),
+        context,
+    )
+    assert not boundary.disqualified
+    assert boundary.final_score == 139.0, boundary.final_score
+
+    elevated_boundary = engine.score_candidate(
+        validate_candidate(
+            {"id": "elevated-boundary", "age": 81, "anniversary": True,
+             "channel": "boutique-authorized", "colorway": "midnight-sapphire",
+             "era_year": 1998}
+        ),
+        context,
+    )
+    assert elevated_boundary.final_score == 163.25, elevated_boundary.final_score
+
+    far_boundary = engine.score_candidate(
+        validate_candidate(
+            {"id": "far-boundary", "age": 30, "anniversary": False,
+             "channel": "brand-direct", "colorway": "no-match",
+             "era_year": 2099}
+        ),
+        context,
+    )
+    assert far_boundary.final_score == 59.5, far_boundary.final_score
 
 
     for bad_payload, reason in [
@@ -643,9 +682,9 @@ def _run_verification() -> None:
     else:
         raise AssertionError("engine should fail closed on thin eligible pool")
 
-    quality = run_quality_validation(batches=200, batch_size=MAX_BATCH_SIZE)
-    assert quality.top1_accuracy >= 0.90, quality
-    assert quality.top5_recall >= 0.99, quality
+    quality = run_quality_validation(batches=1_000, batch_size=MAX_BATCH_SIZE)
+    assert quality.top1_accuracy >= 0.995, quality
+    assert quality.top5_recall >= 1.0, quality
 
 
 

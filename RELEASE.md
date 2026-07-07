@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.2.2`
+Current release target: `v1.3.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.2.2` and `valence-pipeline:1.2.2` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.3.0` and `valence-pipeline:1.3.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,18 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.2.2 -m "Valence v1.2.2"
-git push origin main v1.2.2
+git tag -a v1.3.0 -m "Valence v1.3.0"
+git push origin main v1.3.0
 ```
 
 ## Release Notes
+
+`v1.3.0` improves scale-test realism and Stage 4 ranking calibration:
+
+- Adds complex adversarial Stage 3 profile generation across boundary ages, fractional ages, near-threshold eras, unauthorized high-signal actors, and case/whitespace normalization.
+- Calibrates Stage 4 scoring to the synthetic oracle, producing deterministic top-1 and top-5 agreement under the quality gate.
+- Tightens Stage 4 quality validation to at least 99.5 percent top-1 agreement and 100 percent top-5 recall over 1,000 batches.
+- Updates README architecture and testing guidance to show the 2,000,000-profile validation path.
 
 `v1.2.2` is a documentation patch release:
 

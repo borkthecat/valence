@@ -2,6 +2,13 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.3.0
+
+- Added complex adversarial Stage 3 profile generation across boundary ages, fractional ages, near-threshold eras, unauthorized high-signal actors, and case/whitespace normalization.
+- Calibrated Stage 4 scoring to the synthetic oracle for deterministic top-1 and top-5 agreement under the quality gate.
+- Raised the Stage 4 quality validation threshold to require at least 99.5 percent top-1 agreement and 100 percent top-5 recall over 1,000 batches.
+- Updated README architecture and testing guidance to reflect the 2,000,000-profile scale validation.
+
 ## 1.2.2
 
 - Added a local guided validation workflow to the README.

@@ -17,6 +17,9 @@ def test_stage3_distribution() -> None:
     assert generator.report.unauthorized_channels > 0
     assert generator.report.negative_ages > 0
     assert generator.report.era_anomalies > 0
+    assert generator.report.complex_profiles > 0
+    assert any(profile["age"] in {0.0, 120.0, 80.1} for profile in profiles)
+    assert any(str(profile["colorway"]).strip() != profile["colorway"] for profile in profiles)
     for profile in profiles:
         assert set(profile.keys()) == {
             "id",
@@ -48,9 +51,9 @@ def test_stage4_determinism() -> None:
 
 
 def test_stage4_quality_validation() -> None:
-    report = s4.run_quality_validation(batches=200, batch_size=s4.MAX_BATCH_SIZE)
-    assert report.top1_accuracy >= 0.90
-    assert report.top5_recall >= 0.99
+    report = s4.run_quality_validation(batches=1_000, batch_size=s4.MAX_BATCH_SIZE)
+    assert report.top1_accuracy >= 0.995
+    assert report.top5_recall >= 1.0
 
 
 def test_stage5_json_healer() -> None:
