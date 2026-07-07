@@ -2,78 +2,64 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GATEWAY_DIR="$ROOT_DIR/gateway"
-PIPELINE_DIR="$ROOT_DIR/pipeline"
+COMPOSE=(docker compose --profile enterprise -f docker-compose.yml -f docker-compose.local.yml --env-file .env.example)
+KAFKA_TOPICS=/opt/kafka/bin/kafka-topics.sh
 
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON="python"
-else
-  echo "error: python3 is required but was not found on PATH" >&2
-  exit 1
-fi
+echo "Booting Valence enterprise streaming stack..."
+"${COMPOSE[@]}" down -v
+"${COMPOSE[@]}" build
+"${COMPOSE[@]}" up -d kafka redis
 
-if [[ -f "$ROOT_DIR/.env" ]]; then
-  echo "Loading environment from .env"
-  set -a
-  . "$ROOT_DIR/.env"
-  set +a
-fi
-
-export GATEWAY_PORT="${GATEWAY_PORT:-8080}"
-export UPSTREAM_PROVIDER_URL="${UPSTREAM_PROVIDER_URL:-http://127.0.0.1:9}"
-export UPSTREAM_API_KEY="${UPSTREAM_API_KEY:-demo-upstream-key-0123456789}"
-export GATEWAY_API_KEY="${GATEWAY_API_KEY:-demo-gateway-key-0123456789abcdef0123}"
-export SECURITY_MODE="${SECURITY_MODE:-FAIL_CLOSED}"
-export MAX_PAYLOAD_KB="${MAX_PAYLOAD_KB:-512}"
-export NODE_ENV="${NODE_ENV:-production}"
-
-GATEWAY_PID=""
-cleanup() {
-  if [[ -n "$GATEWAY_PID" ]] && kill -0 "$GATEWAY_PID" 2>/dev/null; then
-    echo "Stopping gateway (pid $GATEWAY_PID)"
-    kill "$GATEWAY_PID" 2>/dev/null || true
-    wait "$GATEWAY_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT INT TERM
-
-echo "== Building gateway =="
-(
-  cd "$GATEWAY_DIR"
-  if [[ ! -d node_modules ]]; then
-    npm ci --silent
-  fi
-  npm run build --silent
-)
-
-echo "== Starting gateway on port $GATEWAY_PORT =="
-( cd "$GATEWAY_DIR" && node dist/app.js ) &
-GATEWAY_PID=$!
-
-echo -n "Waiting for gateway health"
-for _ in $(seq 1 30); do
-  if curl -sf "http://127.0.0.1:$GATEWAY_PORT/healthz" >/dev/null 2>&1; then
-    echo " ... ready"
-    break
-  fi
-  echo -n "."
-  sleep 0.5
+echo "Waiting for Kafka..."
+until "${COMPOSE[@]}" exec -T kafka "$KAFKA_TOPICS" --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+  sleep 2
 done
-curl -sf "http://127.0.0.1:$GATEWAY_PORT/healthz" >/dev/null 2>&1 \
-  || { echo " gateway did not become healthy" >&2; exit 1; }
+
+echo "Creating ingestion topic..."
+"${COMPOSE[@]}" exec -T kafka "$KAFKA_TOPICS" \
+  --bootstrap-server kafka:9092 \
+  --create \
+  --topic valence-raw-profiles \
+  --partitions 3 \
+  --replication-factor 1 \
+  --if-not-exists
+
+echo "Starting gateway, API dashboard, and stream worker..."
+"${COMPOSE[@]}" up -d gateway pipeline pipeline-worker
+
+echo "Waiting for gateway..."
+until curl -sf http://localhost:8080/healthz >/dev/null; do
+  sleep 1
+done
+
+echo "Posting sample enterprise ingest batch..."
+curl -sf -X POST http://localhost:8080/api/v1/ingest \
+  -H "Content-Type: application/json" \
+  -H "x-valence-key: replace-with-a-random-32-plus-character-secret" \
+  -d '{
+    "batch_id": "batch_enterprise_991",
+    "tenant_id": "tenant_corporate_alpha",
+    "profiles": [
+      {"candidate_id": "c1", "age": 34, "retail_channel": "direct", "era": "1500", "raw_score": 94.2},
+      {"candidate_id": "c2", "age": 35, "retail_channel": "brand-direct", "era": "1501", "raw_score": 91.1},
+      {"candidate_id": "c3", "age": 29, "retail_channel": "certified-partner", "era": "1502", "raw_score": 87.0},
+      {"candidate_id": "c4", "age": 41, "retail_channel": "boutique-authorized", "era": "1498", "raw_score": 89.5},
+      {"candidate_id": "c5", "age": 22, "retail_channel": "direct", "era": "1500", "raw_score": 90.0},
+      {"candidate_id": "c6", "age": -5, "retail_channel": "unauthorized", "era": "anomaly", "raw_score": 12.1}
+    ]
+  }'
 
 echo
-echo "== Stage 3: fuzz generation and scale validation =="
-( cd "$PIPELINE_DIR" && "$PYTHON" -W error stage3_hydrator.py )
+echo "Waiting for stream worker verification..."
+for _ in {1..30}; do
+  if "${COMPOSE[@]}" logs --tail=160 pipeline-worker | grep -q "processed batch batch_enterprise_991"; then
+    echo "Enterprise ingest accepted and processed."
+    "${COMPOSE[@]}" logs --tail=80 pipeline-worker | grep -E "ValenceStreamWorker|processed batch" || true
+    exit 0
+  fi
+  sleep 1
+done
 
-echo "== Stage 4: deterministic reranking =="
-( cd "$PIPELINE_DIR" && "$PYTHON" -W error stage4_razor_reranker.py )
-
-echo "== Stage 5: concurrent cognitive verification =="
-( cd "$PIPELINE_DIR" && "$PYTHON" -W error stage5_cognitive_verifier.py )
-
-echo
-echo "System demo complete."
+echo "Enterprise ingest was accepted, but the worker did not confirm processing in time."
+"${COMPOSE[@]}" logs --tail=160 pipeline-worker
+exit 1

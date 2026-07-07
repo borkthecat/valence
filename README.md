@@ -155,6 +155,50 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 
 That starts the pipeline with `MOCK_AI_PROVIDER=true`, so `POST http://localhost:8090/v1/valence/stage5/verify` returns deterministic mock adjudications at zero external cost. Enterprise deployments should set `MOCK_AI_PROVIDER=false` and provide real gateway/provider credentials.
 
+## Enterprise streaming ingest
+
+Valence also exposes an asynchronous ingestion API for enterprise systems that need to push real batches instead of using the synthetic profile generator. The gateway validates the perimeter request, parses the payload with strict Zod schemas, writes each profile to Kafka, and returns `202 Accepted` while Python workers consume the stream continuously.
+
+Production deployments should use `ENTERPRISE_INGEST_AUTH_MODE=jwks` with `JWKS_URI`, `JWT_AUDIENCE`, and `JWT_ISSUER` configured for an RS256 identity provider. Local enterprise demos can use `docker-compose.local.yml`, which switches this route to the existing gateway key so the Kafka flow can be tested without a live IdP.
+
+Start the enterprise topology:
+
+```bash
+docker compose --profile enterprise -f docker-compose.yml -f docker-compose.local.yml --env-file .env.example up --build
+```
+
+Run the end-to-end streaming demo:
+
+```bash
+./run_system_demo.sh
+```
+
+The enterprise route is:
+
+```text
+POST http://localhost:8080/api/v1/ingest
+```
+
+Payload shape:
+
+```json
+{
+  "batch_id": "batch_enterprise_991",
+  "tenant_id": "tenant_corporate_alpha",
+  "profiles": [
+    {
+      "candidate_id": "c1",
+      "age": 34,
+      "retail_channel": "direct",
+      "era": "1500",
+      "raw_score": 94.2
+    }
+  ]
+}
+```
+
+Kafka topic: `valence-raw-profiles`. The `pipeline-worker` service consumes that topic, maps records into the Stage 4 scoring schema, and emits Stage 5-ready pools in its logs.
+
 ## Local guided test
 
 Use this path when you want to see the system working without paying an AI provider or wiring enterprise infrastructure.
@@ -341,7 +385,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.4.1`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.5.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

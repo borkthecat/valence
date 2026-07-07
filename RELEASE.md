@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.4.1`
+Current release target: `v1.5.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.4.1` and `valence-pipeline:1.4.1` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.5.0` and `valence-pipeline:1.5.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.4.1 -m "Valence v1.4.1"
-git push origin main v1.4.1
+git tag -a v1.5.0 -m "Valence v1.5.0"
+git push origin main v1.5.0
 ```
 
 ## Release Notes
+
+`v1.5.0` adds enterprise streaming ingestion:
+
+- Adds Kafka and Redis services behind the Compose `enterprise` profile.
+- Adds authenticated `POST /api/v1/ingest` with strict Zod payload validation.
+- Adds JWKS-backed RS256 enterprise ingestion auth, with explicit local gateway-key mode for no-IdP demos.
+- Adds gateway Kafka producer support and a Python Kafka stream worker.
+- Updates `run_system_demo.sh` to create the Kafka topic and post a sample enterprise ingest batch.
 
 `v1.4.1` polishes the local console and setup experience:
 

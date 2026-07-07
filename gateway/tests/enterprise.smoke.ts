@@ -10,6 +10,7 @@ import type { AuthenticatedRequest } from '../src/middleware/types';
 import { MetricsRegistry } from '../src/observability/metrics';
 import { HashChainedAuditLog, verifyAuditLog } from '../src/observability/auditLog';
 import { FileSecretsProvider } from '../src/config/secrets';
+import { parseIngestionPayload } from '../src/routes/ingestSchema';
 const SECRET = 'jwt-secret-0123456789abcdef0123456789abcdef';
 function b64url(value: unknown): string {
     return Buffer.from(JSON.stringify(value))
@@ -101,6 +102,25 @@ async function run(): Promise<void> {
         publicKeyPem: pair.publicKey,
     });
     assert.equal(rsClaims.sub, 'tenant-rs');
+    const parsedIngest = parseIngestionPayload({
+        batch_id: 'batch-1',
+        tenant_id: 'tenant-a',
+        profiles: [
+            {
+                candidate_id: 'candidate-1',
+                age: 34,
+                retail_channel: 'direct',
+                era: '2020s',
+                raw_score: 91.5,
+            },
+        ],
+    });
+    assert.equal(parsedIngest.profiles.length, 1);
+    assert.throws(() => parseIngestionPayload({
+        batch_id: 'batch-1',
+        tenant_id: 'tenant-a',
+        profiles: [],
+    }));
     let now = 1000;
     const limiter = createTenantRateLimiter({
         maxRequests: 2,

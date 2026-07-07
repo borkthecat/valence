@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ErrorRequestHandler, Response } from 'express';
+import { ZodError } from 'zod';
 import { PiiScanError } from '../core/filters/piiScanner';
 import { InjectionShieldError } from '../core/filters/injectionShield';
 import { UnresolvedSurrogateError } from '../core/streaming/chunkReconstructor';
@@ -56,6 +57,9 @@ function classify(error: unknown): Classification {
     }
     if (error instanceof Error && error.name === 'UpstreamConnectionError') {
         return { status: 502, code: 'UPSTREAM_UNREACHABLE' };
+    }
+    if (error instanceof ZodError) {
+        return { status: 400, code: 'BAD_REQUEST_SCHEMA_VIOLATION' };
     }
     if (hasHttpStatus(error)) {
         return { status: error.status, code: 'REQUEST_REJECTED' };

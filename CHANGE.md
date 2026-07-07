@@ -2,6 +2,14 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.5.0
+
+- Added enterprise Kafka/Redis Compose topology behind the `enterprise` profile.
+- Added authenticated `POST /api/v1/ingest` with strict Zod payload validation.
+- Added JWKS-backed RS256 enterprise ingestion auth, with explicit local gateway-key mode for no-IdP demos.
+- Added Kafka producer support in the gateway and a Python `stream_worker.py` Kafka consumer that maps enterprise records into Stage 4 batches.
+- Updated `run_system_demo.sh` to create the Kafka topic and post a sample enterprise ingest batch.
+
 ## 1.4.1
 
 - Refined the Valence Local Console with a more professional dashboard layout and system UI font stack.

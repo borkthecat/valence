@@ -22,6 +22,9 @@ class Settings:
     mock_ai_provider: bool
     scale_validation_profiles: int
     scale_validation_window: int
+    kafka_bootstrap_servers: str
+    kafka_ingest_topic: str
+    kafka_consumer_group: str
 
 
 def _int(name: str, default: int) -> int:
@@ -65,4 +68,7 @@ def get_settings() -> Settings:
         mock_ai_provider=_bool("MOCK_AI_PROVIDER", False),
         scale_validation_profiles=_int("VALENCE_SCALE_VALIDATION_PROFILES", 2_000_000),
         scale_validation_window=_int("VALENCE_SCALE_VALIDATION_WINDOW", 100_000),
+        kafka_bootstrap_servers=_str("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
+        kafka_ingest_topic=_str("KAFKA_INGEST_TOPIC", "valence-raw-profiles"),
+        kafka_consumer_group=_str("KAFKA_CONSUMER_GROUP", "valence-core-pipeline-workers"),
     )

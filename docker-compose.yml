@@ -5,6 +5,9 @@ services:
     env_file: .env
     environment:
       GATEWAY_PORT: "8080"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_INGEST_TOPIC: valence-raw-profiles
+      REDIS_URL: redis://redis:6379
     ports:
       - "8080:8080"
     networks:
@@ -18,6 +21,8 @@ services:
     environment:
       PROXY_HOST: gateway
       PROXY_PORT: "8080"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_INGEST_TOPIC: valence-raw-profiles
     depends_on:
       - gateway
     ports:
@@ -25,6 +30,52 @@ services:
     networks:
       - valence-net
     restart: unless-stopped
+
+  pipeline-worker:
+    build: ./pipeline
+    image: valence-pipeline:${VALENCE_VERSION:-latest}
+    env_file: .env
+    command: ["python", "stream_worker.py"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_INGEST_TOPIC: valence-raw-profiles
+    depends_on:
+      - kafka
+    networks:
+      - valence-net
+    restart: unless-stopped
+    profiles:
+      - enterprise
+
+  kafka:
+    image: apache/kafka:3.9.1
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+    networks:
+      - valence-net
+    profiles:
+      - enterprise
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - valence-net
+    profiles:
+      - enterprise
 
 networks:
   valence-net:

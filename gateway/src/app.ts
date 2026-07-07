@@ -16,6 +16,8 @@ import { createErrorHandler, installProcessGuards, scrubSensitiveTraces, } from 
 import { createReverseProxy } from './proxy/reverseProxy';
 import { createGatewayMetrics } from './observability/metrics';
 import { createAuditLog } from './observability/auditLog';
+import { ingestRouter } from './routes/ingest';
+import { disconnectProducer } from './services/kafkaProducer';
 const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
 const SHUTDOWN_GRACE_MS = 10000;
 const DEFAULT_PROXY_SCOPE = 'valence:proxy';
@@ -168,8 +170,13 @@ export function buildApp(logger: Logger): Express {
             censor: '[redacted]',
         },
     }));
+    app.use('/api/v1/ingest', express.json({ limit: JSON_BODY_LIMIT }));
+    app.use(ingestRouter);
     app.get('/healthz', (_req: Request, res: Response) => {
         res.status(200).json({ status: 'ok' });
+    });
+    app.get('/health', (_req: Request, res: Response) => {
+        res.status(200).json({ status: 'HEALTHY' });
     });
     app.get('/metrics', apiKeyAuth, (_req: Request, res: Response) => {
         res.type('text/plain; version=0.0.4; charset=utf-8').send(metrics.registry.render());
@@ -232,8 +239,12 @@ export function startGateway(): Server {
         logger.info({ signal }, 'graceful shutdown initiated');
         server.close(() => {
             TokenVault.resetInstance();
-            logger.info('shutdown complete');
-            process.exit(0);
+            disconnectProducer()
+                .catch((error: unknown) => logger.warn({ error }, 'kafka producer disconnect failed'))
+                .finally(() => {
+                logger.info('shutdown complete');
+                process.exit(0);
+            });
         });
         setTimeout(() => {
             logger.warn({ openSockets: sockets.size }, 'grace period expired, severing remaining sockets');

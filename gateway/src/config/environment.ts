@@ -6,6 +6,8 @@ export const AUTH_MODES = ['api_key', 'jwt'] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];
 export const JWT_ALGORITHMS = ['HS256', 'RS256'] as const;
 export type JwtAlgorithm = (typeof JWT_ALGORITHMS)[number];
+export const ENTERPRISE_INGEST_AUTH_MODES = ['jwks', 'api_key'] as const;
+export type EnterpriseIngestAuthMode = (typeof ENTERPRISE_INGEST_AUTH_MODES)[number];
 const MIN_UPSTREAM_KEY_LENGTH = 16;
 const MIN_GATEWAY_KEY_LENGTH = 32;
 const MIN_JWT_SECRET_LENGTH = 32;
@@ -50,9 +52,14 @@ const environmentSchema = z.object({
     JWT_ALGORITHM: z.enum(JWT_ALGORITHMS).default('HS256'),
     JWT_SECRET: z.string().trim().min(MIN_JWT_SECRET_LENGTH).optional(),
     JWT_PUBLIC_KEY_PEM: z.string().trim().min(64).optional(),
+    JWKS_URI: z.string().trim().url().optional(),
+    ENTERPRISE_INGEST_AUTH_MODE: z.enum(ENTERPRISE_INGEST_AUTH_MODES).default('jwks'),
     JWT_REQUIRED_SCOPE: z.string().trim().min(1).default('valence:proxy'),
     JWT_ISSUER: z.string().trim().min(1).optional(),
     JWT_AUDIENCE: z.string().trim().min(1).optional(),
+    KAFKA_BOOTSTRAP_SERVERS: z.string().trim().min(1).default('kafka:9092'),
+    KAFKA_INGEST_TOPIC: z.string().trim().min(1).default('valence-raw-profiles'),
+    REDIS_URL: z.string().trim().url().optional(),
     RATE_LIMIT_WINDOW_MS: z.coerce
         .number({ invalid_type_error: 'RATE_LIMIT_WINDOW_MS must be numeric' })
         .int('RATE_LIMIT_WINDOW_MS must be an integer')

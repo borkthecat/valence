@@ -7,6 +7,7 @@ import observability
 import stage3_hydrator as s3
 import stage4_razor_reranker as s4
 import stage5_cognitive_verifier as s5
+import stream_worker
 from message_broker import InMemoryMessageBroker
 
 
@@ -90,3 +91,19 @@ def test_message_broker_stub_round_trip() -> None:
         assert await anext(subscriber) == "candidate-batch"
 
     asyncio.run(scenario())
+
+
+def test_stream_worker_enterprise_profile_processing() -> None:
+    records = [
+        {
+            "candidate_id": f"sku-{index}",
+            "age": 24 + index,
+            "retail_channel": "direct" if index % 2 == 0 else "brand-direct",
+            "era": "1500",
+            "raw_score": 95.0 if index == 0 else 80.0,
+        }
+        for index in range(8)
+    ]
+    pool = stream_worker.process_profile_batch(records)
+    assert len(pool) == 5
+    assert pool[0]["id"] == "sku-0"
