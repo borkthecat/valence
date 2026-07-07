@@ -18,6 +18,7 @@ import asyncio
 import json
 import math
 import os
+import random
 import re
 import time
 from dataclasses import dataclass, field
@@ -27,6 +28,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from config import get_settings
+from observability import log_event
 
 PROXY_PATH: Final[str] = "/v1/chat/completions"
 PROXY_MODEL: Final[str] = "valence-cognitive-1"
@@ -162,6 +164,7 @@ class AsyncHttpProxyClient:
         timeout: float = PROXY_TIMEOUT_SECONDS,
         max_retries: int = MAX_PROXY_RETRIES,
         base_backoff: float = BASE_BACKOFF_SECONDS,
+        mock_provider: bool | None = None,
     ) -> None:
         settings = get_settings()
         self._host = host if host is not None else settings.proxy_host
@@ -171,10 +174,18 @@ class AsyncHttpProxyClient:
         self._max_retries = max_retries
         self._base_backoff = base_backoff
         self._api_key = settings.gateway_api_key
+        self._mock_provider = (
+            mock_provider if mock_provider is not None else settings.mock_ai_provider
+        )
+        self._rng = random.Random()
 
     async def complete(
         self, body: bytes, headers: dict[str, str]
     ) -> ProxyResponse:
+        if self._mock_provider:
+            await asyncio.sleep(0)
+            return self._mock_response(body)
+
         attempt = 0
         while True:
             try:
@@ -195,6 +206,33 @@ class AsyncHttpProxyClient:
 
     async def _backoff(self, attempt: int) -> None:
         await asyncio.sleep(self._base_backoff * (2 ** attempt))
+
+    def _mock_response(self, body: bytes) -> ProxyResponse:
+        """Return a programmatically valid model response without any network I/O.
+
+        Enabled by MOCK_AI_PROVIDER, this lets the orchestrator drive very
+        large sequential or concurrent runs to exercise memory allocation and
+        connection handling without incurring real upstream cost.
+        """
+        payload = json.loads(body)
+        pool = json.loads(payload["messages"][1]["content"])["candidate_pool"]
+        winner = pool[0]["id"]
+        content = json.dumps(
+            {
+                "selected_winner_id": winner,
+                "confidence_coefficient": round(self._rng.uniform(0.55, 0.99), 4),
+                "qualitative_justification": (
+                    "Simulated adjudication: strongest channel and era alignment."
+                ),
+            }
+        )
+        envelope = json.dumps(
+            {
+                "choices": [{"message": {"role": "assistant", "content": content}}],
+                "usage": {"total_tokens": self._rng.randint(80, 400)},
+            }
+        ).encode("utf-8")
+        return ProxyResponse(status=200, body=envelope)
 
     async def _exchange(
         self, body: bytes, headers: dict[str, str]
@@ -407,9 +445,31 @@ class CognitiveVerifier:
             verdict, tokens = self._reconcile(response.body, pool_ids, mitigations, request.tenant_id)
             self._metrics.record_tokens(tokens)
             self._metrics.record_verified()
+            log_event(
+                "stage5-verifier",
+                "cognitive_verification_complete",
+                trace_id=trace.trace_id,
+                stage=5,
+                metrics={
+                    "tenant_id": request.tenant_id,
+                    "pool_size": len(request.pool),
+                    "tokens": tokens,
+                    "processing_time_ms": round(
+                        (time.perf_counter_ns() - ingress_ns) / 1_000_000, 3
+                    ),
+                },
+            )
             return verdict
-        except CognitivePipelineCompromisedError:
+        except CognitivePipelineCompromisedError as compromised:
             self._metrics.record_drop(request.tenant_id)
+            log_event(
+                "stage5-verifier",
+                "pipeline_fail_closed",
+                level="WARNING",
+                trace_id=trace.trace_id,
+                stage=5,
+                metrics={"tenant_id": request.tenant_id, "reason": compromised.reason},
+            )
             raise
         finally:
             self._metrics.record_latency(time.perf_counter_ns() - ingress_ns)
@@ -786,10 +846,20 @@ async def _run_backoff_check() -> None:
     assert fail_count["remaining"] == 0, "backoff retried until the endpoint recovered"
 
 
-async def _run_simulation() -> None:
-    _run_healer_checks()
-    await _run_backoff_check()
+def _run_observability_check() -> None:
+    record = log_event(
+        "stage5-verifier",
+        "pii_redaction_complete",
+        trace_id="val_tx_test",
+        stage=2,
+        metrics={"payload_size_kb": 242.1, "processing_time_ms": 12.4},
+    )
+    assert set(record.keys()) == {"timestamp", "level", "component", "trace_id", "context"}
+    assert record["context"].keys() == {"stage", "event", "metrics"}
+    assert record["timestamp"].endswith("Z")
 
+
+async def _run_concurrent_sim() -> tuple[int, int]:
     metrics = OTelMetrics()
     verifier = CognitiveVerifier(metrics, ContextualSanitizer())
     proxy = _SimulationProxyClient()
@@ -827,9 +897,50 @@ async def _run_simulation() -> None:
     print()
     print(f"  Verified verdicts : {len(verdicts)}")
     print(f"  Fail-closed blocks: {len(compromises)}")
+    return len(verdicts), len(compromises)
+
+
+async def _run_mock_scale_check(count: int = 2000) -> None:
+    """Drive many sequential verifications through the local mock provider."""
+    metrics = OTelMetrics()
+    verifier = CognitiveVerifier(metrics, ContextualSanitizer())
+    proxy = AsyncHttpProxyClient(mock_provider=True)
+    pool = [
+        CandidateProfile(
+            id=f"scale-{i}", age=30.0, anniversary=bool(i % 2),
+            channel="boutique-authorized", colorway="midnight-sapphire",
+            era_year=1998,
+        )
+        for i in range(3)
+    ]
+
+    started = time.perf_counter()
+    for index in range(count):
+        request = Stage5Request(
+            tenant_id=f"scale-tenant-{index}",
+            target_channel="boutique-authorized",
+            pool=pool,
+        )
+        verdict = await verifier.verify(request, proxy)
+        assert verdict.selected_winner_id == "scale-0"
+    elapsed = time.perf_counter() - started
+
+    snapshot = metrics.snapshot()
+    assert snapshot.batches_verified == count, snapshot.batches_verified
+    rate = count / elapsed if elapsed > 0 else 0.0
+    print(f"  Mock scale: {count:,} sequential verifications in {elapsed:.2f}s "
+          f"({rate:,.0f} verifications/sec)")
+
+
+async def _run_all() -> None:
+    _run_healer_checks()
+    _run_observability_check()
+    await _run_backoff_check()
+    await _run_concurrent_sim()
+    await _run_mock_scale_check()
     print("  All Stage 5 simulation assertions passed.")
     print()
 
 
 if __name__ == "__main__":
-    asyncio.run(_run_simulation())
+    asyncio.run(_run_all())

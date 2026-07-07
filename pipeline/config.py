@@ -25,6 +25,7 @@ class Settings:
     proxy_host: str
     proxy_port: int
     gateway_api_key: str | None
+    mock_ai_provider: bool
 
 
 def _int(name: str, default: int) -> int:
@@ -40,6 +41,13 @@ def _int(name: str, default: int) -> int:
 def _str(name: str, default: str) -> str:
     value = os.environ.get(name)
     return value if value is not None and value.strip() != "" else default
+
+
+def _bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 @lru_cache(maxsize=1)
@@ -58,4 +66,5 @@ def get_settings() -> Settings:
         proxy_host=_str("PROXY_HOST", "localhost"),
         proxy_port=_int("GATEWAY_PORT", _int("PROXY_PORT", 8443)),
         gateway_api_key=gateway_key if gateway_key else None,
+        mock_ai_provider=_bool("MOCK_AI_PROVIDER", False),
     )

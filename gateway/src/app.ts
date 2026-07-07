@@ -149,8 +149,16 @@ export function buildApp(logger: Logger): Express {
 }
 
 export function startGateway(): Server {
+  // Structured JSON logging shaped for cloud log processors: every record
+  // carries an ISO `timestamp`, a string `level`, and a `component` tag so
+  // Datadog/Splunk/Cloud Logging can index and alert on specific fields.
   const logger = pino({
     level: environment.NODE_ENV === 'production' ? 'info' : 'debug',
+    base: { component: 'gateway-proxy' },
+    timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+    formatters: {
+      level: (label) => ({ level: label.toUpperCase() }),
+    },
   });
 
   installProcessGuards();

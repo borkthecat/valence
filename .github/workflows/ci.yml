@@ -1,0 +1,75 @@
+name: Valence Platform CI Compliance
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  gateway-security-check:
+    name: TypeScript Gateway Linearity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: gateway/package-lock.json
+
+      - name: Validate Dependencies & Audit
+        run: |
+          cd gateway
+          npm ci
+          npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck, Compile, and Test
+        run: |
+          cd gateway
+          npm run typecheck
+          npm run build
+          npm test
+
+  pipeline-integrity-check:
+    name: Python Analytical Pipeline Matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Runtime and Test Dependencies
+        run: |
+          cd pipeline
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Enforce Strict Code Integrity Test Suite
+        run: |
+          cd pipeline
+          python -W error -m pytest -q
+
+  orchestration-container-check:
+    name: Isolated Multi-Stage Mesh Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Prepare Environment File
+        run: cp .env.example .env
+
+      - name: Validate Compose Topology
+        run: docker compose config
+
+      - name: Execute Multi-Stage Production Build
+        run: docker compose build

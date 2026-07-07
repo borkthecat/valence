@@ -119,6 +119,8 @@ cp .env.example .env
 
 The gateway parses its variables through a type-safe Zod schema and refuses to boot on an invalid configuration. The pipeline reads its variables through a cached loader (`pipeline/config.py`). Key variables include `GATEWAY_PORT`, `UPSTREAM_PROVIDER_URL`, `GATEWAY_API_KEY`, `MAX_PAYLOAD_KB`, `TARGET_ERA`, `TARGET_CHANNEL`, and `AUTHORIZED_CHANNELS`. See [.env.example](.env.example) for the full list.
 
+Two operational switches are worth calling out. Set `VALENCE_JSON_LOGS=true` to emit machine-readable structured log records (ISO timestamp, level, component, trace id, and a nested context object) for ingestion by Datadog, Splunk, or Cloud Logging; the human-facing dashboards remain unaffected. Set `MOCK_AI_PROVIDER=true` to intercept outbound verification calls locally with deterministic, schema-valid mock responses, which lets you drive very large sequential or concurrent load runs at zero external cost.
+
 ## Running with Docker
 
 Both components build into slim images and run together on an isolated bridge network, where the pipeline reaches the gateway by its service name:
@@ -155,6 +157,18 @@ python -W error stage3_hydrator.py
 python -W error stage4_razor_reranker.py
 python -W error stage5_cognitive_verifier.py
 ```
+
+The pipeline also exposes a pytest suite that wraps these checks for CI discovery:
+
+```
+cd pipeline
+pip install -r requirements-dev.txt
+python -W error -m pytest -q
+```
+
+### Continuous integration
+
+Every push and pull request to `main` runs the workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml), which builds and typechecks the gateway with a high-severity dependency audit, runs the pipeline test matrix under strict warnings-as-errors, and validates and builds the container topology.
 
 ## Security posture
 
