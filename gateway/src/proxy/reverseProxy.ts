@@ -111,6 +111,10 @@ export interface ProxyEventSink {
     readonly surrogatesInjected: number;
     readonly streamed: boolean;
   }): void;
+  onClientDisconnect?(event: {
+    readonly requestId: string;
+    readonly phase: 'pre-upstream' | 'streaming';
+  }): void;
 }
 
 export interface ReverseProxyDeps {
@@ -180,6 +184,7 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
   return function reverseProxyHandler(req, res, next): void {
     void (async (): Promise<void> => {
       const requestId = requestIdOf(res);
+      let streaming = false;
 
       const parsed = proxyBodySchema.safeParse(req.body);
       if (!parsed.success) {
@@ -264,13 +269,22 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
 
       const targetUrl = new URL(req.originalUrl, deps.upstreamBaseUrl).toString();
 
-      // A client that disconnects must not leave the provider streaming
-      // into a dead pipe: tie the upstream request lifetime to the
-      // client response socket. res 'close' also fires after a normal
-      // finish, at which point aborting a completed exchange is a no-op.
+      // A client that disconnects must not leave the provider streaming into
+      // a dead pipe: tie the upstream request lifetime to the client response
+      // socket. Express exposes the socket lifecycle directly on `res`, so we
+      // listen on 'close' (which fires on abort as well as normal finish) and
+      // distinguish the two via `writableFinished`. On a genuine mid-flight
+      // abort we abort the upstream request and flag it so no stale upstream
+      // task keeps running.
       const upstreamAbort = new AbortController();
       res.on('close', () => {
         upstreamAbort.abort();
+        if (!res.writableFinished) {
+          deps.sink?.onClientDisconnect?.({
+            requestId,
+            phase: streaming ? 'streaming' : 'pre-upstream',
+          });
+        }
       });
 
       let upstream: AxiosResponse<Readable>;
@@ -295,6 +309,7 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
         allowedSurrogates,
       });
       registerSensitiveTrace(res, reconstructor);
+      streaming = true;
 
       res.status(upstream.status);
       for (const name of FORWARDED_RESPONSE_HEADERS) {

@@ -16,6 +16,12 @@ The platform ships as a single package with two cooperating components:
             |
             v
  +-----------------------------+
+ |  pipeline/stage3           |   Candidate Hydrator and Fuzz Generator
+ |  10,000+ profiles on demand |   controlled edge-case distribution
+ +-----------------------------+
+            |
+            v
+ +-----------------------------+
  |  pipeline/stage4            |   Razor Reranking Engine
  |  deterministic scoring      |   up to 50 candidates in, exactly 5 out
  +-----------------------------+
@@ -72,7 +78,11 @@ The provider receives the masked surrogate; your client receives the restored ad
 
 ## Valence Pipeline (`pipeline/`)
 
-Two self-contained stages, each of which runs its own verification and simulation routines directly.
+Self-contained stages, each of which runs its own verification and simulation routines directly. All environment-driven settings are read once through a cached loader in `pipeline/config.py`.
+
+### Stage 3: Candidate Hydrator and Fuzz Generator
+
+`pipeline/stage3_hydrator.py`. Pure standard library. Provides a `FuzzDataGenerator` that produces 10,000 or more randomized candidate profiles on demand with a controlled distribution of edge cases (5 percent structurally impossible ages, 5 percent unauthorized channels, 10 percent historical era anomalies). Its scale validation drives the full generated set through Stage 4 in batches and asserts that output ordering is identical across runs and that no disqualified profile ever reaches a result pool.
 
 ### Stage 4: Razor Reranking Engine
 
@@ -88,6 +98,7 @@ Two self-contained stages, each of which runs its own verification and simulatio
 cd pipeline
 python -m pip install -r requirements.txt
 
+python stage3_hydrator.py
 python stage4_razor_reranker.py
 python stage5_cognitive_verifier.py
 ```
@@ -96,6 +107,35 @@ To serve the Stage 5 endpoint:
 
 ```
 uvicorn stage5_cognitive_verifier:app --host 0.0.0.0 --port 8090
+```
+
+## Configuration
+
+All configuration is environment-driven. Copy the template and edit it; the real `.env` is git-ignored so secrets never reach the repository.
+
+```
+cp .env.example .env
+```
+
+The gateway parses its variables through a type-safe Zod schema and refuses to boot on an invalid configuration. The pipeline reads its variables through a cached loader (`pipeline/config.py`). Key variables include `GATEWAY_PORT`, `UPSTREAM_PROVIDER_URL`, `GATEWAY_API_KEY`, `MAX_PAYLOAD_KB`, `TARGET_ERA`, `TARGET_CHANNEL`, and `AUTHORIZED_CHANNELS`. See [.env.example](.env.example) for the full list.
+
+## Running with Docker
+
+Both components build into slim images and run together on an isolated bridge network, where the pipeline reaches the gateway by its service name:
+
+```
+cp .env.example .env
+docker compose up --build
+```
+
+The gateway is exposed on port 8080 and the Stage 5 verification service on port 8090. The gateway image is a multi-stage Node build; the pipeline image runs its self-verifying stages under the strict warnings-as-errors flag as a build-time integrity gate.
+
+## Unified demo
+
+`run_system_demo.sh` starts the gateway in the background, runs the full analytical pipeline (Stage 3 fuzz generation through Stage 5 verification), prints each tool's dashboard, and cleans up all background processes on exit:
+
+```
+./run_system_demo.sh
 ```
 
 ## Testing
@@ -111,6 +151,7 @@ Each pipeline stage self-verifies on execution and runs cleanly under the strict
 
 ```
 cd pipeline
+python -W error stage3_hydrator.py
 python -W error stage4_razor_reranker.py
 python -W error stage5_cognitive_verifier.py
 ```

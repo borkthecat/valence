@@ -17,6 +17,11 @@ env/
 .ruff_cache/
 .pytest_cache/
 
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
 # Editors and OS
 .idea/
 .vscode/

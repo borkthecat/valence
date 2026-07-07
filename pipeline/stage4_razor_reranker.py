@@ -38,6 +38,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from config import get_settings
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -414,6 +416,17 @@ def render_pool(result: RerankResult) -> str:
 # ---------------------------------------------------------------------------
 
 def _default_context() -> RerankContext:
+    settings = get_settings()
+    return RerankContext(
+        target_channel=settings.target_channel,
+        authorized_channels=settings.authorized_channels,
+        target_colorway=settings.target_colorway,
+        target_era_year=settings.target_era,
+    )
+
+
+def _fixed_test_context() -> RerankContext:
+    """Environment-independent context so unit assertions stay deterministic."""
     return RerankContext(
         target_channel="boutique-authorized",
         authorized_channels=frozenset(
@@ -465,7 +478,7 @@ def _run_verification() -> None:
     Self-check the implementation against every rule of the specification.
     Any failure raises AssertionError and aborts before the demo dashboard.
     """
-    context = _default_context()
+    context = _fixed_test_context()
     engine = RazorReranker()
 
     # 1. Exact scoring math.

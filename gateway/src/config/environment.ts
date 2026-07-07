@@ -29,14 +29,26 @@ export type SecurityMode = (typeof SECURITY_MODES)[number];
 const MIN_UPSTREAM_KEY_LENGTH = 16;
 const MIN_GATEWAY_KEY_LENGTH = 32;
 
+const portSchema = z.coerce
+  .number({ invalid_type_error: 'port must be a numeric TCP port' })
+  .int('port must be an integer')
+  .min(1, 'port must be >= 1')
+  .max(65535, 'port must be <= 65535');
+
 const environmentSchema = z.object({
-  /** TCP port the gateway listens on. */
-  PORT: z.coerce
-    .number({ invalid_type_error: 'PORT must be a numeric TCP port' })
-    .int('PORT must be an integer')
-    .min(1, 'PORT must be >= 1')
-    .max(65535, 'PORT must be <= 65535')
-    .default(8443),
+  /** TCP port the gateway listens on. Alias GATEWAY_PORT takes precedence. */
+  PORT: portSchema.default(8443),
+
+  /** Canonical listen port for containerized deployments; overrides PORT. */
+  GATEWAY_PORT: portSchema.optional(),
+
+  /** Maximum inbound JSON body size in kilobytes. */
+  MAX_PAYLOAD_KB: z.coerce
+    .number({ invalid_type_error: 'MAX_PAYLOAD_KB must be numeric' })
+    .int('MAX_PAYLOAD_KB must be an integer')
+    .min(1, 'MAX_PAYLOAD_KB must be >= 1')
+    .max(65536, 'MAX_PAYLOAD_KB must be <= 65536')
+    .default(512),
 
   /** Base URL of the upstream LLM provider (e.g. https://api.anthropic.com). */
   UPSTREAM_PROVIDER_URL: z
@@ -125,7 +137,14 @@ function loadEnvironment(): Environment {
     );
   }
 
-  return Object.freeze(result.data);
+  // GATEWAY_PORT is the canonical name; when present it wins over PORT so a
+  // single container variable controls the listen port.
+  const effective = {
+    ...result.data,
+    PORT: result.data.GATEWAY_PORT ?? result.data.PORT,
+  };
+
+  return Object.freeze(effective);
 }
 
 /**

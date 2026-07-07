@@ -42,7 +42,7 @@ import {
 } from './middleware/errorHandler';
 import { createReverseProxy } from './proxy/reverseProxy';
 
-const JSON_BODY_LIMIT = '2mb';
+const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
 const SHUTDOWN_GRACE_MS = 10_000;
 
 export function buildApp(logger: Logger): Express {
@@ -85,6 +85,8 @@ export function buildApp(logger: Logger): Express {
       onFailOpenBypass: (event) =>
         logger.error(event, 'SECURITY BYPASS: subsystem failed in FAIL_OPEN'),
       onForwarded: (event) => logger.info(event, 'request forwarded'),
+      onClientDisconnect: (event) =>
+        logger.warn(event, 'client disconnected; upstream task aborted'),
     },
   });
 
