@@ -1,12 +1,3 @@
-"""Structured JSON logging for the Valence pipeline.
-
-Emits machine-readable log records that cloud log processors (Datadog,
-Splunk, Google Cloud Logging) can index and alert on. The box-drawn
-dashboards remain for human-facing demos; this layer is the ingestion
-path. Records go to stderr so they never contaminate a dashboard printed
-to stdout, and emission is gated on the VALENCE_JSON_LOGS environment
-flag so local runs stay quiet by default.
-"""
 
 from __future__ import annotations
 
@@ -28,7 +19,6 @@ def build_record(
     stage: int | None = None,
     metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Construct a log record conforming to the platform schema."""
     return {
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "level": level.upper(),
@@ -51,7 +41,6 @@ def log_event(
     stage: int | None = None,
     metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build a structured record and emit it to stderr when logging is enabled."""
     record = build_record(
         component,
         event,

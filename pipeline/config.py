@@ -1,9 +1,3 @@
-"""Centralized, cached settings loader for the Valence pipeline.
-
-All environment-driven configuration is read here exactly once and memoized
-with lru_cache, so hot loops never touch os.environ or reparse strings. Call
-get_settings.cache_clear() in tests that mutate the environment.
-"""
 
 from __future__ import annotations
 

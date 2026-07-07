@@ -7,304 +7,247 @@ import pino, { Logger } from 'pino';
 import pinoHttp from 'pino-http';
 import { environment } from './config/environment';
 import { TokenVault } from './core/crypto/tokenVault';
-import {
-  EmbeddingClassifierDetector,
-  HeuristicPiiDetector,
-  NullClassifierClient,
-  PiiScanner,
-} from './core/filters/piiScanner';
-import {
-  GuardModelDetector,
-  HeuristicInjectionDetector,
-  InjectionShield,
-  NullGuardModelClient,
-} from './core/filters/injectionShield';
+import { EmbeddingClassifierDetector, HeuristicPiiDetector, NullClassifierClient, PiiScanner, } from './core/filters/piiScanner';
+import { GuardModelDetector, HeuristicInjectionDetector, InjectionShield, NullGuardModelClient, } from './core/filters/injectionShield';
 import { createGatewayAuth } from './middleware/auth';
 import { createJwtAuth } from './middleware/jwtAuth';
 import { createTenantRateLimiter } from './middleware/rateLimiter';
-import {
-  createErrorHandler,
-  installProcessGuards,
-  scrubSensitiveTraces,
-} from './middleware/errorHandler';
+import { createErrorHandler, installProcessGuards, scrubSensitiveTraces, } from './middleware/errorHandler';
 import { createReverseProxy } from './proxy/reverseProxy';
 import { createGatewayMetrics } from './observability/metrics';
 import { createAuditLog } from './observability/auditLog';
-
 const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
-const SHUTDOWN_GRACE_MS = 10_000;
+const SHUTDOWN_GRACE_MS = 10000;
 const DEFAULT_PROXY_SCOPE = 'valence:proxy';
-
 export function buildApp(logger: Logger): Express {
-  const vault = TokenVault.getInstance();
-
-  const scanner = new PiiScanner(vault, [
-    new HeuristicPiiDetector(),
-    new EmbeddingClassifierDetector(new NullClassifierClient()),
-  ]);
-
-  const shield = new InjectionShield([
-    new HeuristicInjectionDetector(),
-    new GuardModelDetector(new NullGuardModelClient()),
-  ]);
-
-  const metrics = createGatewayMetrics();
-  const audit = createAuditLog(environment.AUDIT_LOG_PATH);
-  const apiKeyAuth = createGatewayAuth(environment.GATEWAY_API_KEY, {
-    tenantContext: {
-      tenantId: 'api-key',
-      scopes: [environment.JWT_REQUIRED_SCOPE ?? DEFAULT_PROXY_SCOPE],
-    },
-    onRejected: (context) => {
-      logger.warn(
-        {
-          reason: context.reason,
-          method: context.method,
-          path: context.path,
+    const vault = TokenVault.getInstance();
+    const scanner = new PiiScanner(vault, [
+        new HeuristicPiiDetector(),
+        new EmbeddingClassifierDetector(new NullClassifierClient()),
+    ]);
+    const shield = new InjectionShield([
+        new HeuristicInjectionDetector(),
+        new GuardModelDetector(new NullGuardModelClient()),
+    ]);
+    const metrics = createGatewayMetrics();
+    const audit = createAuditLog(environment.AUDIT_LOG_PATH);
+    const apiKeyAuth = createGatewayAuth(environment.GATEWAY_API_KEY, {
+        tenantContext: {
+            tenantId: 'api-key',
+            scopes: [environment.JWT_REQUIRED_SCOPE ?? DEFAULT_PROXY_SCOPE],
         },
-        'gateway auth rejected',
-      );
-      audit?.record({
-        type: 'auth_rejected',
-        reason: context.reason,
-        method: context.method,
-        path: context.path,
-      });
-    },
-  });
-  const authenticate =
-    environment.AUTH_MODE === 'jwt'
-      ? createJwtAuth(
-          {
-            algorithm: environment.JWT_ALGORITHM,
-            ...(environment.JWT_SECRET === undefined ? {} : { secret: environment.JWT_SECRET }),
-            ...(environment.JWT_PUBLIC_KEY_PEM === undefined
-              ? {}
-              : { publicKeyPem: environment.JWT_PUBLIC_KEY_PEM }),
-            requiredScope: environment.JWT_REQUIRED_SCOPE,
-            ...(environment.JWT_ISSUER === undefined
-              ? {}
-              : { issuer: environment.JWT_ISSUER }),
-            ...(environment.JWT_AUDIENCE === undefined
-              ? {}
-              : { audience: environment.JWT_AUDIENCE }),
-          },
-          {
-            onRejected: (context) => {
-              logger.warn(context, 'jwt auth rejected');
-              audit?.record({
-                type: 'jwt_rejected',
+        onRejected: (context) => {
+            logger.warn({
                 reason: context.reason,
                 method: context.method,
                 path: context.path,
-              });
+            }, 'gateway auth rejected');
+            audit?.record({
+                type: 'auth_rejected',
+                reason: context.reason,
+                method: context.method,
+                path: context.path,
+            });
+        },
+    });
+    const authenticate = environment.AUTH_MODE === 'jwt'
+        ? createJwtAuth({
+            algorithm: environment.JWT_ALGORITHM,
+            ...(environment.JWT_SECRET === undefined ? {} : { secret: environment.JWT_SECRET }),
+            ...(environment.JWT_PUBLIC_KEY_PEM === undefined
+                ? {}
+                : { publicKeyPem: environment.JWT_PUBLIC_KEY_PEM }),
+            requiredScope: environment.JWT_REQUIRED_SCOPE,
+            ...(environment.JWT_ISSUER === undefined
+                ? {}
+                : { issuer: environment.JWT_ISSUER }),
+            ...(environment.JWT_AUDIENCE === undefined
+                ? {}
+                : { audience: environment.JWT_AUDIENCE }),
+        }, {
+            onRejected: (context) => {
+                logger.warn(context, 'jwt auth rejected');
+                audit?.record({
+                    type: 'jwt_rejected',
+                    reason: context.reason,
+                    method: context.method,
+                    path: context.path,
+                });
             },
-          },
-        )
-      : apiKeyAuth;
-
-  const rateLimiter = createTenantRateLimiter(
-    {
-      maxRequests: environment.RATE_LIMIT_MAX_REQUESTS,
-      windowMs: environment.RATE_LIMIT_WINDOW_MS,
-    },
-    {
-      onRateLimited: (context) => {
-        metrics.rateLimitedTotal.inc({ tenant: context.tenantId });
-        audit?.record({
-          type: 'rate_limited',
-          tenant_id: context.tenantId,
-          method: context.method,
-          path: context.path,
-          retry_after_seconds: context.retryAfterSeconds,
-        });
-      },
-    },
-  );
-
-  const proxy = createReverseProxy({
-    upstreamBaseUrl: environment.UPSTREAM_PROVIDER_URL,
-    upstreamApiKey: environment.UPSTREAM_API_KEY,
-    securityMode: environment.SECURITY_MODE,
-    vault,
-    scanner,
-    shield,
-    sink: {
-      onPromptBlocked: (event) => {
-        metrics.injectionsBlockedTotal.inc();
-        logger.warn(event, 'prompt rejected');
-        audit?.record({
-          type: 'prompt_blocked',
-          request_id: event.requestId,
-          score: event.score,
-          rule_count: event.ruleIds.length,
-        });
-      },
-      onFailOpenBypass: (event) => {
-        metrics.failOpenBypassTotal.inc({ subsystem: event.subsystem });
-        logger.error(event, 'SECURITY BYPASS: subsystem failed in FAIL_OPEN');
-        audit?.record({
-          type: 'fail_open_bypass',
-          request_id: event.requestId,
-          subsystem: event.subsystem,
-          error_name: event.errorName,
-        });
-      },
-      onForwarded: (event) => {
-        metrics.piiRedactionsTotal.inc({ tenant: event.tenantId }, event.surrogatesInjected);
-        metrics.upstreamForwardLatencyMs.observe(event.forwardLatencyMs);
-        logger.info(event, 'request forwarded');
-        audit?.record({
-          type: 'request_forwarded',
-          request_id: event.requestId,
-          tenant_id: event.tenantId,
-          upstream_status: event.upstreamStatus,
-          surrogates_injected: event.surrogatesInjected,
-          streamed: event.streamed,
-        });
-      },
-      onClientDisconnect: (event) => {
-        metrics.clientDisconnectsTotal.inc({ phase: event.phase });
-        logger.warn(event, 'client disconnected; upstream task aborted');
-        audit?.record({
-          type: 'client_disconnect',
-          request_id: event.requestId,
-          phase: event.phase,
-        });
-      },
-    },
-  });
-
-  const app = express();
-  app.disable('x-powered-by');
-  app.set('trust proxy', false);
-
-  app.use((_req: Request, res: Response, next: NextFunction) => {
-    res.set('x-request-id', randomUUID());
-    res.on('finish', () => {
-      scrubSensitiveTraces(res);
+        })
+        : apiKeyAuth;
+    const rateLimiter = createTenantRateLimiter({
+        maxRequests: environment.RATE_LIMIT_MAX_REQUESTS,
+        windowMs: environment.RATE_LIMIT_WINDOW_MS,
+    }, {
+        onRateLimited: (context) => {
+            metrics.rateLimitedTotal.inc({ tenant: context.tenantId });
+            audit?.record({
+                type: 'rate_limited',
+                tenant_id: context.tenantId,
+                method: context.method,
+                path: context.path,
+                retry_after_seconds: context.retryAfterSeconds,
+            });
+        },
     });
-    res.on('close', () => {
-      scrubSensitiveTraces(res);
-    });
-    next();
-  });
-
-  app.use(helmet());
-
-  app.use(
-    pinoHttp({
-      logger,
-      redact: {
-        paths: [
-          'req.headers.authorization',
-          'req.headers["x-valence-key"]',
-          'req.headers.cookie',
-        ],
-        censor: '[redacted]',
-      },
-    }),
-  );
-
-  app.get('/healthz', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'ok' });
-  });
-
-  app.get('/metrics', apiKeyAuth, (_req: Request, res: Response) => {
-    res.type('text/plain; version=0.0.4; charset=utf-8').send(metrics.registry.render());
-  });
-
-  app.use('/v1', authenticate);
-  app.use('/v1', rateLimiter);
-  app.use('/v1', (req: Request, res: Response, next: NextFunction) => {
-    res.on('finish', () => {
-      const tenantId =
-        (req as Request & { valence?: { tenantId: string } }).valence?.tenantId ??
-        'unidentified';
-      metrics.requestsTotal.inc({
-        tenant: tenantId,
-        method: req.method,
-        status_class: `${Math.floor(res.statusCode / 100)}xx`,
-      });
-    });
-    next();
-  });
-  app.use('/v1', express.json({ limit: JSON_BODY_LIMIT }));
-  app.post('/v1/*', proxy);
-
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({ error: 'NOT_FOUND' });
-  });
-
-  app.use(
-    createErrorHandler({
-      onGatewayError: (event) => logger.error(event, 'gateway error boundary'),
-    }),
-  );
-
-  return app;
-}
-
-export function startGateway(): Server {
-  const logger = pino({
-    level: environment.NODE_ENV === 'production' ? 'info' : 'debug',
-    base: { component: 'gateway-proxy' },
-    timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
-    formatters: {
-      level: (label) => ({ level: label.toUpperCase() }),
-    },
-  });
-
-  installProcessGuards();
-
-  const app = buildApp(logger);
-  const server = createServer(app);
-
-  const sockets = new Set<Socket>();
-  server.on('connection', (socket) => {
-    sockets.add(socket);
-    socket.on('close', () => {
-      sockets.delete(socket);
-    });
-  });
-
-  server.listen(environment.PORT, () => {
-    logger.info(
-      {
-        port: environment.PORT,
+    const proxy = createReverseProxy({
+        upstreamBaseUrl: environment.UPSTREAM_PROVIDER_URL,
+        upstreamApiKey: environment.UPSTREAM_API_KEY,
         securityMode: environment.SECURITY_MODE,
-        upstream: environment.UPSTREAM_PROVIDER_URL,
-      },
-      'valence gateway listening',
-    );
-  });
-
-  const shutdown = (signal: string): void => {
-    logger.info({ signal }, 'graceful shutdown initiated');
-    server.close(() => {
-      TokenVault.resetInstance();
-      logger.info('shutdown complete');
-      process.exit(0);
+        vault,
+        scanner,
+        shield,
+        sink: {
+            onPromptBlocked: (event) => {
+                metrics.injectionsBlockedTotal.inc();
+                logger.warn(event, 'prompt rejected');
+                audit?.record({
+                    type: 'prompt_blocked',
+                    request_id: event.requestId,
+                    score: event.score,
+                    rule_count: event.ruleIds.length,
+                });
+            },
+            onFailOpenBypass: (event) => {
+                metrics.failOpenBypassTotal.inc({ subsystem: event.subsystem });
+                logger.error(event, 'SECURITY BYPASS: subsystem failed in FAIL_OPEN');
+                audit?.record({
+                    type: 'fail_open_bypass',
+                    request_id: event.requestId,
+                    subsystem: event.subsystem,
+                    error_name: event.errorName,
+                });
+            },
+            onForwarded: (event) => {
+                metrics.piiRedactionsTotal.inc({ tenant: event.tenantId }, event.surrogatesInjected);
+                metrics.upstreamForwardLatencyMs.observe(event.forwardLatencyMs);
+                logger.info(event, 'request forwarded');
+                audit?.record({
+                    type: 'request_forwarded',
+                    request_id: event.requestId,
+                    tenant_id: event.tenantId,
+                    upstream_status: event.upstreamStatus,
+                    surrogates_injected: event.surrogatesInjected,
+                    streamed: event.streamed,
+                });
+            },
+            onClientDisconnect: (event) => {
+                metrics.clientDisconnectsTotal.inc({ phase: event.phase });
+                logger.warn(event, 'client disconnected; upstream task aborted');
+                audit?.record({
+                    type: 'client_disconnect',
+                    request_id: event.requestId,
+                    phase: event.phase,
+                });
+            },
+        },
     });
-    setTimeout(() => {
-      logger.warn(
-        { openSockets: sockets.size },
-        'grace period expired, severing remaining sockets',
-      );
-      for (const socket of sockets) {
-        socket.destroy();
-      }
-      TokenVault.resetInstance();
-      process.exit(1);
-    }, SHUTDOWN_GRACE_MS).unref();
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
-
-  return server;
+    const app = express();
+    app.disable('x-powered-by');
+    app.set('trust proxy', false);
+    app.use((_req: Request, res: Response, next: NextFunction) => {
+        res.set('x-request-id', randomUUID());
+        res.on('finish', () => {
+            scrubSensitiveTraces(res);
+        });
+        res.on('close', () => {
+            scrubSensitiveTraces(res);
+        });
+        next();
+    });
+    app.use(helmet());
+    app.use(pinoHttp({
+        logger,
+        redact: {
+            paths: [
+                'req.headers.authorization',
+                'req.headers["x-valence-key"]',
+                'req.headers.cookie',
+            ],
+            censor: '[redacted]',
+        },
+    }));
+    app.get('/healthz', (_req: Request, res: Response) => {
+        res.status(200).json({ status: 'ok' });
+    });
+    app.get('/metrics', apiKeyAuth, (_req: Request, res: Response) => {
+        res.type('text/plain; version=0.0.4; charset=utf-8').send(metrics.registry.render());
+    });
+    app.use('/v1', authenticate);
+    app.use('/v1', rateLimiter);
+    app.use('/v1', (req: Request, res: Response, next: NextFunction) => {
+        res.on('finish', () => {
+            const tenantId = (req as Request & {
+                valence?: {
+                    tenantId: string;
+                };
+            }).valence?.tenantId ??
+                'unidentified';
+            metrics.requestsTotal.inc({
+                tenant: tenantId,
+                method: req.method,
+                status_class: `${Math.floor(res.statusCode / 100)}xx`,
+            });
+        });
+        next();
+    });
+    app.use('/v1', express.json({ limit: JSON_BODY_LIMIT }));
+    app.post('/v1/*', proxy);
+    app.use((_req: Request, res: Response) => {
+        res.status(404).json({ error: 'NOT_FOUND' });
+    });
+    app.use(createErrorHandler({
+        onGatewayError: (event) => logger.error(event, 'gateway error boundary'),
+    }));
+    return app;
 }
-
+export function startGateway(): Server {
+    const logger = pino({
+        level: environment.NODE_ENV === 'production' ? 'info' : 'debug',
+        base: { component: 'gateway-proxy' },
+        timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+        formatters: {
+            level: (label) => ({ level: label.toUpperCase() }),
+        },
+    });
+    installProcessGuards();
+    const app = buildApp(logger);
+    const server = createServer(app);
+    const sockets = new Set<Socket>();
+    server.on('connection', (socket) => {
+        sockets.add(socket);
+        socket.on('close', () => {
+            sockets.delete(socket);
+        });
+    });
+    server.listen(environment.PORT, () => {
+        logger.info({
+            port: environment.PORT,
+            securityMode: environment.SECURITY_MODE,
+            upstream: environment.UPSTREAM_PROVIDER_URL,
+        }, 'valence gateway listening');
+    });
+    const shutdown = (signal: string): void => {
+        logger.info({ signal }, 'graceful shutdown initiated');
+        server.close(() => {
+            TokenVault.resetInstance();
+            logger.info('shutdown complete');
+            process.exit(0);
+        });
+        setTimeout(() => {
+            logger.warn({ openSockets: sockets.size }, 'grace period expired, severing remaining sockets');
+            for (const socket of sockets) {
+                socket.destroy();
+            }
+            TokenVault.resetInstance();
+            process.exit(1);
+        }, SHUTDOWN_GRACE_MS).unref();
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    return server;
+}
 if (require.main === module) {
-  startGateway();
+    startGateway();
 }

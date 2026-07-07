@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""Valence Pipeline Stage 3: Candidate Hydrator and Fuzz Generator.
-
-Produces hydrated candidate profiles for the Stage 4 Razor Engine. The
-FuzzDataGenerator emits large randomized batches with a controlled,
-mathematically volatile distribution of edge cases so the deterministic
-scoring and disqualification paths of Stage 4 can be validated at scale.
-
-Runs clean under `python -W error`. Standard library only.
-"""
 
 from __future__ import annotations
 
@@ -41,7 +32,6 @@ _UNAUTHORIZED_CHANNELS: Final[tuple[str, ...]] = (
 
 @dataclass(frozen=True, slots=True)
 class FuzzProfile:
-    """Metadata describing how a single generated profile was perturbed."""
 
     negative_age: bool
     unauthorized_channel: bool
@@ -66,7 +56,6 @@ class ScaleValidationReport:
 
 
 class FuzzDataGenerator:
-    """Generates randomized candidate profiles with a controlled fault mix."""
 
     def __init__(self, seed: int | None = 1337) -> None:
         self._rng = random.Random(seed)
@@ -121,7 +110,6 @@ class FuzzDataGenerator:
 
 
 def batched(items: list[dict[str, Any]], size: int) -> Iterator[list[dict[str, Any]]]:
-    """Yield successive fixed-size chunks, honoring the Stage 4 batch cap."""
     if size <= 0:
         raise ValueError("size must be positive")
     for start in range(0, len(items), size):
@@ -234,7 +222,6 @@ def _run_scale_pass(profile_count: int, window_size: int) -> ScaleValidationRepo
 
 
 def _run_scale_validation() -> ScaleValidationReport:
-    """Generate a large deterministic corpus and drive it through Stage 4."""
     profile_count, window_size = _scale_settings()
     first = _run_scale_pass(profile_count, window_size)
     second = _run_scale_pass(profile_count, window_size)

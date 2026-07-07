@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-#
-# Valence unified end-to-end demo orchestrator.
-#
-# Boots the TypeScript gateway in the background, runs the Python analytical
-# pipeline (Stage 3 fuzz generation, Stage 4 reranking, Stage 5 cognitive
-# verification), captures the box-drawn dashboards from each tool, and cleans
-# up all background processes on exit.
 
 set -euo pipefail
 
@@ -22,13 +15,9 @@ else
   exit 1
 fi
 
-# Load .env if present; otherwise fall back to safe local demo defaults. The
-# upstream target is a loopback address so the gateway boots without a real
-# provider (the pipeline uses its own mock proxy for this demo).
 if [[ -f "$ROOT_DIR/.env" ]]; then
   echo "Loading environment from .env"
   set -a
-  # shellcheck disable=SC1091
   . "$ROOT_DIR/.env"
   set +a
 fi

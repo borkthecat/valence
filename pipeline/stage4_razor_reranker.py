@@ -1,50 +1,17 @@
 #!/usr/bin/env python3
-"""
-Valence Gateway :: Stage 4 :: Razor Reranking Engine
-====================================================
-
-Pure-stdlib, deterministic reranking engine for the Valence candidate
-identification pipeline. It ingests a batch of up to 50 hydrated candidate
-profiles from Stage 3, applies a fixed compliance and integrity scoring
-matrix, removes integrity violators outright, and slices the survivors down
-to exactly the top OUTPUT_POOL_SIZE profiles for Stage 5 cognitive
-verification.
-
-Design guarantees:
-  - Deterministic: identical input plus identical context yields identical
-    output, including tie ordering (ties break on candidate id).
-  - Fail-closed: a batch that cannot yield a full high-integrity pool raises
-    rather than padding the result with disqualified candidates. Bad or
-    unauthorized actors can never leak past the filter into Stage 5.
-  - No third-party dependencies. Python 3.11+.
-
-Scoring matrix (base score 100.0 per candidate):
-  - Age structurally anomalous (< 0 or > 120): -40.0 and DISQUALIFIED.
-  - Age > 80 (but <= 120): -10.0.
-  - Anniversary marker True: +15.0.
-  - Exact target channel: +25.0.
-  - Other authorized channel: +12.0.
-  - Channel not authorized: -50.0 and DISQUALIFIED (never leaks past).
-  - Colorway exact match to target: +12.0.
-  - Historical era deviation: continuous -0.45/year, capped at -45.0.
-
-Disqualification is a hard gate applied before ranking. The penalty is still
-recorded on the score for telemetry and audit transparency, but a
-disqualified candidate is removed from the eligible pool regardless of score.
-"""
 
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Final
 
 from config import get_settings
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
+
+
+
 
 BASE_SCORE: Final[float] = 100.0
 MAX_BATCH_SIZE: Final[int] = 50
@@ -66,7 +33,7 @@ AGE_ELEVATED_THRESHOLD: Final[float] = 80.0
 ERA_FAR_THRESHOLD: Final[float] = 100.0
 ERA_NEAR_THRESHOLD: Final[float] = 50.0
 
-# Required key -> accepted python type(s) for incoming candidate dicts.
+
 _REQUIRED_SCHEMA: Final[dict[str, tuple[type, ...]]] = {
     "id": (str,),
     "age": (int, float),
@@ -77,37 +44,28 @@ _REQUIRED_SCHEMA: Final[dict[str, tuple[type, ...]]] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Exceptions
-# ---------------------------------------------------------------------------
+
+
+
 
 class ValenceStageError(Exception):
-    """Base class for every Stage 4 failure."""
-
+    pass
 
 class CandidateValidationError(ValenceStageError):
-    """Raised when an incoming candidate dict has a bad shape, key, or type."""
-
+    pass
 
 class BatchSizeError(ValenceStageError):
-    """Raised when a batch is empty or exceeds MAX_BATCH_SIZE."""
-
+    pass
 
 class InsufficientEligibleCandidatesError(ValenceStageError):
-    """
-    Raised when fewer than OUTPUT_POOL_SIZE candidates survive the integrity
-    gate. Padding with disqualified candidates would leak bad actors, so the
-    engine fails closed instead.
-    """
+    pass
 
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
+
+
 
 @dataclass(frozen=True, slots=True)
 class RerankContext:
-    """Target profile and policy the batch is scored against."""
 
     target_channel: str
     authorized_channels: frozenset[str]
@@ -123,7 +81,6 @@ class RerankContext:
 
 @dataclass(frozen=True, slots=True)
 class Candidate:
-    """A validated, immutable Stage 3 candidate profile."""
 
     id: str
     age: float
@@ -135,7 +92,6 @@ class Candidate:
 
 @dataclass(frozen=True, slots=True)
 class ScoreBreakdown:
-    """Full, auditable trace of how a candidate score was produced."""
 
     candidate_id: str
     base: float
@@ -148,7 +104,6 @@ class ScoreBreakdown:
 
 @dataclass(slots=True)
 class EngineTelemetry:
-    """Accumulating operational counters rendered by the dashboard."""
 
     batches_handled: int = 0
     items_processed: int = 0
@@ -160,7 +115,6 @@ class EngineTelemetry:
 
 @dataclass(frozen=True, slots=True)
 class RerankResult:
-    """Outcome of a single batch rerank."""
 
     selected: tuple[Candidate, ...]
     breakdowns: tuple[ScoreBreakdown, ...]
@@ -191,18 +145,11 @@ class QualityReport:
         )
 
 
-# ---------------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------------
+
+
+
 
 def validate_candidate(raw: Any) -> Candidate:
-    """
-    Coerce and validate a single raw candidate dict into a Candidate.
-
-    Raises CandidateValidationError on any shape, key, or type violation.
-    Note: bool is a subclass of int in Python, so numeric fields explicitly
-    reject bool to keep the schema honest.
-    """
     if not isinstance(raw, dict):
         raise CandidateValidationError(
             f"candidate must be a dict, received {type(raw).__name__}"
@@ -218,7 +165,7 @@ def validate_candidate(raw: Any) -> Candidate:
 
     for key, accepted in _REQUIRED_SCHEMA.items():
         value = raw[key]
-        # Reject bool where a number is expected (bool is an int subclass).
+
         if accepted in ((int, float),) and isinstance(value, bool):
             raise CandidateValidationError(
                 f"key '{key}' must be numeric, received bool"
@@ -243,15 +190,11 @@ def validate_candidate(raw: Any) -> Candidate:
     )
 
 
-# ---------------------------------------------------------------------------
-# Engine
-# ---------------------------------------------------------------------------
+
+
+
 
 class RazorReranker:
-    """
-    Stateful reranking engine. State is limited to accumulating telemetry
-    across batches; scoring itself is a pure function of (candidate, context).
-    """
 
     def __init__(self) -> None:
         self._telemetry = EngineTelemetry()
@@ -263,7 +206,6 @@ class RazorReranker:
     def score_candidate(
         self, candidate: Candidate, context: RerankContext
     ) -> ScoreBreakdown:
-        """Apply the full deterministic matrix to one candidate."""
         adjustments: list[tuple[str, float]] = []
         disqualifiers: list[str] = []
         anomalies = 0
@@ -317,10 +259,6 @@ class RazorReranker:
     def rerank(
         self, raw_batch: list[dict[str, Any]], context: RerankContext
     ) -> RerankResult:
-        """
-        Validate, score, gate, and slice a batch down to exactly
-        OUTPUT_POOL_SIZE high-integrity candidates.
-        """
         if not raw_batch:
             raise BatchSizeError("batch is empty; nothing to rerank")
         if len(raw_batch) > MAX_BATCH_SIZE:
@@ -351,7 +289,7 @@ class RazorReranker:
                 f"need {OUTPUT_POOL_SIZE} to form a high-integrity pool"
             )
 
-        # Deterministic ranking: highest score first, ties broken by id.
+
         eligible.sort(key=lambda b: (-b.final_score, b.candidate_id))
         top = eligible[:OUTPUT_POOL_SIZE]
         selected = tuple(by_id[b.candidate_id] for b in top)
@@ -397,9 +335,9 @@ def result_to_stage5_pool(result: RerankResult) -> list[dict[str, Any]]:
     ]
 
 
-# ---------------------------------------------------------------------------
-# Operational dashboard
-# ---------------------------------------------------------------------------
+
+
+
 
 _DASH_INNER_WIDTH: Final[int] = 60
 
@@ -423,7 +361,6 @@ def _metric_row(label: str, value: str) -> str:
 
 
 def render_dashboard(telemetry: EngineTelemetry) -> str:
-    """Return a beautifully aligned, scannable terminal telemetry panel."""
     top = "+" + ("-" * _DASH_INNER_WIDTH) + "+"
     sep = "+" + ("-" * _DASH_INNER_WIDTH) + "+"
 
@@ -451,7 +388,6 @@ def render_dashboard(telemetry: EngineTelemetry) -> str:
 
 
 def render_pool(result: RerankResult) -> str:
-    """Return an aligned table of the final selected pool with scores."""
     score_by_id = {b.candidate_id: b.final_score for b in result.breakdowns}
     header = "  RANK  SCORE     CANDIDATE ID          CHANNEL"
     rows = [header, "  " + ("-" * 52)]
@@ -533,9 +469,9 @@ def run_quality_validation(
     )
 
 
-# ---------------------------------------------------------------------------
-# Sample data
-# ---------------------------------------------------------------------------
+
+
+
 
 def _default_context() -> RerankContext:
     settings = get_settings()
@@ -548,7 +484,6 @@ def _default_context() -> RerankContext:
 
 
 def _fixed_test_context() -> RerankContext:
-    """Environment-independent context so unit assertions stay deterministic."""
     return RerankContext(
         target_channel="boutique-authorized",
         authorized_channels=frozenset(
@@ -560,7 +495,6 @@ def _fixed_test_context() -> RerankContext:
 
 
 def _sample_batch() -> list[dict[str, Any]]:
-    """A representative Stage 3 batch mixing strong, weak, and bad actors."""
     return [
         {"id": "cand-alpha", "age": 26, "anniversary": True,
          "channel": "boutique-authorized", "colorway": "midnight-sapphire",
@@ -580,56 +514,52 @@ def _sample_batch() -> list[dict[str, Any]]:
         {"id": "cand-foxtrot", "age": 90, "anniversary": True,
          "channel": "certified-partner", "colorway": "midnight-sapphire",
          "era_year": 1998},
-        # Bad actor: unauthorized channel. Must never leak past.
+
         {"id": "cand-graymarket", "age": 26, "anniversary": True,
          "channel": "unauthorized-reseller", "colorway": "midnight-sapphire",
          "era_year": 1998},
-        # Bad actor: structurally anomalous age.
+
         {"id": "cand-corrupt", "age": 305, "anniversary": True,
          "channel": "boutique-authorized", "colorway": "midnight-sapphire",
          "era_year": 1998},
     ]
 
 
-# ---------------------------------------------------------------------------
-# Verification suite (inline assertions)
-# ---------------------------------------------------------------------------
+
+
+
 
 def _run_verification() -> None:
-    """
-    Self-check the implementation against every rule of the specification.
-    Any failure raises AssertionError and aborts before the demo dashboard.
-    """
     context = _fixed_test_context()
     engine = RazorReranker()
 
-    # 1. Exact scoring math.
+
     perfect = validate_candidate(
         {"id": "perfect", "age": 30, "anniversary": True,
          "channel": "boutique-authorized", "colorway": "midnight-sapphire",
          "era_year": 1998}
     )
     b = engine.score_candidate(perfect, context)
-    assert b.final_score == 152.0, b.final_score  # 100 +15 +25 +12
+    assert b.final_score == 152.0, b.final_score
     assert not b.disqualified
 
     elevated = validate_candidate(
         {"id": "elevated", "age": 90, "anniversary": False,
          "channel": "brand-direct", "colorway": "no-match",
-         "era_year": 1938}  # deviation 60 -> near penalty
+         "era_year": 1938}
     )
     b = engine.score_candidate(elevated, context)
-    assert b.final_score == 75.0, b.final_score  # 100 -10 +12 -27
+    assert b.final_score == 75.0, b.final_score
 
     far_era = validate_candidate(
         {"id": "far", "age": 30, "anniversary": False,
          "channel": "brand-direct", "colorway": "no-match",
-         "era_year": 1800}  # deviation 198 -> far penalty
+         "era_year": 1800}
     )
     b = engine.score_candidate(far_era, context)
-    assert b.final_score == 67.0, b.final_score  # 100 +12 -45
+    assert b.final_score == 67.0, b.final_score
 
-    # 2. Disqualification gates.
+
     unauthorized = engine.score_candidate(
         validate_candidate(
             {"id": "bad", "age": 30, "anniversary": False,
@@ -640,7 +570,7 @@ def _run_verification() -> None:
     )
     assert unauthorized.disqualified
     assert "channel_unauthorized" in unauthorized.disqualifiers
-    assert unauthorized.final_score == 50.0, unauthorized.final_score  # 100 -50
+    assert unauthorized.final_score == 50.0, unauthorized.final_score
 
     anomalous_age = engine.score_candidate(
         validate_candidate(
@@ -653,7 +583,7 @@ def _run_verification() -> None:
     assert anomalous_age.disqualified
     assert "age_structurally_anomalous" in anomalous_age.disqualifiers
 
-    # 3. Validation rejects malformed payloads.
+
     for bad_payload, reason in [
         ("not-a-dict", "non-dict"),
         ({"id": "x"}, "missing keys"),
@@ -671,7 +601,7 @@ def _run_verification() -> None:
         else:
             raise AssertionError(f"validation should have rejected: {reason}")
 
-    # 4. End-to-end: exactly 5 out, no bad actors, deterministic.
+
     result = engine.rerank(_sample_batch(), context)
     assert len(result.selected) == OUTPUT_POOL_SIZE, len(result.selected)
     selected_ids = {c.id for c in result.selected}
@@ -684,14 +614,14 @@ def _run_verification() -> None:
     assert stage5_pool[0]["id"] == result.selected[0].id
     assert isinstance(stage5_pool[0]["score"], float)
 
-    # Determinism: same input, same order.
+
     again = RazorReranker().rerank(_sample_batch(), context)
     assert [c.id for c in again.selected] == [c.id for c in result.selected]
 
-    # 5. Batch bounds.
+
     for bad_batch, exc in [
         ([], BatchSizeError),
-        (_sample_batch() * 7, BatchSizeError),  # 56 > 50
+        (_sample_batch() * 7, BatchSizeError),
     ]:
         try:
             engine.rerank(bad_batch, context)
@@ -700,7 +630,7 @@ def _run_verification() -> None:
         else:
             raise AssertionError("batch bounds not enforced")
 
-    # 6. Fail-closed when too few survive the integrity gate.
+
     thin_batch = [
         {"id": f"bad-{i}", "age": 30, "anniversary": False,
          "channel": "unauthorized-reseller", "colorway": "x", "era_year": 1998}
@@ -718,9 +648,9 @@ def _run_verification() -> None:
     assert quality.top5_recall >= 0.99, quality
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
+
+
+
 
 def main() -> int:
     _run_verification()
@@ -728,7 +658,7 @@ def main() -> int:
     context = _default_context()
     engine = RazorReranker()
 
-    # Process a few batches so the dashboard shows meaningful aggregates.
+
     last: RerankResult | None = None
     for _ in range(3):
         last = engine.rerank(_sample_batch(), context)

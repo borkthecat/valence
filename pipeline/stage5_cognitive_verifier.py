@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""Valence Gateway Stage 5: Cognitive Verification Pass.
-
-Asynchronous controller that takes the high-integrity pool emitted by the
-Stage 4 Razor Engine, sanitizes it against indirect prompt injection, routes
-it through the Valence Gateway security proxy for cognitive adjudication, and
-returns a single immutable verdict. Any upstream, proxy, or schema anomaly
-triggers a fail-closed protocol so unverified profiles never leak downstream.
-
-Runs clean under `python -W error`. Standard library plus the FastAPI and
-Pydantic v2 ecosystem only. The __main__ block runs a 20-way concurrent
-multi-tenant load simulation with no external services required.
-"""
 
 from __future__ import annotations
 
@@ -21,7 +9,7 @@ import os
 import random
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Final, Protocol
 
 from fastapi import FastAPI, HTTPException
@@ -54,11 +42,10 @@ _NEUTRALIZED_TOKEN: Final[str] = "[NEUTRALIZED]"
 
 
 class ValenceStage5Error(Exception):
-    """Base class for every Stage 5 failure."""
+    pass
 
 
 class CognitivePipelineCompromisedError(ValenceStage5Error):
-    """Fail-closed signal: the transaction is frozen and the tenant flagged."""
 
     def __init__(self, tenant_id: str, reason: str) -> None:
         super().__init__(f"tenant={tenant_id} reason={reason}")
@@ -67,11 +54,10 @@ class CognitivePipelineCompromisedError(ValenceStage5Error):
 
 
 class ProxyConnectionError(ValenceStage5Error):
-    """The Valence Gateway proxy could not be reached or the socket dropped."""
+    pass
 
 
 class ProxyRejectionError(ValenceStage5Error):
-    """The Valence Gateway proxy returned a security rejection status."""
 
     def __init__(self, status: int) -> None:
         super().__init__(f"proxy rejected with status {status}")
@@ -79,7 +65,7 @@ class ProxyRejectionError(ValenceStage5Error):
 
 
 class MalformedVerdictError(ValenceStage5Error):
-    """The proxy response could not be reconciled into a valid verdict."""
+    pass
 
 
 class CandidateProfile(BaseModel):
@@ -113,7 +99,6 @@ class CognitiveVerdict(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class TraceContext:
-    """OpenTelemetry-style propagation context for one verification span."""
 
     trace_id: str
     span_id: str
@@ -148,13 +133,6 @@ class ProxyClient(Protocol):
 
 
 class AsyncHttpProxyClient:
-    """Non-blocking HTTP/1.1 client built on native asyncio stream primitives.
-
-    Reaches the Valence Gateway proxy in real deployments. Transient failures
-    (network drops, HTTP 429) are retried with exponential backoff before the
-    caller fails closed. The load simulation injects a mock instead, so no
-    socket is opened during testing.
-    """
 
     def __init__(
         self,
@@ -208,12 +186,6 @@ class AsyncHttpProxyClient:
         await asyncio.sleep(self._base_backoff * (2 ** attempt))
 
     def _mock_response(self, body: bytes) -> ProxyResponse:
-        """Return a programmatically valid model response without any network I/O.
-
-        Enabled by MOCK_AI_PROVIDER, this lets the orchestrator drive very
-        large sequential or concurrent runs to exercise memory allocation and
-        connection handling without incurring real upstream cost.
-        """
         payload = json.loads(body)
         pool = json.loads(payload["messages"][1]["content"])["candidate_pool"]
         winner = pool[0]["id"]
@@ -292,7 +264,6 @@ class MetricsSnapshot:
 
 
 class OTelMetrics:
-    """Single-event-loop metrics collector using OpenTelemetry-style counters."""
 
     def __init__(self) -> None:
         self._batches_total = 0
@@ -344,7 +315,6 @@ class OTelMetrics:
 
 
 class ContextualSanitizer:
-    """Neutralizes indirect injection payloads and enforces byte quotas."""
 
     def __init__(self, max_field_bytes: int | None = None) -> None:
         self._max_field_bytes = (
@@ -400,7 +370,6 @@ class ContextualSanitizer:
 
 
 class CognitiveVerifier:
-    """Async controller binding sanitization, proxy routing, and adjudication."""
 
     def __init__(self, metrics: OTelMetrics, sanitizer: ContextualSanitizer) -> None:
         self._metrics = metrics
@@ -565,15 +534,6 @@ _CLOSERS: Final[dict[str, str]] = {"{": "}", "[": "]"}
 
 
 def heal_json_fragment(raw: str) -> str:
-    """Repair a truncated JSON fragment into a parseable string.
-
-    Strips code fences and leading junk, walks the fragment tracking string
-    state and an open-bracket stack, drops trailing junk once the top-level
-    value balances, and appends any missing close brackets when a stream was
-    cut off mid-structure. This only makes the string parseable; the winner
-    identity is still validated against the candidate pool downstream, so a
-    healed payload cannot bypass the fail-closed pool check.
-    """
     text = raw.strip()
     if text.startswith("```"):
         text = text.strip("`")
@@ -623,7 +583,6 @@ def heal_json_fragment(raw: str) -> str:
 
 
 def _load_json_lenient(content: str, notes: list[str]) -> dict[str, Any] | None:
-    """Parse JSON, repairing a truncated fragment on first failure."""
     try:
         parsed = json.loads(content)
         return parsed if isinstance(parsed, dict) else None
@@ -707,7 +666,6 @@ async def verify_endpoint(request: Stage5Request) -> CognitiveVerdict:
 
 
 class _SimulationProxyClient:
-    """Deterministic mock proxy exercising nominal, degraded, and hostile paths."""
 
     async def complete(
         self, body: bytes, headers: dict[str, str]
@@ -901,7 +859,6 @@ async def _run_concurrent_sim() -> tuple[int, int]:
 
 
 async def _run_mock_scale_check(count: int = 2000) -> None:
-    """Drive many sequential verifications through the local mock provider."""
     metrics = OTelMetrics()
     verifier = CognitiveVerifier(metrics, ContextualSanitizer())
     proxy = AsyncHttpProxyClient(mock_provider=True)

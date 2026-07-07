@@ -1,9 +1,3 @@
-"""Pytest entry points that drive the self-verifying pipeline stages.
-
-These wrap the stage modules' own verification routines so the CI matrix can
-gate every push. The stages are executable and self-checking on their own;
-this suite makes those checks discoverable by pytest.
-"""
 
 from __future__ import annotations
 

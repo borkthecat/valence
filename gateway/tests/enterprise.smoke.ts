@@ -10,170 +10,152 @@ import type { AuthenticatedRequest } from '../src/middleware/types';
 import { MetricsRegistry } from '../src/observability/metrics';
 import { HashChainedAuditLog, verifyAuditLog } from '../src/observability/auditLog';
 import { FileSecretsProvider } from '../src/config/secrets';
-
 const SECRET = 'jwt-secret-0123456789abcdef0123456789abcdef';
-
 function b64url(value: unknown): string {
-  return Buffer.from(JSON.stringify(value))
-    .toString('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
+    return Buffer.from(JSON.stringify(value))
+        .toString('base64')
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
 }
-
 function signHs256(payload: Record<string, unknown>): string {
-  const header = b64url({ alg: 'HS256', typ: 'JWT' });
-  const body = b64url(payload);
-  const signature = createHmac('sha256', SECRET)
-    .update(`${header}.${body}`)
-    .digest('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-  return `${header}.${body}.${signature}`;
+    const header = b64url({ alg: 'HS256', typ: 'JWT' });
+    const body = b64url(payload);
+    const signature = createHmac('sha256', SECRET)
+        .update(`${header}.${body}`)
+        .digest('base64')
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+    return `${header}.${body}.${signature}`;
 }
-
 function signRs256(payload: Record<string, unknown>, privateKeyPem: string): string {
-  const header = b64url({ alg: 'RS256', typ: 'JWT', kid: 'local-test-key' });
-  const body = b64url(payload);
-  const signer = createSign('RSA-SHA256');
-  signer.update(`${header}.${body}`);
-  signer.end();
-  const signature = signer.sign(privateKeyPem, 'base64url');
-  return `${header}.${body}.${signature}`;
+    const header = b64url({ alg: 'RS256', typ: 'JWT', kid: 'local-test-key' });
+    const body = b64url(payload);
+    const signer = createSign('RSA-SHA256');
+    signer.update(`${header}.${body}`);
+    signer.end();
+    const signature = signer.sign(privateKeyPem, 'base64url');
+    return `${header}.${body}.${signature}`;
 }
-
-function fakeResponse(): { res: Response; state: { status: number; body: unknown } } {
-  const state = { status: 0, body: undefined as unknown };
-  const res = {
-    status(code: number) {
-      state.status = code;
-      return this;
-    },
-    set() {
-      return this;
-    },
-    json(body: unknown) {
-      state.body = body;
-      return this;
-    },
-  } as unknown as Response;
-  return { res, state };
+function fakeResponse(): {
+    res: Response;
+    state: {
+        status: number;
+        body: unknown;
+    };
+} {
+    const state = { status: 0, body: undefined as unknown };
+    const res = {
+        status(code: number) {
+            state.status = code;
+            return this;
+        },
+        set() {
+            return this;
+        },
+        json(body: unknown) {
+            state.body = body;
+            return this;
+        },
+    } as unknown as Response;
+    return { res, state };
 }
-
 async function run(): Promise<void> {
-  const token = signHs256({
-    tenant: 'tenant-a',
-    scope: 'valence:proxy profile:read',
-    exp: Math.floor(Date.now() / 1000) + 60,
-  });
-  const claims = verifyJwt(token, SECRET);
-  assert.equal(claims.tenant, 'tenant-a');
-
-  const auth = createJwtAuth({ secret: SECRET, requiredScope: 'valence:proxy' });
-  const req = {
-    method: 'POST',
-    path: '/v1/messages',
-    headers: { authorization: `Bearer ${token}` },
-  } as unknown as AuthenticatedRequest;
-  const { res, state } = fakeResponse();
-  let nextCalled = false;
-  auth(req, res, (() => {
-    nextCalled = true;
-  }) as NextFunction);
-  assert.equal(nextCalled, true);
-  assert.equal(req.valence?.tenantId, 'tenant-a');
-  assert.equal(state.status, 0);
-
-  const denied = fakeResponse();
-  createJwtAuth({ secret: SECRET, requiredScope: 'admin:write' })(
-    req,
-    denied.res,
-    (() => undefined) as NextFunction,
-  );
-  assert.equal(denied.state.status, 403);
-
-  const pair = generateKeyPairSync('rsa', {
-    modulusLength: 2048,
-    publicKeyEncoding: { type: 'spki', format: 'pem' },
-    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-  });
-  const rsToken = signRs256(
-    {
-      sub: 'tenant-rs',
-      scopes: ['valence:proxy'],
-      exp: Math.floor(Date.now() / 1000) + 60,
-    },
-    pair.privateKey,
-  );
-  const rsClaims = verifyJwt(rsToken, '', {
-    algorithm: 'RS256',
-    publicKeyPem: pair.publicKey,
-  });
-  assert.equal(rsClaims.sub, 'tenant-rs');
-
-  let now = 1_000;
-  const limiter = createTenantRateLimiter({
-    maxRequests: 2,
-    windowMs: 1_000,
-    now: () => now,
-  });
-  for (let i = 0; i < 2; i += 1) {
-    const ok = fakeResponse();
-    limiter(req, ok.res, (() => undefined) as NextFunction);
-    assert.equal(ok.state.status, 0);
-  }
-  const blocked = fakeResponse();
-  limiter(req, blocked.res, (() => undefined) as NextFunction);
-  assert.equal(blocked.state.status, 429);
-  now = 2_001;
-  const reset = fakeResponse();
-  limiter(req, reset.res, (() => undefined) as NextFunction);
-  assert.equal(reset.state.status, 0);
-
-  const registry = new MetricsRegistry();
-  registry.counter('valence_test_total', 'test counter').inc({ tenant: 'tenant-a' }, 3);
-  const rendered = registry.render();
-  assert.match(rendered, /# TYPE valence_test_total counter/);
-  assert.match(rendered, /valence_test_total\{tenant="tenant-a"\} 3/);
-
-  const temp = mkdtempSync(join(tmpdir(), 'valence-audit-'));
-  try {
-    const path = join(temp, 'audit.log');
-    const audit = new HashChainedAuditLog(path);
-    audit.record({ type: 'auth_rejected', reason: 'invalid' });
-    audit.record({ type: 'request_forwarded', upstream_status: 200 });
-    await audit.flush();
-    const records = readFileSync(path, 'utf8').trim().split(/\r?\n/).map((line) => JSON.parse(line));
-    assert.equal(records.length, 2);
-    assert.equal(records[1].previous_hash, records[0].hash);
-    assert.deepEqual(verifyAuditLog(path), { valid: true, records: 2 });
-    records[0].event.reason = 'tampered';
-    writeFileSync(path, `${records.map((record) => JSON.stringify(record)).join('\n')}\n`);
-    const tampered = verifyAuditLog(path);
-    assert.equal(tampered.valid, false);
-    assert.equal(tampered.error, 'hash mismatch');
-
-    const secretsPath = join(temp, 'secrets.json');
-    writeFileSync(
-      secretsPath,
-      JSON.stringify({
-        UPSTREAM_API_KEY: 'sk-provider-0123456789',
-        GATEWAY_API_KEY: 'gateway-key-0123456789abcdef0123456789abcdef',
-        JWT_PUBLIC_KEY_PEM: pair.publicKey,
-      }),
-    );
-    const secrets = new FileSecretsProvider(secretsPath).loadGatewaySecrets();
-    assert.equal(secrets.upstreamApiKey, 'sk-provider-0123456789');
-    assert.equal(secrets.jwtPublicKeyPem, pair.publicKey);
-  } finally {
-    rmSync(temp, { recursive: true, force: true });
-  }
-
-  console.log('enterprise.smoke: OK');
+    const token = signHs256({
+        tenant: 'tenant-a',
+        scope: 'valence:proxy profile:read',
+        exp: Math.floor(Date.now() / 1000) + 60,
+    });
+    const claims = verifyJwt(token, SECRET);
+    assert.equal(claims.tenant, 'tenant-a');
+    const auth = createJwtAuth({ secret: SECRET, requiredScope: 'valence:proxy' });
+    const req = {
+        method: 'POST',
+        path: '/v1/messages',
+        headers: { authorization: `Bearer ${token}` },
+    } as unknown as AuthenticatedRequest;
+    const { res, state } = fakeResponse();
+    let nextCalled = false;
+    auth(req, res, (() => {
+        nextCalled = true;
+    }) as NextFunction);
+    assert.equal(nextCalled, true);
+    assert.equal(req.valence?.tenantId, 'tenant-a');
+    assert.equal(state.status, 0);
+    const denied = fakeResponse();
+    createJwtAuth({ secret: SECRET, requiredScope: 'admin:write' })(req, denied.res, (() => undefined) as NextFunction);
+    assert.equal(denied.state.status, 403);
+    const pair = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const rsToken = signRs256({
+        sub: 'tenant-rs',
+        scopes: ['valence:proxy'],
+        exp: Math.floor(Date.now() / 1000) + 60,
+    }, pair.privateKey);
+    const rsClaims = verifyJwt(rsToken, '', {
+        algorithm: 'RS256',
+        publicKeyPem: pair.publicKey,
+    });
+    assert.equal(rsClaims.sub, 'tenant-rs');
+    let now = 1000;
+    const limiter = createTenantRateLimiter({
+        maxRequests: 2,
+        windowMs: 1000,
+        now: () => now,
+    });
+    for (let i = 0; i < 2; i += 1) {
+        const ok = fakeResponse();
+        limiter(req, ok.res, (() => undefined) as NextFunction);
+        assert.equal(ok.state.status, 0);
+    }
+    const blocked = fakeResponse();
+    limiter(req, blocked.res, (() => undefined) as NextFunction);
+    assert.equal(blocked.state.status, 429);
+    now = 2001;
+    const reset = fakeResponse();
+    limiter(req, reset.res, (() => undefined) as NextFunction);
+    assert.equal(reset.state.status, 0);
+    const registry = new MetricsRegistry();
+    registry.counter('valence_test_total', 'test counter').inc({ tenant: 'tenant-a' }, 3);
+    const rendered = registry.render();
+    assert.match(rendered, /# TYPE valence_test_total counter/);
+    assert.match(rendered, /valence_test_total\{tenant="tenant-a"\} 3/);
+    const temp = mkdtempSync(join(tmpdir(), 'valence-audit-'));
+    try {
+        const path = join(temp, 'audit.log');
+        const audit = new HashChainedAuditLog(path);
+        audit.record({ type: 'auth_rejected', reason: 'invalid' });
+        audit.record({ type: 'request_forwarded', upstream_status: 200 });
+        await audit.flush();
+        const records = readFileSync(path, 'utf8').trim().split(/\r?\n/).map((line) => JSON.parse(line));
+        assert.equal(records.length, 2);
+        assert.equal(records[1].previous_hash, records[0].hash);
+        assert.deepEqual(verifyAuditLog(path), { valid: true, records: 2 });
+        records[0].event.reason = 'tampered';
+        writeFileSync(path, `${records.map((record) => JSON.stringify(record)).join('\n')}\n`);
+        const tampered = verifyAuditLog(path);
+        assert.equal(tampered.valid, false);
+        assert.equal(tampered.error, 'hash mismatch');
+        const secretsPath = join(temp, 'secrets.json');
+        writeFileSync(secretsPath, JSON.stringify({
+            UPSTREAM_API_KEY: 'sk-provider-0123456789',
+            GATEWAY_API_KEY: 'gateway-key-0123456789abcdef0123456789abcdef',
+            JWT_PUBLIC_KEY_PEM: pair.publicKey,
+        }));
+        const secrets = new FileSecretsProvider(secretsPath).loadGatewaySecrets();
+        assert.equal(secrets.upstreamApiKey, 'sk-provider-0123456789');
+        assert.equal(secrets.jwtPublicKeyPem, pair.publicKey);
+    }
+    finally {
+        rmSync(temp, { recursive: true, force: true });
+    }
+    console.log('enterprise.smoke: OK');
 }
-
 run().catch((error) => {
-  console.error('enterprise.smoke: FAILED', error);
-  process.exit(1);
+    console.error('enterprise.smoke: FAILED', error);
+    process.exit(1);
 });

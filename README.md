@@ -201,6 +201,8 @@ Every push and pull request to `main` runs the workflow in [.github/workflows/ci
 
 Apache-2.0. See [LICENSE](LICENSE).
 
+Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
+
 ## Releases
 
 The current release target is `v1.2.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
