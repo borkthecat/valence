@@ -61,8 +61,9 @@ async function run(): Promise<void> {
     assert.ok(/\[M_EMAIL_[0-9a-f]{16}\]/.test(upstreamSaw), 'provider saw surrogate');
     assert.ok(streamed.includes(`Reply sent to ${RAW_EMAIL} successfully`), 'client got raw email back');
     assert.ok(!/\[M_[A-Z_]+_[0-9a-f]{16}\]/.test(streamed), 'no surrogate leaked to client');
-    gateway.close();
-    upstream.close();
+    await new Promise<void>((resolve) => gateway.close(() => resolve()));
+    await new Promise<void>((resolve) => upstream.close(() => resolve()));
+    await appModule.shutdownGatewayResources();
     console.log('e2e.smoke: OK');
 }
 run().catch((error) => {

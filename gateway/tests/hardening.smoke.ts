@@ -25,17 +25,17 @@ async function run(): Promise<void> {
         const started = process.hrtime.bigint();
         await scanner.scan(payload);
         await shield.evaluate(payload);
-        vault.restoreText(payload);
+        await vault.restoreText(payload);
         const ms = Number(process.hrtime.bigint() - started) / 1e6;
         assert.ok(ms < 1000, `ReDoS bound for ${name}: ${ms.toFixed(1)}ms`);
     }
-    const tenantA = vault.tokenize('a-secret@tenant-a.com', SurrogateCategory.EMAIL);
-    const tenantB = vault.tokenize('b-secret@tenant-b.com', SurrogateCategory.EMAIL);
+    const tenantA = await vault.tokenize('a-secret@tenant-a.com', SurrogateCategory.EMAIL);
+    const tenantB = await vault.tokenize('b-secret@tenant-b.com', SurrogateCategory.EMAIL);
     const scoped = new SurrogateChunkReconstructor(vault, {
         unresolvedPolicy: 'passthrough',
         allowedSurrogates: new Set([tenantB]),
     });
-    const out = scoped.push(`own ${tenantB} foreign ${tenantA} end`) + scoped.flush();
+    const out = await scoped.push(`own ${tenantB} foreign ${tenantA} end`) + await scoped.flush();
     assert.ok(out.includes('b-secret@tenant-b.com'), 'own surrogate restored');
     assert.ok(!out.includes('a-secret@tenant-a.com'), 'foreign surrogate not restored');
     assert.ok(out.includes(tenantA), 'foreign surrogate left as marker');
@@ -43,7 +43,7 @@ async function run(): Promise<void> {
         unresolvedPolicy: 'throw',
         allowedSurrogates: new Set([tenantB]),
     });
-    assert.throws(() => strict.push(`foreign ${tenantA}`), UnresolvedSurrogateError, 'out-of-scope surrogate throws under fail-closed');
+    await assert.rejects(() => strict.push(`foreign ${tenantA}`), UnresolvedSurrogateError, 'out-of-scope surrogate throws under fail-closed');
     const handler = createErrorHandler();
     let scrubbed = 0;
     const preRes = fakeResponse(false);

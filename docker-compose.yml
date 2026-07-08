@@ -8,6 +8,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_INGEST_TOPIC: valence-raw-profiles
       REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
     ports:
       - "8080:8080"
     networks:
@@ -74,8 +76,6 @@ services:
       - "6379:6379"
     networks:
       - valence-net
-    profiles:
-      - enterprise
 
 networks:
   valence-net:

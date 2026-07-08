@@ -4,7 +4,7 @@ import type { RequestHandler, Response } from 'express';
 import type { Readable } from 'node:stream';
 import { z } from 'zod';
 import type { SecurityMode } from '../config/environment';
-import { TokenVault } from '../core/crypto/tokenVault';
+import type { TokenVaultBackend } from '../core/crypto/tokenVault';
 import { PiiScanner } from '../core/filters/piiScanner';
 import type { InjectionVerdict } from '../core/filters/injectionShield';
 import { InjectionShield } from '../core/filters/injectionShield';
@@ -70,7 +70,7 @@ export interface ReverseProxyDeps {
     readonly upstreamBaseUrl: string;
     readonly upstreamApiKey: string;
     readonly securityMode: SecurityMode;
-    readonly vault: TokenVault;
+    readonly vault: TokenVaultBackend;
     readonly scanner: PiiScanner;
     readonly shield: InjectionShield;
     readonly http?: AxiosInstance;

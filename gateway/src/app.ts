@@ -6,7 +6,7 @@ import helmet from 'helmet';
 import pino, { Logger } from 'pino';
 import pinoHttp from 'pino-http';
 import { environment } from './config/environment';
-import { TokenVault } from './core/crypto/tokenVault';
+import { RedisTokenVault, TokenVault, type TokenVaultBackend } from './core/crypto/tokenVault';
 import { EmbeddingClassifierDetector, HeuristicPiiDetector, NullClassifierClient, PiiScanner, } from './core/filters/piiScanner';
 import { GuardModelDetector, HeuristicInjectionDetector, InjectionShield, NullGuardModelClient, } from './core/filters/injectionShield';
 import { createGatewayAuth } from './middleware/auth';
@@ -21,8 +21,33 @@ import { disconnectProducer } from './services/kafkaProducer';
 const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
 const SHUTDOWN_GRACE_MS = 10000;
 const DEFAULT_PROXY_SCOPE = 'valence:proxy';
+let activeVault: TokenVaultBackend | null = null;
+
+function createConfiguredVault(): TokenVaultBackend {
+    if (environment.REDIS_URL !== undefined) {
+        return new RedisTokenVault(environment.REDIS_URL, environment.GATEWAY_API_KEY);
+    }
+    return TokenVault.getInstance();
+}
+
+async function shutdownVault(): Promise<void> {
+    if (activeVault instanceof RedisTokenVault) {
+        await activeVault.disconnect();
+        activeVault = null;
+        return;
+    }
+    TokenVault.resetInstance();
+    activeVault = null;
+}
+
+export async function shutdownGatewayResources(): Promise<void> {
+    await shutdownVault();
+    await disconnectProducer();
+}
+
 export function buildApp(logger: Logger): Express {
-    const vault = TokenVault.getInstance();
+    const vault = createConfiguredVault();
+    activeVault = vault;
     const scanner = new PiiScanner(vault, [
         new HeuristicPiiDetector(),
         new EmbeddingClassifierDetector(new NullClassifierClient()),
@@ -238,9 +263,8 @@ export function startGateway(): Server {
     const shutdown = (signal: string): void => {
         logger.info({ signal }, 'graceful shutdown initiated');
         server.close(() => {
-            TokenVault.resetInstance();
-            disconnectProducer()
-                .catch((error: unknown) => logger.warn({ error }, 'kafka producer disconnect failed'))
+            shutdownGatewayResources()
+                .catch((error: unknown) => logger.warn({ error }, 'gateway resource shutdown failed'))
                 .finally(() => {
                 logger.info('shutdown complete');
                 process.exit(0);
@@ -251,7 +275,7 @@ export function startGateway(): Server {
             for (const socket of sockets) {
                 socket.destroy();
             }
-            TokenVault.resetInstance();
+            void shutdownVault();
             process.exit(1);
         }, SHUTDOWN_GRACE_MS).unref();
     };

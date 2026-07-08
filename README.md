@@ -47,7 +47,7 @@ An inline, stateless reverse proxy that enforces a fail-closed security model fo
 - Optional HS256 or RS256 JWT verification with required RBAC scopes and per-tenant request context.
 - Per-tenant fixed-window rate limiting before payload parsing or upstream spend.
 - Injection screening (instruction override, persona jailbreaks, control-token smuggling, exfiltration attempts) with bounded, backtracking-safe rules.
-- PII and secret tokenization against an in-memory vault with a hard five-minute TTL. The upstream provider only ever sees opaque surrogates.
+- PII and secret tokenization against a five-minute TTL vault. Local code can use the in-memory vault; Docker and enterprise deployments use Redis so multiple gateway instances share restoration state. The upstream provider only ever sees opaque surrogates.
 - Per-request restoration scope, so a response can only restore the surrogates minted for its own request. Concurrent callers can never receive one another's data.
 - Streaming surrogate reconstitution that survives arbitrary chunk and byte boundary splits.
 - A fail-closed error boundary that scrubs sensitive buffers, and severs the connection outright on mid-stream failure so a truncated response can never look complete.
@@ -153,11 +153,13 @@ For local testing without real upstream model credentials, use the local overrid
 docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.example up --build
 ```
 
-That starts the pipeline with `MOCK_AI_PROVIDER=true`, so `POST http://localhost:8090/v1/valence/stage5/verify` returns deterministic mock adjudications at zero external cost. Enterprise deployments should set `MOCK_AI_PROVIDER=false` and provide real gateway/provider credentials.
+That starts Redis, the gateway, and the pipeline with `MOCK_AI_PROVIDER=true`, so `POST http://localhost:8090/v1/valence/stage5/verify` returns deterministic mock adjudications at zero external cost. Enterprise deployments should set `MOCK_AI_PROVIDER=false` and provide real gateway/provider credentials.
 
 ## Enterprise streaming ingest
 
 Valence also exposes an asynchronous ingestion API for enterprise systems that need to push real batches instead of using the synthetic profile generator. The gateway validates the perimeter request, parses the payload with strict Zod schemas, writes each profile to Kafka, and returns `202 Accepted` while Python workers consume the stream continuously.
+
+Redis backs the gateway surrogate vault whenever `REDIS_URL` is set. Forward lookup keys are HMAC-derived, so raw emails, keys, and other sensitive values are not exposed in Redis key names. Expired, revoked, foreign, or missing surrogates still fail closed during streamed response restoration.
 
 Production deployments should use `ENTERPRISE_INGEST_AUTH_MODE=jwks` with `JWKS_URI`, `JWT_AUDIENCE`, and `JWT_ISSUER` configured for an RS256 identity provider. Local enterprise demos can use `docker-compose.local.yml`, which switches this route to the existing gateway key so the Kafka flow can be tested without a live IdP.
 
@@ -326,7 +328,7 @@ The browser-visible dashboard is the Valence Local Console at `/`. Swagger UI re
 
 ## Unified demo
 
-`run_system_demo.sh` starts the gateway in the background, runs the full analytical pipeline (Stage 3 fuzz generation through Stage 5 verification), prints each tool's dashboard, and cleans up all background processes on exit:
+`run_system_demo.sh` starts the enterprise Docker topology, creates the Kafka topic, posts a sample ingest batch, and waits until the stream worker confirms Stage 5 pool generation:
 
 ```
 ./run_system_demo.sh
@@ -339,6 +341,7 @@ The gateway ships an executable smoke suite covering the vault, security filters
 ```
 cd gateway
 npm test
+npm run test:redis-vault
 ```
 
 Each pipeline stage self-verifies on execution and runs cleanly under the strict warnings-as-errors flag:
@@ -385,7 +388,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.5.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.5.1`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

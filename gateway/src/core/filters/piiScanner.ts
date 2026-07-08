@@ -1,4 +1,4 @@
-import { SurrogateCategory, TokenVault } from '../crypto/tokenVault';
+import { SurrogateCategory, type TokenVaultBackend } from '../crypto/tokenVault';
 export interface PiiFinding {
     readonly category: SurrogateCategory;
     readonly start: number;
@@ -270,9 +270,9 @@ function resolveOverlaps(findings: readonly PiiFinding[]): PiiFinding[] {
     return accepted;
 }
 export class PiiScanner {
-    private readonly vault: TokenVault;
+    private readonly vault: TokenVaultBackend;
     private readonly detectors: readonly PiiDetector[];
-    public constructor(vault: TokenVault, detectors: readonly PiiDetector[]) {
+    public constructor(vault: TokenVaultBackend, detectors: readonly PiiDetector[]) {
         if (detectors.length === 0) {
             throw new RangeError('PiiScanner requires at least one detector');
         }
@@ -312,7 +312,7 @@ export class PiiScanner {
                 continue;
             }
             const raw = text.slice(finding.start, finding.end);
-            const surrogate = this.vault.tokenize(raw, finding.category);
+            const surrogate = await this.vault.tokenize(raw, finding.category);
             surrogates.push(surrogate);
             sanitizedText =
                 sanitizedText.slice(0, finding.start) +

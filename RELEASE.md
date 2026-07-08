@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.5.0`
+Current release target: `v1.5.1`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.5.0` and `valence-pipeline:1.5.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.5.1` and `valence-pipeline:1.5.1` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.5.0 -m "Valence v1.5.0"
-git push origin main v1.5.0
+git tag -a v1.5.1 -m "Valence v1.5.1"
+git push origin main v1.5.1
 ```
 
 ## Release Notes
+
+`v1.5.1` hardens the enterprise vault layer:
+
+- Adds a Redis-backed gateway token vault selected by `REDIS_URL`.
+- Keeps raw PII out of Redis key names with HMAC-derived forward keys.
+- Converts streaming surrogate reconstitution to async vault lookups while preserving fail-closed behavior.
+- Starts Redis in the default Docker stack so the no-command local launcher has the required vault service.
+- Adds an explicit Redis vault smoke test.
 
 `v1.5.0` adds enterprise streaming ingestion:
 

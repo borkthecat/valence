@@ -1,11 +1,12 @@
 import { StringDecoder } from 'node:string_decoder';
 import { Transform } from 'node:stream';
-import { SURROGATE_PATTERN, TokenVault } from '../crypto/tokenVault';
+import { SURROGATE_PATTERN, type TokenVaultBackend } from '../crypto/tokenVault';
 export type UnresolvedSurrogatePolicy = 'throw' | 'redact' | 'passthrough';
 export const REDACTED_PLACEHOLDER = '[REDACTED]';
 export const MAX_SURROGATE_LENGTH = 1 + 2 + 32 + 1 + 16 + 1;
 const VIABLE_PREFIX_PATTERN = /^\[(?:M(?:_(?:[A-Z_]{1,32}(?:_[0-9a-f]{0,16})?)?)?)?$/;
 const OPEN_BRACKET = 0x5b;
+type MarkerResolution = 'restored' | 'redacted' | 'passthrough';
 export class UnresolvedSurrogateError extends Error {
     public readonly marker: string;
     public constructor(marker: string) {
@@ -26,7 +27,7 @@ export interface ReconstructorOptions {
     readonly allowedSurrogates?: ReadonlySet<string>;
 }
 export class SurrogateChunkReconstructor {
-    private readonly vault: TokenVault;
+    private readonly vault: TokenVaultBackend;
     private readonly unresolvedPolicy: UnresolvedSurrogatePolicy;
     private readonly allowedSurrogates: ReadonlySet<string> | null;
     private decoder: StringDecoder;
@@ -37,13 +38,13 @@ export class SurrogateChunkReconstructor {
     private surrogatesRestored = 0;
     private surrogatesRedacted = 0;
     private surrogatesPassedThrough = 0;
-    public constructor(vault: TokenVault, options: ReconstructorOptions = {}) {
+    public constructor(vault: TokenVaultBackend, options: ReconstructorOptions = {}) {
         this.vault = vault;
         this.unresolvedPolicy = options.unresolvedPolicy ?? 'throw';
         this.allowedSurrogates = options.allowedSurrogates ?? null;
         this.decoder = new StringDecoder('utf8');
     }
-    public push(chunk: Buffer | Uint8Array | string): string {
+    public async push(chunk: Buffer | Uint8Array | string): Promise<string> {
         this.assertUsable();
         let text: string;
         if (typeof chunk === 'string') {
@@ -58,13 +59,13 @@ export class SurrogateChunkReconstructor {
         if (text.length === 0) {
             return '';
         }
-        this.pending = this.resolveCompleteMarkers(this.pending + text);
+        this.pending = await this.resolveCompleteMarkers(this.pending + text);
         return this.emitReleasable();
     }
-    public flush(): string {
+    public async flush(): Promise<string> {
         this.assertUsable();
         const tail = this.decoder.end();
-        this.pending = this.resolveCompleteMarkers(this.pending + tail);
+        this.pending = await this.resolveCompleteMarkers(this.pending + tail);
         const output = this.pending;
         this.pending = '';
         this.charsEmitted += output.length;
@@ -89,25 +90,46 @@ export class SurrogateChunkReconstructor {
             throw new Error('SurrogateChunkReconstructor: instance has been scrubbed and cannot be reused');
         }
     }
-    private resolveCompleteMarkers(text: string): string {
+    private async resolveCompleteMarkers(text: string): Promise<string> {
         const pattern = new RegExp(SURROGATE_PATTERN.source, SURROGATE_PATTERN.flags);
-        return text.replace(pattern, (marker) => {
+        const markers = [...new Set(text.match(pattern) ?? [])];
+        if (markers.length === 0) {
+            return text;
+        }
+        const replacements = new Map<string, { readonly value: string; readonly resolution: MarkerResolution }>();
+        await Promise.all(markers.map(async (marker) => {
             const inScope = this.allowedSurrogates === null || this.allowedSurrogates.has(marker);
-            const raw = inScope ? this.vault.detokenize(marker) : null;
+            const raw = inScope ? await this.vault.detokenize(marker) : null;
             if (raw !== null) {
-                this.surrogatesRestored += 1;
-                return raw;
+                replacements.set(marker, { value: raw, resolution: 'restored' });
+                return;
             }
             switch (this.unresolvedPolicy) {
                 case 'throw':
                     throw new UnresolvedSurrogateError(marker);
                 case 'redact':
+                    replacements.set(marker, { value: REDACTED_PLACEHOLDER, resolution: 'redacted' });
+                    return;
+                case 'passthrough':
+                    replacements.set(marker, { value: marker, resolution: 'passthrough' });
+            }
+        }));
+        return text.replace(pattern, (marker) => {
+            const replacement = replacements.get(marker);
+            if (replacement === undefined) {
+                return marker;
+            }
+            switch (replacement.resolution) {
+                case 'restored':
+                    this.surrogatesRestored += 1;
+                    break;
+                case 'redacted':
                     this.surrogatesRedacted += 1;
-                    return REDACTED_PLACEHOLDER;
+                    break;
                 case 'passthrough':
                     this.surrogatesPassedThrough += 1;
-                    return marker;
             }
+            return replacement.value;
         });
     }
     private emitReleasable(): string {
@@ -138,32 +160,30 @@ export function createReconstitutionStream(reconstructor: SurrogateChunkReconstr
         readableObjectMode: false,
         writableObjectMode: false,
         transform(chunk: Buffer, _encoding, callback): void {
-            try {
-                const output = reconstructor.push(chunk);
+            void (async (): Promise<void> => {
+                const output = await reconstructor.push(chunk);
                 if (output.length > 0) {
                     callback(null, output);
                 }
                 else {
                     callback();
                 }
-            }
-            catch (error) {
+            })().catch((error: unknown) => {
                 callback(error instanceof Error ? error : new Error(String(error)));
-            }
+            });
         },
         flush(callback): void {
-            try {
-                const output = reconstructor.flush();
+            void (async (): Promise<void> => {
+                const output = await reconstructor.flush();
                 if (output.length > 0) {
                     callback(null, output);
                 }
                 else {
                     callback();
                 }
-            }
-            catch (error) {
+            })().catch((error: unknown) => {
                 callback(error instanceof Error ? error : new Error(String(error)));
-            }
+            });
         },
     });
 }

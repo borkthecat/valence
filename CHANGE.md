@@ -2,6 +2,13 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.5.1
+
+- Added a Redis-backed gateway token vault selected by `REDIS_URL`, with HMAC-derived forward keys so raw PII does not appear in Redis key names.
+- Converted PII tokenization and streaming surrogate reconstitution to async vault lookups while preserving fail-closed behavior for expired or out-of-scope surrogates.
+- Started Redis in the default Docker stack so the double-click local launcher has the same vault dependency it advertises.
+- Added an explicit Redis vault smoke test for distributed round trips, restoration, revocation, and key-name hygiene.
+
 ## 1.5.0
 
 - Added enterprise Kafka/Redis Compose topology behind the `enterprise` profile.
