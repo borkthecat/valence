@@ -1,6 +1,6 @@
 # Evaluation Datasets
 
-Valence does not treat synthetic scale tests as real-world accuracy evidence. External datasets are downloaded at evaluation time and are not redistributed in release archives.
+Valence does not treat synthetic scale tests as universal accuracy evidence. Large source datasets are downloaded at evaluation time; small held-out fixtures are redistributed only when their declared licenses permit reproducible evaluation.
 
 ## Amazon Shopping Queries (ESCI)
 
@@ -29,9 +29,19 @@ Valence supplies the secure classifier client and benchmark contract. Model trai
 - Source: https://huggingface.co/datasets/deepset/prompt-injections
 - License: Apache-2.0
 - Scale: 662 labeled benign and injection prompts
-- Use: public PINT-compatible detector evaluation
+- Use: cross-dataset detector evaluation and training
 
-`pipeline/benchmarks/export_deepset_injections.py` emits JSONL accepted by `gateway/benchmarks/injectionBenchmark.ts`. `train_deepset_guard.py` trains the bundled bounded multinomial model only on the training split; the 116-case test split remains evaluation-only.
+The 546-case training split contributes to the bundled model. The 116-case test split remains evaluation-only and is checked separately to expose distribution shift.
+
+## WamboSec Prompt Injections
+
+- Owner: Wambo Security
+- Source: https://huggingface.co/datasets/wambosec/prompt-injections
+- Declared license: MIT
+- Scale: 5,189 training prompts and 577 test prompts; 2,340 benign and 3,426 malicious overall
+- Use: primary English prompt-injection training and held-out release evaluation
+
+The source card says prompts were generated with LLMs across multiple attack techniques. The test split is therefore useful, larger, and independently published, but it is still synthetic and does not establish accuracy on private production traffic. `train_guard_model.py` pins WamboSec revision `071ee17a60112b7f9f808398156b430aadfaf1d2`, deepset revision `4f61ecb038e9c3fb77e21034b22511b523772cdd`, and every source-file SHA-256 digest. It removes normalized duplicates, rejects conflicting labels, and fails if any normalized training prompt appears in either reserved test split.
 
 ## Excluded Defaults
 

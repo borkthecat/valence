@@ -49,13 +49,22 @@ cd gateway
 npm run benchmark:injection -- /path/to/pint-compatible.yaml
 ```
 
-The public eight-case `example-dataset.yaml` from the PINT repository produced 8/8 correct classifications. On the independent Apache-2.0 deepset test split, the heuristic detector produced 1 true positive, 56 true negatives, 0 false positives, and 59 false negatives: 1.7% recall and 3.3% F1. The bundled multinomial guard, trained only on deepset's training split with its threshold selected on a deterministic 20% training holdout, produced 44 true positives, 55 true negatives, 1 false positive, and 16 false negatives: 97.8% precision, 73.3% recall, 83.8% F1, and a 1.8% false-positive rate.
+The public eight-case `example-dataset.yaml` from the PINT repository produced 8/8 correct classifications. The v1.10.0 bundled guard is a bounded English word/character TF-IDF linear classifier trained on 5,735 unique prompts from the WamboSec and deepset training splits. All four source Parquet files are SHA-256 pinned, normalized duplicates are removed, and training aborts if either reserved test split overlaps training.
 
-Valence ships the 70 KB JSON guard as the local default and also supports a bounded HTTP `GuardModelClient` for stronger enterprise models. The bundled artifact is SHA-256 pinned and intentionally modest; operators should calibrate replacement models on held-out traffic. Lakera's complete 4,314-input PINT corpus includes proprietary data and is not publicly downloadable, so Valence does not claim a full PINT score.
+| Held-out split | Cases | Accuracy | Accuracy 95% CI | Precision | Recall | F1 | FPR |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| WamboSec test | 577 | 99.48% | 98.48%-99.82% | 100.00% | 99.13% | 99.56% | 0.00% |
+| deepset test | 116 | 86.21% | 78.76%-91.33% | 97.83% | 75.00% | 84.91% | 1.79% |
+
+The WamboSec confusion matrix is 343 true positives, 231 true negatives, zero false positives, and three false negatives. The misses are Morse/Braille-only attacks. The separate deepset result is materially weaker and is published to make distribution sensitivity visible. The claim “over 95% accurate” applies only to the named 577-case English synthetic WamboSec split, not all prompt injection or production traffic.
+
+Valence ships the 2.99 MB JSON guard as the local default and also supports a bounded HTTP `GuardModelClient` for independently trained enterprise models. The artifact is pinned by SHA-256. Lakera's complete 4,314-input PINT corpus includes proprietary data and is not publicly downloadable, so Valence does not claim a full PINT score.
 
 ```bash
-python pipeline/benchmarks/train_deepset_guard.py --output gateway/models/deepset-guard-nb.json
-npm --prefix gateway run benchmark:injection -- ../.benchmark-data/deepset-injections-test.jsonl models/deepset-guard-nb.json
+python -m pip install -r requirements-benchmark.txt
+python pipeline/benchmarks/train_guard_model.py --output gateway/models/prompt-injection-guard.json
+npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/wambosec-test.jsonl models/prompt-injection-guard.json 0.95 0.95
+npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/prompt-injection-guard.json 0.84 0.78
 ```
 
 ## Ranking diagnostics

@@ -2,6 +2,14 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.10.0
+
+- Replaced the raw-count guard with a SHA-256-pinned word/character TF-IDF linear model trained on 5,735 deduplicated WamboSec and deepset training prompts.
+- Added a 577-case MIT-licensed WamboSec release gate: 99.48% accuracy, 99.13% recall, 99.56% F1, and zero false positives on its untouched test split.
+- Retained the separate 116-case deepset gate, reporting 86.21% accuracy and 84.91% F1 to expose cross-dataset distribution sensitivity.
+- Fixed guard integration so a hostile verdict that clears the configured model-score threshold is authoritative instead of being weakened by applying the outer shield threshold a second time.
+- Added checksum-verified bounded dataset downloads, normalized deduplication, conflicting-label rejection, train/test leakage detection, fixture attribution, and separate F1 and Wilson accuracy lower-bound CI thresholds.
+
 ## 1.9.0
 
 - Added a SHA-256-pinned local guard model that raises independent deepset test F1 from 3.3% to 83.8%, plus secure HTTP clients for stronger trained PII and guard services.

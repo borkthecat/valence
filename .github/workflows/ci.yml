@@ -34,7 +34,8 @@ jobs:
           npm run build
           npm test
           npm run benchmark:injection -- benchmarks/fixtures/injection-smoke.yaml
-          npm run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/deepset-guard-nb.json 0.80
+          npm run benchmark:injection -- benchmarks/fixtures/wambosec-test.jsonl models/prompt-injection-guard.json 0.95 0.95
+          npm run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/prompt-injection-guard.json 0.84 0.78
           npm run benchmark:pii -- benchmarks/fixtures/pii-smoke.jsonl
 
   pipeline-integrity-check:
@@ -62,7 +63,7 @@ jobs:
           python -W error -m pytest -q
 
       - name: Validate Repository Links
-        run: python scripts/check_links.py README.md BENCHMARKS.md DATASETS.md RELEASE.md
+        run: python scripts/check_links.py README.md BENCHMARKS.md DATASETS.md RELEASE.md THIRD_PARTY_NOTICES.md
 
   orchestration-container-check:
     name: Isolated Multi-Stage Mesh Build

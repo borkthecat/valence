@@ -232,7 +232,7 @@ Kafka topic: `valence-raw-profiles`. The gateway uses Kafka idempotent producer 
 
 Image fields are evidence references, not raw image uploads. Valence validates HTTPS URLs, SHA-256 hashes, MIME type, source, view labels, optional perceptual hashes and quality scores, dimensions, and byte size. Evidence quality counts distinct content digests, so repeating one image does not improve a profile. `links` carry catalog, registry, or document evidence. Set `EVIDENCE_URL_VALIDATION=live` to resolve every unique host, reject private/reserved destinations, disable redirects, and issue bounded `HEAD` checks for dead links and MIME mismatches. Live mode is capped by `MAX_LIVE_EVIDENCE_URLS`.
 
-Valence ships a SHA-256-pinned 70 KB guard model trained on deepset's Apache-2.0 training split. On the untouched 116-case test split, heuristic-plus-model F1 is 83.8%, up from the 3.3% heuristic baseline. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure stops the protected request under the default fail-closed posture.
+Valence ships a SHA-256-pinned 2.99 MB English TF-IDF linear guard trained on 5,735 unique prompts from the WamboSec and deepset training splits. On WamboSec's untouched 577-case test split it measures 99.48% accuracy (Wilson 95% CI 98.48%-99.82%) and 99.56% F1; on the separate 116-case deepset split it measures 86.21% accuracy and 84.91% F1. The difference is published because one synthetic corpus cannot establish universal production accuracy. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure stops the protected request under the default fail-closed posture.
 
 ### Accuracy boundary
 
@@ -414,7 +414,7 @@ Stage 3/4 scale validation drives 2,000,000 deterministic generated profiles thr
 
 ## Benchmarks
 
-[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current Apache-2.0 Gretel and deepset runs prove that default heuristics are not production-grade. The repository includes secure trained-model adapters, PINT-compatible injection evaluation, exact-span PII evaluation, independently labeled Amazon ESCI ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
+[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current Gretel, deepset, and WamboSec results show both improved model performance and remaining distribution sensitivity. The repository includes secure trained-model adapters, PINT-compatible injection evaluation, exact-span PII evaluation, independently labeled Amazon ESCI ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
 
 ### Continuous integration
 
@@ -437,11 +437,11 @@ Every push and pull request to `main` runs the workflow in [.github/workflows/ci
 
 Apache-2.0. See [LICENSE](LICENSE).
 
-Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
+Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Releases
 
-The current release target is `v1.9.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.10.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

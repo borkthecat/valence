@@ -173,8 +173,8 @@ export class GuardModelDetector implements InjectionDetector {
         return [
             {
                 ruleId: `guard-model:${label}`,
-                description: `Micro-model classified prompt as "${label}"`,
-                weight: Math.min(Math.max(assessment.score, 0), 1),
+                description: `Guard model classified prompt as "${label}" with score ${assessment.score.toFixed(4)}`,
+                weight: 1,
                 excerpt: excerptAround(normalizedText, 0),
                 detector: this.name,
             },

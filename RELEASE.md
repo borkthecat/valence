@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.9.0`
+Current release target: `v1.10.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.9.0` and `valence-pipeline:1.9.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.10.0` and `valence-pipeline:1.10.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.9.0 -m "Valence v1.9.0"
-git push origin main v1.9.0
+git tag -a v1.10.0 -m "Valence v1.10.0"
+git push origin main v1.10.0
 ```
 
 ## Release Notes
+
+`v1.10.0` replaces the initial guard baseline with reproducible multi-corpus training and stronger release evidence:
+
+- Trains a bounded TF-IDF linear guard on 5,735 unique WamboSec and deepset training prompts.
+- Measures 99.48% accuracy (Wilson 95% CI 98.48%-99.82%) and 99.56% F1 on the untouched 577-case WamboSec test split, with zero false positives.
+- Retains an independent deepset distribution-shift gate at 86.21% accuracy and 84.91% F1 rather than presenting one favorable dataset as universal accuracy.
+- Pins source datasets and the emitted model by SHA-256, rejects label conflicts and train/test leakage, and enforces both F1 and accuracy in CI.
+- Corrects the guard-to-shield decision contract so accepted hostile model verdicts block reliably.
 
 `v1.9.0` adds production model integration, durable ingest semantics, and external evidence:
 

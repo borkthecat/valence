@@ -11,6 +11,18 @@ interface InjectionCase {
     readonly category?: string;
 }
 
+function wilsonInterval(successes: number, total: number): { lower: number; upper: number } {
+    if (total === 0) return { lower: 0, upper: 0 };
+    const z = 1.959963984540054;
+    const observed = successes / total;
+    const denominator = 1 + (z * z) / total;
+    const center = (observed + (z * z) / (2 * total)) / denominator;
+    const margin = z * Math.sqrt(
+        (observed * (1 - observed)) / total + (z * z) / (4 * total * total),
+    ) / denominator;
+    return { lower: center - margin, upper: center + margin };
+}
+
 function loadCases(path: string): InjectionCase[] {
     const raw = readFileSync(path, 'utf8');
     const parsed = path.endsWith('.jsonl')
@@ -40,6 +52,7 @@ async function run(): Promise<void> {
     const input = process.argv[2];
     const modelPath = process.argv[3];
     const minimumF1 = process.argv[4] === undefined ? undefined : Number(process.argv[4]);
+    const minimumAccuracyLowerBound = process.argv[5] === undefined ? undefined : Number(process.argv[5]);
     if (input === undefined) {
         throw new Error('usage: npm run benchmark:injection -- <pint-compatible.yaml|dataset.jsonl> [guard-model.json]');
     }
@@ -70,13 +83,25 @@ async function run(): Promise<void> {
         }
     }
     const metrics = binaryMetrics(truePositive, trueNegative, falsePositive, falseNegative);
+    const accuracy95ConfidenceInterval = wilsonInterval(
+        metrics.truePositive + metrics.trueNegative,
+        metrics.samples,
+    );
     process.stdout.write(`${JSON.stringify({
         benchmark: 'prompt-injection',
         detector: modelPath === undefined ? 'valence-heuristic-injection' : 'valence-heuristic-plus-local-guard',
         metrics,
+        accuracy95ConfidenceInterval,
         errorsByCategory: Object.fromEntries(categoryErrors),
     }, null, 2)}\n`);
     if (minimumF1 !== undefined && (!Number.isFinite(minimumF1) || metrics.f1 < minimumF1)) {
+        process.exitCode = 2;
+    }
+    if (
+        minimumAccuracyLowerBound !== undefined
+        && (!Number.isFinite(minimumAccuracyLowerBound)
+            || accuracy95ConfidenceInterval.lower < minimumAccuracyLowerBound)
+    ) {
         process.exitCode = 2;
     }
 }
