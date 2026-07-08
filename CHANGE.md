@@ -2,6 +2,14 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.8.0
+
+- Corrected enterprise ingestion so relevance no longer masquerades as anniversary evidence.
+- Preserved a bounded 0-to-1 source-relevance score through Stage 4 and Stage 5.
+- Rejected non-finite ranking values and bounded gateway `raw_score` input to 0 through 100.
+- Added independently labeled ranking evaluation with top-1 Wilson confidence intervals, top-5 winner recall, MRR, NDCG@5, fail-closed counts, and enforceable release thresholds.
+- Documented why millions of synthetic profiles validate robustness but cannot establish real-world accuracy.
+
 ## 1.7.0
 
 - Reframed the Stage 4 synthetic oracle as an internal consistency regression rather than external accuracy evidence.

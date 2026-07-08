@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import time
+import math
 import random
+import time
 from dataclasses import dataclass
 from typing import Any, Final
 
@@ -33,6 +34,7 @@ EVIDENCE_LOW_QUALITY_THRESHOLD: Final[float] = 0.60
 EVIDENCE_HIGH_QUALITY_THRESHOLD: Final[float] = 0.90
 EVIDENCE_LOW_MAX_PENALTY: Final[float] = -18.0
 EVIDENCE_HIGH_BOOST: Final[float] = 6.0
+SOURCE_RELEVANCE_MAX_BOOST: Final[float] = 25.0
 
 AGE_ANOMALY_LOW: Final[float] = 0.0
 AGE_ANOMALY_HIGH: Final[float] = 120.0
@@ -57,6 +59,7 @@ _OPTIONAL_SCHEMA: Final[dict[str, tuple[type, ...]]] = {
     "signals": (dict,),
     "images": (list,),
     "evidence_quality_score": (int, float),
+    "source_relevance_score": (int, float),
 }
 
 
@@ -111,6 +114,7 @@ class Candidate:
     signals: dict[str, Any] | None = None
     images: tuple[dict[str, Any], ...] = ()
     evidence_quality_score: float | None = None
+    source_relevance_score: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,19 +245,35 @@ def validate_candidate(raw: Any) -> Candidate:
     if not candidate_id:
         raise CandidateValidationError("key 'id' must be a non-empty string")
 
+    age = float(raw["age"])
+    era_year = float(raw["era_year"])
+    if not math.isfinite(age) or not math.isfinite(era_year):
+        raise CandidateValidationError("age and era_year must be finite")
+
+    channel = raw["channel"].strip()
+    colorway = raw["colorway"].strip()
+    if not channel or not colorway:
+        raise CandidateValidationError("channel and colorway must be non-empty strings")
+
     evidence_quality_score = None
     if "evidence_quality_score" in raw:
         evidence_quality_score = float(raw["evidence_quality_score"])
-        if evidence_quality_score < 0.0 or evidence_quality_score > 1.0:
+        if not math.isfinite(evidence_quality_score) or not 0.0 <= evidence_quality_score <= 1.0:
             raise CandidateValidationError("key 'evidence_quality_score' must be between 0 and 1")
+
+    source_relevance_score = None
+    if "source_relevance_score" in raw:
+        source_relevance_score = float(raw["source_relevance_score"])
+        if not math.isfinite(source_relevance_score) or not 0.0 <= source_relevance_score <= 1.0:
+            raise CandidateValidationError("key 'source_relevance_score' must be between 0 and 1")
 
     return Candidate(
         id=candidate_id,
-        age=float(raw["age"]),
+        age=age,
         anniversary=bool(raw["anniversary"]),
-        channel=raw["channel"].strip(),
-        colorway=raw["colorway"].strip(),
-        era_year=float(raw["era_year"]),
+        channel=channel,
+        colorway=colorway,
+        era_year=era_year,
         entity_type=raw.get("entity_type", None),
         title=raw.get("title", None),
         description=raw.get("description", None),
@@ -261,6 +281,7 @@ def validate_candidate(raw: Any) -> Candidate:
         signals=raw.get("signals", None),
         images=tuple(raw.get("images", ())),
         evidence_quality_score=evidence_quality_score,
+        source_relevance_score=source_relevance_score,
     )
 
 
@@ -338,6 +359,14 @@ class RazorReranker:
                 )
             elif quality >= EVIDENCE_HIGH_QUALITY_THRESHOLD:
                 adjustments.append(("evidence_strong", EVIDENCE_HIGH_BOOST))
+
+        if candidate.source_relevance_score is not None:
+            adjustments.append(
+                (
+                    "source_relevance",
+                    round(candidate.source_relevance_score * SOURCE_RELEVANCE_MAX_BOOST, 3),
+                )
+            )
 
         final_score = BASE_SCORE + sum(delta for _, delta in adjustments)
 
@@ -441,6 +470,8 @@ def result_to_stage5_pool(result: RerankResult) -> list[dict[str, Any]]:
             record["images"] = list(candidate.images)
         if candidate.evidence_quality_score is not None:
             record["evidence_quality_score"] = round(candidate.evidence_quality_score, 3)
+        if candidate.source_relevance_score is not None:
+            record["source_relevance_score"] = round(candidate.source_relevance_score, 4)
         return record
 
     return [to_record(candidate) for candidate in result.selected]

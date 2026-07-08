@@ -90,7 +90,7 @@ Stage 3 also includes a synthetic-distribution regression gate. It audits schema
 
 ### Stage 4: Razor Reranking Engine
 
-`pipeline/stage4_razor_reranker.py`. Pure standard library. Ingests up to 50 candidate profiles and reduces them to exactly 5. Each candidate starts at a base score of 100.0, with a fixed deterministic matrix across age plausibility, anniversary markers, channel authorization, colorway alignment, historical era deviation, and optional evidence quality. Unauthorized channels, structurally impossible values, and very thin rich-evidence profiles are disqualified outright and can never reach the final pool. A batch that cannot yield a clean pool fails closed rather than padding the result.
+`pipeline/stage4_razor_reranker.py`. Pure standard library. Ingests up to 50 candidate profiles and reduces them to exactly 5. Each candidate starts at a base score of 100.0, with a fixed deterministic matrix across age plausibility, anniversary markers, channel authorization, colorway alignment, historical era deviation, optional evidence quality, and a bounded source-relevance score. Unauthorized channels, structurally impossible values, non-finite numbers, and very thin rich-evidence profiles are rejected or disqualified. A batch that cannot yield a clean pool fails closed rather than padding the result.
 
 ### Stage 5: Cognitive Verification Pass
 
@@ -199,6 +199,7 @@ Payload shape:
       "retail_channel": "direct",
       "era": "1500",
       "colorway": "midnight-sapphire",
+      "anniversary": true,
       "raw_score": 94.2,
       "attributes": {
         "brand": "Arai",
@@ -227,13 +228,23 @@ Payload shape:
 }
 ```
 
-Kafka topic: `valence-raw-profiles`. The `pipeline-worker` service consumes that topic, maps records into the Stage 4 scoring schema, computes an evidence-quality score when rich fields are present, and emits Stage 5-ready pools in its logs.
+Kafka topic: `valence-raw-profiles`. The `pipeline-worker` service consumes that topic, maps records into the Stage 4 scoring schema, computes an evidence-quality score when rich fields are present, and emits Stage 5-ready pools in its logs. `raw_score` is a required, finite relevance score from 0 to 100 supplied by the domain adapter; it is normalized and bounded before scoring. `anniversary` is an independent optional boolean and is never inferred from relevance.
 
 Image fields are evidence references, not raw image uploads. Valence validates HTTPS URLs, SHA-256 hashes, MIME type, source, and optional dimensions/byte size. A production deployment should store the image in an enterprise object store, run malware scanning and OCR/vision analysis outside the ingestion request, then pass the resulting metadata and scores into this API.
 
 ### Accuracy boundary
 
-Valence can test richer profiles, but production accuracy is only meaningful for a declared domain schema with independently labeled validation data. The bundled synthetic generator proves deterministic implementation behavior, fail-closed handling, and configured adversarial coverage; it does not prove real-world preference accuracy. For each use case, define the evidence fields, map them into `attributes`, `signals`, and `images`, then validate top-1 accuracy, top-5 recall, false positives, and false negatives against a held-out labeled dataset before using results operationally.
+Valence can test richer profiles, but production accuracy is only meaningful for a declared domain schema with independently labeled validation data. The bundled synthetic generator proves deterministic implementation behavior, fail-closed handling, and configured adversarial coverage; increasing it from thousands to millions does not establish real-world preference accuracy. For each use case, define the evidence fields, calibrate `raw_score` on training data, and reserve a held-out labeled set for release evaluation.
+
+The labeled evaluator accepts JSONL records containing `context`, `profiles`, and a `relevance` map of candidate IDs to non-negative graded judgments. It reports top-1 accuracy with a Wilson 95% confidence interval, top-5 winner recall, mean reciprocal rank, NDCG@5, and fail-closed batches:
+
+```powershell
+cd pipeline
+python ranking_evaluator.py tests/fixtures/ranking_labeled.jsonl
+python ranking_evaluator.py company-held-out.jsonl --min-top1 0.90 --min-ndcg 0.95
+```
+
+The threshold command fails unless the lower bound of the top-1 confidence interval meets `--min-top1`; this prevents a small favorable sample from passing a production gate. The included two-batch fixture only tests the evaluator and is not accuracy evidence. A real gate should use representative, independently adjudicated, versioned labels with enough samples per product type, language, region, and risk class.
 
 ## Local guided test
 
@@ -399,7 +410,7 @@ Stage 3/4 scale validation drives 2,000,000 deterministic generated profiles thr
 
 ## Benchmarks
 
-[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current measured AI4Privacy sample shows that default heuristic PII coverage is not production-grade, particularly for phone detection and unsupported entity families. The repository includes PINT-compatible injection evaluation, AI4Privacy-compatible PII span evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
+[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current measured AI4Privacy sample shows that default heuristic PII coverage is not production-grade, particularly for phone detection and unsupported entity families. The repository includes PINT-compatible injection evaluation, AI4Privacy-compatible PII span evaluation, independently labeled ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
 
 ### Continuous integration
 
@@ -426,7 +437,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.7.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.8.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

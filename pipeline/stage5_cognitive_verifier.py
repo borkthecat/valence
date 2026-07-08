@@ -82,7 +82,7 @@ class ImageEvidence(BaseModel):
 
 
 class CandidateProfile(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
 
     id: str = Field(min_length=1, max_length=128)
     entity_type: str | None = Field(default=None, min_length=1, max_length=64)
@@ -98,6 +98,7 @@ class CandidateProfile(BaseModel):
     signals: dict[str, float] | None = Field(default=None, max_length=64)
     images: list[ImageEvidence] = Field(default_factory=list, max_length=12)
     evidence_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    source_relevance_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class Stage5Request(BaseModel):
@@ -402,6 +403,8 @@ class ContextualSanitizer:
             record["images"] = [image.model_dump(exclude_none=True) for image in candidate.images]
         if candidate.evidence_quality_score is not None:
             record["evidence_quality_score"] = candidate.evidence_quality_score
+        if candidate.source_relevance_score is not None:
+            record["source_relevance_score"] = candidate.source_relevance_score
         return record, notes
 
     def _sanitize_attributes(

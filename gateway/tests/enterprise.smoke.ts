@@ -115,6 +115,7 @@ async function run(): Promise<void> {
                 retail_channel: 'direct',
                 era: '2020s',
                 colorway: 'midnight-sapphire',
+                anniversary: true,
                 raw_score: 91.5,
                 attributes: {
                     brand: 'Arai',
@@ -137,6 +138,18 @@ async function run(): Promise<void> {
     });
     assert.equal(parsedIngest.profiles.length, 1);
     assert.equal(parsedIngest.profiles[0]?.images?.length, 1);
+    assert.equal(parsedIngest.profiles[0]?.anniversary, true);
+    assert.throws(() => parseIngestionPayload({
+        batch_id: 'batch-score',
+        tenant_id: 'tenant-a',
+        profiles: [{
+            candidate_id: 'candidate-score',
+            age: 34,
+            retail_channel: 'direct',
+            era: '2020s',
+            raw_score: 101,
+        }],
+    }));
     assert.throws(() => parseIngestionPayload({
         batch_id: 'batch-1',
         tenant_id: 'tenant-a',

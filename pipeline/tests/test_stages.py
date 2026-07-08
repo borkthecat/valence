@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import observability
+import ranking_evaluator
 import stage3_hydrator as s3
 import stage4_razor_reranker as s4
 import stage5_cognitive_verifier as s5
 import stream_worker
 from message_broker import InMemoryMessageBroker
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_stage3_distribution() -> None:
@@ -77,6 +81,39 @@ def test_stage4_determinism() -> None:
     assert first == second
 
 
+def test_stage4_rejects_non_finite_values() -> None:
+    base = {
+        "id": "finite-check",
+        "age": 20,
+        "anniversary": False,
+        "channel": "brand-direct",
+        "colorway": "midnight-sapphire",
+        "era_year": 1998,
+    }
+    for key in ("age", "era_year", "evidence_quality_score", "source_relevance_score"):
+        candidate = {**base, key: float("nan")}
+        try:
+            s4.validate_candidate(candidate)
+        except s4.CandidateValidationError:
+            pass
+        else:
+            raise AssertionError(f"non-finite {key} must be rejected")
+
+
+def test_stage4_uses_bounded_source_relevance() -> None:
+    candidate = s4.validate_candidate({
+        "id": "source-ranked",
+        "age": 30,
+        "anniversary": False,
+        "channel": "brand-direct",
+        "colorway": "midnight-sapphire",
+        "era_year": 1998,
+        "source_relevance_score": 0.8,
+    })
+    result = s4.RazorReranker().score_candidate(candidate, s4._fixed_test_context())
+    assert ("source_relevance", 20.0) in result.adjustments
+
+
 def test_stage4_quality_validation() -> None:
     report = s4.run_internal_consistency_validation(
         batches=1_000, batch_size=s4.MAX_BATCH_SIZE
@@ -96,6 +133,18 @@ def test_stage4_baselines_are_weaker_than_internal_consistency() -> None:
     assert baselines.random_top1_rate < consistency.top1_accuracy
     assert baselines.target_channel_top1_rate < consistency.top1_accuracy
     assert baselines.random_top5_recall < consistency.top5_recall
+
+
+def test_labeled_ranking_evaluator() -> None:
+    records = ranking_evaluator.load_jsonl(FIXTURES / "ranking_labeled.jsonl")
+    report = ranking_evaluator.evaluate_records(records)
+    assert report.batches == 2
+    assert report.failed_batches == 0
+    assert report.top1_accuracy == 1.0
+    assert report.top1_ci95_low < 1.0
+    assert report.top5_winner_recall == 1.0
+    assert report.mean_reciprocal_rank == 1.0
+    assert report.ndcg_at_5 == 1.0
 
 
 def test_stage5_json_healer() -> None:
@@ -125,12 +174,14 @@ def test_stage5_sanitizes_rich_profile_evidence() -> None:
             )
         ],
         evidence_quality_score=1.0,
+        source_relevance_score=0.95,
     )
     sanitized, notes = s5.ContextualSanitizer().sanitize_pool([profile])
     record = sanitized[0]
     assert "[NEUTRALIZED]" in record["title"]
     assert "[NEUTRALIZED]" in record["attributes"]["seller_note"]
     assert record["images"][0]["sha256"] == "b" * 64
+    assert record["source_relevance_score"] == 0.95
     assert notes
 
 
@@ -180,6 +231,22 @@ def test_stream_worker_enterprise_profile_processing() -> None:
     pool = stream_worker.process_profile_batch(records)
     assert len(pool) == 5
     assert pool[0]["id"] == "sku-0"
+    assert pool[0]["anniversary"] is False
+    assert pool[0]["source_relevance_score"] == 0.95
+
+
+def test_stream_worker_keeps_anniversary_separate_from_relevance() -> None:
+    profile = {
+        "candidate_id": "separate-signals",
+        "age": 25,
+        "anniversary": True,
+        "retail_channel": "direct",
+        "era": "1500",
+        "raw_score": 40.0,
+    }
+    mapped = stream_worker.enterprise_profile_to_stage4(profile)
+    assert mapped["anniversary"] is True
+    assert mapped["source_relevance_score"] == 0.4
 
 
 def test_stream_worker_rich_profile_evidence_quality() -> None:

@@ -75,6 +75,13 @@ Ground truth: the self-derived Stage 4 scoring specification. These numbers meas
 
 External domain accuracy remains unmeasured until a use case supplies independently labeled profiles.
 
+For external evaluation, `pipeline/ranking_evaluator.py` accepts independently labeled JSONL and reports top-1 accuracy with a Wilson 95% confidence interval, top-5 winner recall, mean reciprocal rank, NDCG@5, and fail-closed batches. Release gates compare `--min-top1` against the confidence interval's lower bound rather than the point estimate. The checked-in fixture verifies metric behavior only and is not an external benchmark.
+
+```bash
+cd pipeline
+python ranking_evaluator.py /path/to/held-out.jsonl --min-top1 0.90 --min-ndcg 0.95
+```
+
 ## Latency
 
 Local loopback benchmark, 1,000 requests, concurrency 20, stub upstream. Two consecutive release-candidate runs are shown to expose local variance:

@@ -36,10 +36,11 @@ def enterprise_profile_to_stage4(profile: dict[str, Any]) -> dict[str, Any]:
     record = {
         "id": str(profile["candidate_id"]),
         "age": float(profile["age"]),
-        "anniversary": raw_score >= 90.0,
+        "anniversary": bool(profile.get("anniversary", False)),
         "channel": str(profile["retail_channel"]),
         "colorway": str(colorway if colorway is not None else get_settings().target_colorway),
         "era_year": era_year,
+        "source_relevance_score": raw_score / 100.0,
     }
     for key in ("entity_type", "title", "description", "attributes", "signals", "images"):
         if key in profile:

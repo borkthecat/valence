@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.7.0`
+Current release target: `v1.8.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.7.0` and `valence-pipeline:1.7.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.8.0` and `valence-pipeline:1.8.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.7.0 -m "Valence v1.7.0"
-git push origin main v1.7.0
+git tag -a v1.8.0 -m "Valence v1.8.0"
+git push origin main v1.8.0
 ```
 
 ## Release Notes
+
+`v1.8.0` corrects enterprise relevance scoring and adds defensible ranking evaluation:
+
+- Keeps upstream relevance and anniversary evidence as separate typed fields.
+- Bounds upstream relevance and preserves it through Stage 4 and Stage 5.
+- Rejects non-finite ranking inputs.
+- Adds a labeled JSONL evaluator with top-1 confidence intervals, top-5 recall, MRR, NDCG@5, and enforceable release thresholds.
+- States explicitly that synthetic scale testing does not establish real-world accuracy.
 
 `v1.7.0` replaces self-referential quality claims with reproducible benchmark tooling:
 

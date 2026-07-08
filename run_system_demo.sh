@@ -49,6 +49,7 @@ curl -sf -X POST http://localhost:8080/api/v1/ingest \
         "retail_channel": "direct",
         "era": "1500",
         "colorway": "midnight-sapphire",
+        "anniversary": true,
         "raw_score": 94.2,
         "attributes": {"brand": "Arai", "model": "Nanami 1500", "condition": "new", "region": "SG"},
         "signals": {"seller_trust": 0.98, "price_deviation": 0.04, "serial_match": 1},
