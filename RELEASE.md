@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.5.1`
+Current release target: `v1.5.2`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.5.1` and `valence-pipeline:1.5.1` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.5.2` and `valence-pipeline:1.5.2` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,18 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.5.1 -m "Valence v1.5.1"
-git push origin main v1.5.1
+git tag -a v1.5.2 -m "Valence v1.5.2"
+git push origin main v1.5.2
 ```
 
 ## Release Notes
+
+`v1.5.2` strengthens profile quality validation:
+
+- Adds a Stage 3 profile-quality gate for schema validity, uniqueness, anomaly coverage, elevated-age coverage, boundary classes, and deterministic fingerprinting.
+- Adds 10 curated profile examples covering clean winners, near misses, unauthorized-but-perfect actors, corrupted ages, boundary ages, fractional ages, far-era drift, normalization noise, and low-signal valid profiles.
+- Adds pytest coverage proving curated profiles are decision-useful and not just decorative examples.
+- Updates the portfolio case-study page with profile-quality rationale, examples, full-run distribution statistics, and external data-quality references.
 
 `v1.5.1` hardens the enterprise vault layer:
 

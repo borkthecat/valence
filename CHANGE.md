@@ -2,6 +2,13 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.5.2
+
+- Added a Stage 3 profile-quality gate covering schema validity, uniqueness, anomaly coverage, elevated-age coverage, boundary classes, and deterministic fingerprinting.
+- Added 10 curated profile examples that exercise clean winners, authorized near misses, unauthorized-but-perfect actors, corrupted ages, boundary ages, fractional ages, far-era drift, normalization noise, and low-signal valid candidates.
+- Added pytest coverage proving the curated examples are decision-useful: Stage 4 must disqualify the corrupt profiles and still form a valid pool from eligible candidates.
+- Updated the portfolio case-study page with profile-quality rationale, examples, measured full-run distribution statistics, and external data-quality references.
+
 ## 1.5.1
 
 - Added a Redis-backed gateway token vault selected by `REDIS_URL`, with HMAC-derived forward keys so raw PII does not appear in Redis key names.

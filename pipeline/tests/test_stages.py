@@ -32,6 +32,32 @@ def test_stage3_distribution() -> None:
         }
 
 
+def test_stage3_profile_quality_gate() -> None:
+    report = s3._run_profile_quality_gate(sample_size=10_000)
+    assert report.profiles == 10_010
+    assert report.schema_validity == 1.0
+    assert report.uniqueness == 1.0
+    assert report.boundary_case_hits >= 4
+    assert report.elevated_ages >= 600
+    assert report.complex_rate >= 0.15
+
+
+def test_stage3_profile_examples_are_decision_useful() -> None:
+    examples = s3.quality_profile_examples()
+    assert len(examples) == 10
+    by_name = {example.name: example.profile for example in examples}
+    assert by_name["unauthorized_perfect_signal"]["channel"] == "grey-market"
+    assert by_name["negative_age_corruption"]["age"] == -1
+
+    context = s4._default_context()
+    result = s4.RazorReranker().rerank([example.profile for example in examples], context)
+    selected_ids = {candidate.id for candidate in result.selected}
+    assert "example-unauthorized-perfect" not in selected_ids
+    assert "example-negative-age" not in selected_ids
+    assert result.disqualified_count == 2
+    assert result.eligible_count == 8
+
+
 def test_stage3_scale_and_determinism() -> None:
     report = s3._run_scale_validation()
     assert report.profiles == 2_000_000

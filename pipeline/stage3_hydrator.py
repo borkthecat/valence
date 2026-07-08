@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import random
-from hashlib import sha256
 from collections.abc import Iterator
 from dataclasses import dataclass
+from hashlib import sha256
+from math import isfinite
 from typing import Any, Final
 
 from config import get_settings
@@ -29,6 +30,18 @@ _UNAUTHORIZED_CHANNELS: Final[tuple[str, ...]] = (
     "grey-market",
     "unverified-third-party",
 )
+_REQUIRED_PROFILE_KEYS: Final[frozenset[str]] = frozenset(
+    {"id", "age", "anniversary", "channel", "colorway", "era_year"}
+)
+_BOUNDARY_AGES: Final[frozenset[float]] = frozenset({0.0, 80.1, 119.9, 120.0})
+
+
+def _finite_float(value: Any, fallback: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return number if isfinite(number) else fallback
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +51,14 @@ class FuzzProfile:
     unauthorized_channel: bool
     era_anomaly: bool
     complex_profile: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileExample:
+    name: str
+    purpose: str
+    expected: str
+    profile: dict[str, Any]
 
 
 @dataclass(slots=True)
@@ -56,6 +77,176 @@ class ScaleValidationReport:
     batches: int
     winners: int
     fingerprint: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileQualityReport:
+    profiles: int
+    schema_valid: int
+    unique_ids: int
+    unauthorized_channels: int
+    impossible_ages: int
+    elevated_ages: int
+    era_anomalies: int
+    complex_profiles: int
+    boundary_case_hits: int
+    fingerprint: str
+
+    @property
+    def schema_validity(self) -> float:
+        return self.schema_valid / self.profiles if self.profiles else 0.0
+
+    @property
+    def uniqueness(self) -> float:
+        return self.unique_ids / self.profiles if self.profiles else 0.0
+
+    @property
+    def complex_rate(self) -> float:
+        return self.complex_profiles / self.profiles if self.profiles else 0.0
+
+
+def quality_profile_examples() -> tuple[ProfileExample, ...]:
+    settings = get_settings()
+    target_era = settings.target_era
+    target_channel = settings.target_channel
+    target_colorway = settings.target_colorway
+    alternatives = tuple(
+        channel for channel in sorted(settings.authorized_channels) if channel != target_channel
+    )
+    authorized_alt = alternatives[0] if alternatives else target_channel
+    authorized_second = alternatives[1] if len(alternatives) > 1 else authorized_alt
+    return (
+        ProfileExample(
+            "ideal_target_match",
+            "Clean high-signal profile that should become the ranking anchor.",
+            "eligible; expected to rank near the top",
+            {
+                "id": "example-ideal-target",
+                "age": 34,
+                "anniversary": True,
+                "channel": target_channel,
+                "colorway": target_colorway,
+                "era_year": target_era,
+            },
+        ),
+        ProfileExample(
+            "authorized_near_miss",
+            "Legitimate alternate channel with mild era drift.",
+            "eligible; compares against the target-channel boost",
+            {
+                "id": "example-authorized-near",
+                "age": 42,
+                "anniversary": False,
+                "channel": authorized_alt,
+                "colorway": "graphite-slate",
+                "era_year": target_era + 12,
+            },
+        ),
+        ProfileExample(
+            "unauthorized_perfect_signal",
+            "Otherwise-perfect actor arriving through an unauthorized channel.",
+            "disqualified despite strong matching features",
+            {
+                "id": "example-unauthorized-perfect",
+                "age": 29,
+                "anniversary": True,
+                "channel": "grey-market",
+                "colorway": target_colorway,
+                "era_year": target_era,
+            },
+        ),
+        ProfileExample(
+            "negative_age_corruption",
+            "Structurally impossible age from bad source data.",
+            "disqualified by age validity gate",
+            {
+                "id": "example-negative-age",
+                "age": -1,
+                "anniversary": True,
+                "channel": target_channel,
+                "colorway": target_colorway,
+                "era_year": target_era,
+            },
+        ),
+        ProfileExample(
+            "age_zero_boundary",
+            "Lower age boundary retained as valid but low-context signal.",
+            "eligible boundary case",
+            {
+                "id": "example-age-zero",
+                "age": 0,
+                "anniversary": False,
+                "channel": target_channel,
+                "colorway": target_colorway.upper(),
+                "era_year": target_era,
+            },
+        ),
+        ProfileExample(
+            "age_120_boundary",
+            "Upper age boundary retained as valid, then penalized as elevated.",
+            "eligible boundary case with elevated-age penalty",
+            {
+                "id": "example-age-120",
+                "age": 120,
+                "anniversary": True,
+                "channel": authorized_second,
+                "colorway": f" {target_colorway} ",
+                "era_year": target_era + 100,
+            },
+        ),
+        ProfileExample(
+            "fractional_elevated_age",
+            "Fractional age just above the elevated-age threshold.",
+            "eligible; exercises numeric precision",
+            {
+                "id": "example-fractional-age",
+                "age": 80.1,
+                "anniversary": True,
+                "channel": target_channel,
+                "colorway": "crimson-ember",
+                "era_year": target_era + 51,
+            },
+        ),
+        ProfileExample(
+            "far_era_anomaly",
+            "Authorized profile with era drift beyond the far-anomaly threshold.",
+            "eligible but heavily penalized",
+            {
+                "id": "example-far-era",
+                "age": 37,
+                "anniversary": False,
+                "channel": authorized_alt,
+                "colorway": target_colorway.swapcase(),
+                "era_year": target_era + 101,
+            },
+        ),
+        ProfileExample(
+            "normalization_case_whitespace",
+            "Case and whitespace variation in a field that should normalize cleanly.",
+            "eligible; colorway match after normalization",
+            {
+                "id": "example-normalized-colorway",
+                "age": 31,
+                "anniversary": False,
+                "channel": target_channel,
+                "colorway": f" {target_colorway.upper()} ",
+                "era_year": target_era - 3,
+            },
+        ),
+        ProfileExample(
+            "thin_but_valid",
+            "Valid low-signal profile used to ensure the pool is not padded by junk.",
+            "eligible but unlikely to outrank stronger candidates",
+            {
+                "id": "example-thin-valid",
+                "age": 57,
+                "anniversary": False,
+                "channel": authorized_second,
+                "colorway": "arctic-white",
+                "era_year": target_era - 44,
+            },
+        ),
+    )
 
 
 class FuzzDataGenerator:
@@ -181,6 +372,87 @@ def _add_report(left: GenerationReport, right: GenerationReport) -> GenerationRe
     )
 
 
+def audit_profile_quality(profiles: list[dict[str, Any]]) -> ProfileQualityReport:
+    settings = get_settings()
+    seen_ids: set[str] = set()
+    digest = sha256()
+    schema_valid = 0
+    unauthorized = 0
+    impossible_ages = 0
+    elevated_ages = 0
+    era_anomalies = 0
+    boundary_hits: set[float] = set()
+    complex_like = 0
+
+    for profile in profiles:
+        if set(profile.keys()) == _REQUIRED_PROFILE_KEYS:
+            schema_valid += 1
+        profile_id = str(profile.get("id", ""))
+        if profile_id and profile_id not in seen_ids:
+            seen_ids.add(profile_id)
+        age = _finite_float(profile.get("age"), -9999)
+        channel = str(profile.get("channel", ""))
+        colorway = str(profile.get("colorway", ""))
+        era_year = int(_finite_float(profile.get("era_year"), float(settings.target_era)))
+
+        if age < 0 or age > 120:
+            impossible_ages += 1
+        if age > 80:
+            elevated_ages += 1
+        if age in _BOUNDARY_AGES:
+            boundary_hits.add(age)
+        if channel not in settings.authorized_channels:
+            unauthorized += 1
+        if abs(era_year - settings.target_era) > 100:
+            era_anomalies += 1
+        if (
+            age in _BOUNDARY_AGES
+            or age < 0
+            or age > 120
+            or channel not in settings.authorized_channels
+            or colorway != colorway.strip()
+            or (
+                colorway.casefold() == settings.target_colorway.casefold()
+                and colorway != settings.target_colorway
+            )
+            or abs(era_year - settings.target_era) > 50
+        ):
+            complex_like += 1
+
+        digest.update(profile_id.encode("utf8"))
+        digest.update(b"\0")
+        digest.update(repr(sorted(profile.items())).encode("utf8"))
+        digest.update(b"\0")
+
+    return ProfileQualityReport(
+        profiles=len(profiles),
+        schema_valid=schema_valid,
+        unique_ids=len(seen_ids),
+        unauthorized_channels=unauthorized,
+        impossible_ages=impossible_ages,
+        elevated_ages=elevated_ages,
+        era_anomalies=era_anomalies,
+        complex_profiles=complex_like,
+        boundary_case_hits=len(boundary_hits),
+        fingerprint=digest.hexdigest(),
+    )
+
+
+def _run_profile_quality_gate(sample_size: int = 10_000) -> ProfileQualityReport:
+    generated = FuzzDataGenerator(seed=20260708).generate(sample_size)
+    examples = [example.profile for example in quality_profile_examples()]
+    report = audit_profile_quality(generated + examples)
+    assert report.schema_validity == 1.0, report
+    assert report.uniqueness == 1.0, report
+    assert report.unauthorized_channels >= int(sample_size * 0.04), report
+    assert report.impossible_ages >= int(sample_size * 0.04), report
+    assert report.elevated_ages >= int(sample_size * 0.06), report
+    assert report.era_anomalies >= int(sample_size * 0.08), report
+    assert report.complex_rate >= 0.15, report
+    assert report.boundary_case_hits >= len(_BOUNDARY_AGES), report
+    return report
+
+
 _DASH_WIDTH: Final[int] = 60
 
 
@@ -304,6 +576,12 @@ def main() -> int:
         "  Stage 3 staggered generation and Stage 4 scale validation passed "
         f"({report.profiles:,} profiles, {report.windows:,} windows, "
         f"{report.batches:,} batches)."
+    )
+    quality = _run_profile_quality_gate()
+    print(
+        "  Profile quality gate passed "
+        f"({quality.profiles:,} profiles, {quality.unique_ids:,} unique ids, "
+        f"{quality.boundary_case_hits} boundary classes)."
     )
     print()
     return 0

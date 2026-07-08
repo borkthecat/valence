@@ -86,6 +86,8 @@ Self-contained stages, each of which runs its own verification and simulation ro
 
 `pipeline/stage3_hydrator.py`. Pure standard library. Provides a `FuzzDataGenerator` that produces deterministic candidate profiles with controlled edge-case distribution across structurally impossible ages, unauthorized channels, historical era anomalies, and complex adversarial cases. The default scale validation drives 2,000,000 generated profiles through Stage 4 in 100,000-profile windows and asserts that output ordering is identical across runs and that no disqualified profile ever reaches a result pool.
 
+Stage 3 also includes a profile-quality gate. It audits schema validity, uniqueness, unauthorized-channel coverage, impossible-age coverage, elevated-age coverage, era anomalies, complex-profile rate, boundary classes, and a deterministic fingerprint. A curated profile suite covers clean target matches, authorized near misses, unauthorized-but-perfect actors, corrupted ages, exact boundary ages, fractional ages, far-era drift, normalization noise, and low-signal valid candidates.
+
 ### Stage 4: Razor Reranking Engine
 
 `pipeline/stage4_razor_reranker.py`. Pure standard library. Ingests up to 50 candidate profiles and reduces them to exactly 5. Each candidate starts at a base score of 100.0, with a fixed deterministic matrix across age plausibility, anniversary markers, channel authorization, colorway alignment, and historical era deviation. Unauthorized channels and structurally impossible values are disqualified outright and can never reach the final pool. A batch that cannot yield a clean pool fails closed rather than padding the result.
@@ -361,7 +363,7 @@ pip install -r requirements-dev.txt
 python -W error -m pytest -q
 ```
 
-Stage 3/4 scale validation now drives 2,000,000 deterministic generated profiles through the reranker in 100,000-profile windows. The generator includes complex adversarial cases such as boundary ages, fractional ages, near-threshold era offsets, unauthorized-but-otherwise-perfect actors, and case/whitespace normalization. Stage 4 includes a calibrated synthetic oracle quality check for top-1 accuracy and top-5 recall.
+Stage 3/4 scale validation now drives 2,000,000 deterministic generated profiles through the reranker in 100,000-profile windows. The generator includes complex adversarial cases such as boundary ages, fractional ages, near-threshold era offsets, unauthorized-but-otherwise-perfect actors, and case/whitespace normalization. Stage 4 includes a calibrated synthetic oracle quality check for top-1 accuracy and top-5 recall. The profile-quality gate runs as part of pytest and rejects shallow synthetic distributions that would make accuracy look better than the real decision surface deserves.
 
 ### Continuous integration
 
@@ -388,7 +390,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.5.1`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.5.2`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 
