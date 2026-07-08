@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
@@ -20,20 +21,77 @@ from stage4_razor_reranker import (
 )
 
 logger = logging.getLogger("ValenceStreamWorker")
+_IMAGE_MIME_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+_RICH_KEYS = frozenset({"entity_type", "title", "description", "attributes", "signals", "images"})
 
 
 def enterprise_profile_to_stage4(profile: dict[str, Any]) -> dict[str, Any]:
     era = profile["era"]
     era_year = int(era) if isinstance(era, int | float) else _parse_era(str(era))
     raw_score = float(profile.get("raw_score", 0.0))
-    return {
+    attributes = profile.get("attributes")
+    colorway = profile.get("colorway")
+    if colorway is None and isinstance(attributes, dict):
+        colorway = attributes.get("colorway")
+    record = {
         "id": str(profile["candidate_id"]),
         "age": float(profile["age"]),
         "anniversary": raw_score >= 90.0,
         "channel": str(profile["retail_channel"]),
-        "colorway": str(profile.get("colorway", get_settings().target_colorway)),
+        "colorway": str(colorway if colorway is not None else get_settings().target_colorway),
         "era_year": era_year,
     }
+    for key in ("entity_type", "title", "description", "attributes", "signals", "images"):
+        if key in profile:
+            record[key] = profile[key]
+    evidence_quality = evidence_quality_score(profile)
+    if evidence_quality is not None:
+        record["evidence_quality_score"] = evidence_quality
+    return record
+
+
+def evidence_quality_score(profile: dict[str, Any]) -> float | None:
+    if not any(key in profile for key in _RICH_KEYS):
+        return None
+    score = 0.0
+    title = str(profile.get("title", "")).strip()
+    description = str(profile.get("description", "")).strip()
+    attributes = profile.get("attributes")
+    signals = profile.get("signals")
+    images = profile.get("images")
+    if profile.get("entity_type"):
+        score += 0.05
+    if len(title) >= 8:
+        score += 0.15
+    if len(description) >= 40:
+        score += 0.15
+    if isinstance(attributes, dict):
+        score += min(len(attributes), 4) * 0.0625
+    if isinstance(signals, dict):
+        finite_signals = sum(
+            1
+            for value in signals.values()
+            if isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(float(value))
+        )
+        score += min(finite_signals, 3) * (0.20 / 3)
+    if isinstance(images, list):
+        valid_images = sum(1 for image in images if _valid_image_evidence(image))
+        score += min(valid_images, 2) * 0.125
+    return round(min(score, 1.0), 3)
+
+
+def _valid_image_evidence(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    url = str(value.get("url", ""))
+    digest = str(value.get("sha256", ""))
+    mime_type = str(value.get("mime_type", ""))
+    return (
+        url.startswith("https://")
+        and len(digest) == 64
+        and all(char in "0123456789abcdefABCDEF" for char in digest)
+        and mime_type in _IMAGE_MIME_TYPES
+    )
 
 
 def _parse_era(value: str) -> int:

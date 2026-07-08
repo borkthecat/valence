@@ -108,14 +108,56 @@ async function run(): Promise<void> {
         profiles: [
             {
                 candidate_id: 'candidate-1',
+                entity_type: 'product',
+                title: 'Verified product candidate',
+                description: 'Enterprise product evidence with seller signals and image hashes.',
                 age: 34,
                 retail_channel: 'direct',
                 era: '2020s',
+                colorway: 'midnight-sapphire',
                 raw_score: 91.5,
+                attributes: {
+                    brand: 'Arai',
+                    condition: 'new',
+                },
+                signals: {
+                    seller_trust: 0.98,
+                    price_deviation: 0.04,
+                },
+                images: [
+                    {
+                        url: 'https://cdn.example.test/product.webp',
+                        sha256: 'a'.repeat(64),
+                        mime_type: 'image/webp',
+                        source: 'seller-upload',
+                    },
+                ],
             },
         ],
     });
     assert.equal(parsedIngest.profiles.length, 1);
+    assert.equal(parsedIngest.profiles[0]?.images?.length, 1);
+    assert.throws(() => parseIngestionPayload({
+        batch_id: 'batch-1',
+        tenant_id: 'tenant-a',
+        profiles: [
+            {
+                candidate_id: 'candidate-2',
+                age: 34,
+                retail_channel: 'direct',
+                era: '2020s',
+                raw_score: 91.5,
+                images: [
+                    {
+                        url: 'http://cdn.example.test/product.webp',
+                        sha256: 'a'.repeat(64),
+                        mime_type: 'image/webp',
+                        source: 'seller-upload',
+                    },
+                ],
+            },
+        ],
+    }));
     assert.throws(() => parseIngestionPayload({
         batch_id: 'batch-1',
         tenant_id: 'tenant-a',

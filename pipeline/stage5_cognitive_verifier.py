@@ -10,7 +10,7 @@ import random
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Final, Protocol
+from typing import Any, Final, Literal, Protocol
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -69,16 +69,35 @@ class MalformedVerdictError(ValenceStage5Error):
     pass
 
 
+class ImageEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    url: str = Field(min_length=8, max_length=2048, pattern=r"^https://")
+    sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"]
+    source: str = Field(min_length=1, max_length=128)
+    width: int | None = Field(default=None, gt=0, le=20_000)
+    height: int | None = Field(default=None, gt=0, le=20_000)
+    bytes: int | None = Field(default=None, gt=0, le=25_000_000)
+
+
 class CandidateProfile(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: str = Field(min_length=1, max_length=128)
+    entity_type: str | None = Field(default=None, min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=512)
+    description: str | None = Field(default=None, min_length=1, max_length=4096)
     age: float
     anniversary: bool
     channel: str = Field(min_length=1, max_length=128)
     colorway: str = Field(min_length=1, max_length=4096)
     era_year: int
     score: float | None = None
+    attributes: dict[str, str | float | bool] | None = Field(default=None, max_length=64)
+    signals: dict[str, float] | None = Field(default=None, max_length=64)
+    images: list[ImageEvidence] = Field(default_factory=list, max_length=12)
+    evidence_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class Stage5Request(BaseModel):
@@ -363,7 +382,41 @@ class ContextualSanitizer:
             "colorway": clean_colorway,
             "era_year": candidate.era_year,
         }
+        if candidate.score is not None:
+            record["score"] = candidate.score
+        if candidate.entity_type is not None:
+            record["entity_type"] = self._sanitize_field(
+                candidate.entity_type, candidate.id, "entity_type", notes
+            )
+        if candidate.title is not None:
+            record["title"] = self._sanitize_field(candidate.title, candidate.id, "title", notes)
+        if candidate.description is not None:
+            record["description"] = self._sanitize_field(
+                candidate.description, candidate.id, "description", notes
+            )
+        if candidate.attributes:
+            record["attributes"] = self._sanitize_attributes(candidate, notes)
+        if candidate.signals:
+            record["signals"] = candidate.signals
+        if candidate.images:
+            record["images"] = [image.model_dump(exclude_none=True) for image in candidate.images]
+        if candidate.evidence_quality_score is not None:
+            record["evidence_quality_score"] = candidate.evidence_quality_score
         return record, notes
+
+    def _sanitize_attributes(
+        self, candidate: CandidateProfile, notes: list[str]
+    ) -> dict[str, str | float | bool]:
+        clean: dict[str, str | float | bool] = {}
+        for key, value in (candidate.attributes or {}).items():
+            clean_key = self._sanitize_field(str(key), candidate.id, "attributes.key", notes)
+            if isinstance(value, str):
+                clean[clean_key] = self._sanitize_field(
+                    value, candidate.id, f"attributes.{clean_key}", notes
+                )
+            else:
+                clean[clean_key] = value
+        return clean
 
     def _sanitize_field(
         self, value: str, candidate_id: str, field_name: str, notes: list[str]

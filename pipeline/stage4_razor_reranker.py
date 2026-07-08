@@ -27,6 +27,11 @@ CHANNEL_UNAUTHORIZED_PENALTY: Final[float] = -50.0
 COLORWAY_MATCH_BOOST: Final[float] = 16.0
 ERA_FAR_PENALTY: Final[float] = -55.0
 ERA_PENALTY_PER_YEAR: Final[float] = 0.50
+EVIDENCE_MIN_QUALITY: Final[float] = 0.25
+EVIDENCE_LOW_QUALITY_THRESHOLD: Final[float] = 0.60
+EVIDENCE_HIGH_QUALITY_THRESHOLD: Final[float] = 0.90
+EVIDENCE_LOW_MAX_PENALTY: Final[float] = -18.0
+EVIDENCE_HIGH_BOOST: Final[float] = 6.0
 
 AGE_ANOMALY_LOW: Final[float] = 0.0
 AGE_ANOMALY_HIGH: Final[float] = 120.0
@@ -42,6 +47,15 @@ _REQUIRED_SCHEMA: Final[dict[str, tuple[type, ...]]] = {
     "channel": (str,),
     "colorway": (str,),
     "era_year": (int, float),
+}
+_OPTIONAL_SCHEMA: Final[dict[str, tuple[type, ...]]] = {
+    "entity_type": (str,),
+    "title": (str,),
+    "description": (str,),
+    "attributes": (dict,),
+    "signals": (dict,),
+    "images": (list,),
+    "evidence_quality_score": (int, float),
 }
 
 
@@ -89,6 +103,13 @@ class Candidate:
     channel: str
     colorway: str
     era_year: float
+    entity_type: str | None = None
+    title: str | None = None
+    description: str | None = None
+    attributes: dict[str, Any] | None = None
+    signals: dict[str, Any] | None = None
+    images: tuple[dict[str, Any], ...] = ()
+    evidence_quality_score: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,11 +181,12 @@ def validate_candidate(raw: Any) -> Candidate:
     if missing:
         raise CandidateValidationError(f"candidate missing keys: {sorted(missing)}")
 
-    extra = [key for key in raw if key not in _REQUIRED_SCHEMA]
+    extra = [key for key in raw if key not in _REQUIRED_SCHEMA and key not in _OPTIONAL_SCHEMA]
     if extra:
         raise CandidateValidationError(f"candidate has unknown keys: {sorted(extra)}")
 
-    for key, accepted in _REQUIRED_SCHEMA.items():
+    schema = {**_REQUIRED_SCHEMA, **{key: value for key, value in _OPTIONAL_SCHEMA.items() if key in raw}}
+    for key, accepted in schema.items():
         value = raw[key]
 
         if accepted in ((int, float),) and isinstance(value, bool):
@@ -181,6 +203,12 @@ def validate_candidate(raw: Any) -> Candidate:
     if not candidate_id:
         raise CandidateValidationError("key 'id' must be a non-empty string")
 
+    evidence_quality_score = None
+    if "evidence_quality_score" in raw:
+        evidence_quality_score = float(raw["evidence_quality_score"])
+        if evidence_quality_score < 0.0 or evidence_quality_score > 1.0:
+            raise CandidateValidationError("key 'evidence_quality_score' must be between 0 and 1")
+
     return Candidate(
         id=candidate_id,
         age=float(raw["age"]),
@@ -188,6 +216,13 @@ def validate_candidate(raw: Any) -> Candidate:
         channel=raw["channel"].strip(),
         colorway=raw["colorway"].strip(),
         era_year=float(raw["era_year"]),
+        entity_type=raw.get("entity_type", None),
+        title=raw.get("title", None),
+        description=raw.get("description", None),
+        attributes=raw.get("attributes", None),
+        signals=raw.get("signals", None),
+        images=tuple(raw.get("images", ())),
+        evidence_quality_score=evidence_quality_score,
     )
 
 
@@ -248,6 +283,23 @@ class RazorReranker:
                 else "era_proximity"
             )
             adjustments.append((label, round(penalty, 3)))
+
+        if candidate.evidence_quality_score is not None:
+            quality = candidate.evidence_quality_score
+            if quality < EVIDENCE_MIN_QUALITY:
+                adjustments.append(("evidence_insufficient", EVIDENCE_LOW_MAX_PENALTY))
+                disqualifiers.append("evidence_insufficient")
+                anomalies += 1
+            elif quality < EVIDENCE_LOW_QUALITY_THRESHOLD:
+                ratio = (
+                    (EVIDENCE_LOW_QUALITY_THRESHOLD - quality)
+                    / EVIDENCE_LOW_QUALITY_THRESHOLD
+                )
+                adjustments.append(
+                    ("evidence_weak", round(EVIDENCE_LOW_MAX_PENALTY * ratio, 3))
+                )
+            elif quality >= EVIDENCE_HIGH_QUALITY_THRESHOLD:
+                adjustments.append(("evidence_strong", EVIDENCE_HIGH_BOOST))
 
         final_score = BASE_SCORE + sum(delta for _, delta in adjustments)
 
@@ -326,8 +378,9 @@ class RazorReranker:
 
 def result_to_stage5_pool(result: RerankResult) -> list[dict[str, Any]]:
     score_by_id = {b.candidate_id: b.final_score for b in result.breakdowns}
-    return [
-        {
+
+    def to_record(candidate: Candidate) -> dict[str, Any]:
+        record = {
             "id": candidate.id,
             "age": candidate.age,
             "anniversary": candidate.anniversary,
@@ -336,8 +389,23 @@ def result_to_stage5_pool(result: RerankResult) -> list[dict[str, Any]]:
             "era_year": int(candidate.era_year),
             "score": round(score_by_id[candidate.id], 3),
         }
-        for candidate in result.selected
-    ]
+        if candidate.entity_type is not None:
+            record["entity_type"] = candidate.entity_type
+        if candidate.title is not None:
+            record["title"] = candidate.title
+        if candidate.description is not None:
+            record["description"] = candidate.description
+        if candidate.attributes is not None:
+            record["attributes"] = candidate.attributes
+        if candidate.signals is not None:
+            record["signals"] = candidate.signals
+        if candidate.images:
+            record["images"] = list(candidate.images)
+        if candidate.evidence_quality_score is not None:
+            record["evidence_quality_score"] = round(candidate.evidence_quality_score, 3)
+        return record
+
+    return [to_record(candidate) for candidate in result.selected]
 
 
 

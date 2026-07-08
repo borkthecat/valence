@@ -2,6 +2,15 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.6.0
+
+- Added rich enterprise profile evidence fields for ingestion: entity type, title, description, attributes, numeric signals, colorway, and bounded image metadata.
+- Added HTTPS-only image evidence validation with SHA-256 hashes, MIME allow-listing, size bounds, and strict payload parsing at the gateway boundary.
+- Added evidence-quality scoring in the stream worker so rich profiles can be penalized or disqualified when their real-world evidence is too thin.
+- Extended Stage 4 to carry rich evidence into Stage 5 while preserving legacy six-field profile behavior.
+- Extended Stage 5 schemas and sanitization so rich text evidence is neutralized before verifier/provider routing and image metadata is passed without raw image bytes.
+- Added tests proving thin high-signal profiles cannot win over stronger evidence-backed records.
+
 ## 1.5.2
 
 - Added a Stage 3 profile-quality gate covering schema validity, uniqueness, anomaly coverage, elevated-age coverage, boundary classes, and deterministic fingerprinting.

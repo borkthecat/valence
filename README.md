@@ -90,11 +90,11 @@ Stage 3 also includes a profile-quality gate. It audits schema validity, uniquen
 
 ### Stage 4: Razor Reranking Engine
 
-`pipeline/stage4_razor_reranker.py`. Pure standard library. Ingests up to 50 candidate profiles and reduces them to exactly 5. Each candidate starts at a base score of 100.0, with a fixed deterministic matrix across age plausibility, anniversary markers, channel authorization, colorway alignment, and historical era deviation. Unauthorized channels and structurally impossible values are disqualified outright and can never reach the final pool. A batch that cannot yield a clean pool fails closed rather than padding the result.
+`pipeline/stage4_razor_reranker.py`. Pure standard library. Ingests up to 50 candidate profiles and reduces them to exactly 5. Each candidate starts at a base score of 100.0, with a fixed deterministic matrix across age plausibility, anniversary markers, channel authorization, colorway alignment, historical era deviation, and optional evidence quality. Unauthorized channels, structurally impossible values, and very thin rich-evidence profiles are disqualified outright and can never reach the final pool. A batch that cannot yield a clean pool fails closed rather than padding the result.
 
 ### Stage 5: Cognitive Verification Pass
 
-`pipeline/stage5_cognitive_verifier.py`. Asynchronous FastAPI controller exposing `POST /v1/valence/stage5/verify`. Validates inbound payloads with strict Pydantic v2 schemas, sanitizes each profile against indirect injection and context poisoning, enforces a per-profile byte quota, and routes the request through the Valence Gateway over a non-blocking asyncio HTTP client with distributed trace headers. The result is an immutable, schema-validated verdict. Any upstream drop, connection failure, or security rejection triggers a fail-closed protocol that freezes the transaction and flags the tenant.
+`pipeline/stage5_cognitive_verifier.py`. Asynchronous FastAPI controller exposing `POST /v1/valence/stage5/verify`. Validates inbound payloads with strict Pydantic v2 schemas, sanitizes each profile against indirect injection and context poisoning, enforces a per-profile byte quota, and routes the request through the Valence Gateway over a non-blocking asyncio HTTP client with distributed trace headers. Rich profiles can include entity type, title, description, attributes, numeric signals, evidence quality, and image metadata; raw image bytes are not sent to the verifier. The result is an immutable, schema-validated verdict. Any upstream drop, connection failure, or security rejection triggers a fail-closed protocol that freezes the transaction and flags the tenant.
 
 ### Getting started
 
@@ -192,16 +192,48 @@ Payload shape:
   "profiles": [
     {
       "candidate_id": "c1",
+      "entity_type": "product",
+      "title": "Verified limited edition midnight sapphire watch",
+      "description": "Authenticated seller record with matching model, serial evidence, provenance, and image hashes.",
       "age": 34,
       "retail_channel": "direct",
       "era": "1500",
-      "raw_score": 94.2
+      "colorway": "midnight-sapphire",
+      "raw_score": 94.2,
+      "attributes": {
+        "brand": "Arai",
+        "model": "Nanami 1500",
+        "condition": "new",
+        "region": "SG"
+      },
+      "signals": {
+        "seller_trust": 0.98,
+        "price_deviation": 0.04,
+        "serial_match": 1
+      },
+      "images": [
+        {
+          "url": "https://cdn.example.test/products/c1-front.webp",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "mime_type": "image/webp",
+          "source": "seller-upload",
+          "width": 1600,
+          "height": 1200,
+          "bytes": 245760
+        }
+      ]
     }
   ]
 }
 ```
 
-Kafka topic: `valence-raw-profiles`. The `pipeline-worker` service consumes that topic, maps records into the Stage 4 scoring schema, and emits Stage 5-ready pools in its logs.
+Kafka topic: `valence-raw-profiles`. The `pipeline-worker` service consumes that topic, maps records into the Stage 4 scoring schema, computes an evidence-quality score when rich fields are present, and emits Stage 5-ready pools in its logs.
+
+Image fields are evidence references, not raw image uploads. Valence validates HTTPS URLs, SHA-256 hashes, MIME type, source, and optional dimensions/byte size. A production deployment should store the image in an enterprise object store, run malware scanning and OCR/vision analysis outside the ingestion request, then pass the resulting metadata and scores into this API.
+
+### Accuracy boundary
+
+Valence can now test richer real-world profiles, but production accuracy is only meaningful for a declared domain schema with labeled validation data. The bundled synthetic generator proves deterministic ranking behavior, fail-closed handling, and adversarial coverage; it does not prove that every enterprise product, customer, vendor, or fraud profile will be correctly judged without domain calibration. For each enterprise use case, define the required evidence fields, map them into `attributes`, `signals`, and `images`, then validate top-1 accuracy, top-5 recall, false positives, and false negatives against a held-out labeled dataset before using results operationally.
 
 ## Local guided test
 
@@ -390,7 +422,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.5.2`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.6.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

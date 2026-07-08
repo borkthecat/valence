@@ -40,8 +40,31 @@ curl -sf -X POST http://localhost:8080/api/v1/ingest \
     "batch_id": "batch_enterprise_991",
     "tenant_id": "tenant_corporate_alpha",
     "profiles": [
-      {"candidate_id": "c1", "age": 34, "retail_channel": "direct", "era": "1500", "raw_score": 94.2},
-      {"candidate_id": "c2", "age": 35, "retail_channel": "brand-direct", "era": "1501", "raw_score": 91.1},
+      {
+        "candidate_id": "c1",
+        "entity_type": "product",
+        "title": "Verified limited edition midnight sapphire watch",
+        "description": "Authenticated seller record with matching model, serial evidence, provenance, and image hashes.",
+        "age": 34,
+        "retail_channel": "direct",
+        "era": "1500",
+        "colorway": "midnight-sapphire",
+        "raw_score": 94.2,
+        "attributes": {"brand": "Arai", "model": "Nanami 1500", "condition": "new", "region": "SG"},
+        "signals": {"seller_trust": 0.98, "price_deviation": 0.04, "serial_match": 1},
+        "images": [
+          {
+            "url": "https://cdn.example.test/products/c1-front.webp",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "mime_type": "image/webp",
+            "source": "seller-upload",
+            "width": 1600,
+            "height": 1200,
+            "bytes": 245760
+          }
+        ]
+      },
+      {"candidate_id": "c2", "entity_type": "product", "title": "Authorized graphite watch listing", "description": "Authorized boutique record with matching catalog attributes and seller score.", "age": 35, "retail_channel": "brand-direct", "era": "1501", "colorway": "graphite-slate", "raw_score": 91.1, "attributes": {"brand": "Arai", "condition": "new"}, "signals": {"seller_trust": 0.94}},
       {"candidate_id": "c3", "age": 29, "retail_channel": "certified-partner", "era": "1502", "raw_score": 87.0},
       {"candidate_id": "c4", "age": 41, "retail_channel": "boutique-authorized", "era": "1498", "raw_score": 89.5},
       {"candidate_id": "c5", "age": 22, "retail_channel": "direct", "era": "1500", "raw_score": 90.0},
