@@ -2,6 +2,17 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.0
+
+- Added a revision-pinned fifteen-corpus prompt-injection matrix with 21,485 held-out cases, global train/test overlap removal, conflict removal, deterministic splits, and three-run stability checks.
+- Added strict per-corpus gates requiring at least 95% accuracy, precision, recall, and F1 with at most 5% false-positive rate; the bundled model currently passes 3 of 15 and is explicitly not presented as broadly production-accurate.
+- Added multilingual candidate training with Unicode features, per-source/class caps, and rejection of candidates that regress existing gates.
+- Preserved English-model tokenization while isolating Unicode tokenization to multilingual model artifacts.
+- Added Docker engine, build, startup, benchmark, and health deadlines with diagnostic logs and truthful failure handling.
+- Added a manual GitHub matrix workflow that preserves the evaluation report and fails when any strict corpus gate is missed.
+- Replaced the full Stage 3 execution during image construction with compile/import checks, reducing the measured pipeline build from about 57 seconds of executable work to 11.7 seconds end to end locally.
+- Renamed dashboard checks as runtime validation so 5/5 health checks cannot be mistaken for accuracy evidence.
+
 ## 1.10.0
 
 - Replaced the raw-count guard with a SHA-256-pinned word/character TF-IDF linear model trained on 5,735 deduplicated WamboSec and deepset training prompts.

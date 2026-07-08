@@ -58,11 +58,39 @@ The public eight-case `example-dataset.yaml` from the PINT repository produced 8
 
 The WamboSec confusion matrix is 343 true positives, 231 true negatives, zero false positives, and three false negatives. The misses are Morse/Braille-only attacks. The separate deepset result is materially weaker and is published to make distribution sensitivity visible. The claim “over 95% accurate” applies only to the named 577-case English synthetic WamboSec split, not all prompt injection or production traffic.
 
+### Fifteen-corpus matrix
+
+v1.11.0 adds 15 revision-pinned corpora and 21,485 test records. A corpus passes only when accuracy, precision, recall, and F1 are each at least 95% and false-positive rate is no more than 5%. Three complete runs produced identical metrics.
+
+| Corpus | Cases | Accuracy | Precision | Recall | F1 | FPR | Gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| WamboSec | 577 | 99.48% | 100.00% | 99.13% | 99.56% | 0.00% | Pass |
+| deepset | 116 | 86.21% | 97.83% | 75.00% | 84.91% | 1.79% | Fail |
+| Shomi28 | 128 | 98.44% | 96.77% | 100.00% | 98.36% | 2.94% | Pass |
+| jackhhao | 262 | 69.85% | 63.76% | 100.00% | 77.87% | 64.23% | Fail |
+| cgoosen guard | 4,691 | 62.29% | 10.24% | 76.77% | 18.06% | 38.54% | Fail |
+| Neuralchemy | 942 | 83.86% | 89.84% | 81.70% | 85.58% | 13.08% | Fail |
+| WamboSec subtle | 94 | 97.87% | 98.57% | 98.57% | 98.57% | 4.17% | Pass |
+| jcanode | 5,425 | 75.82% | 44.72% | 94.78% | 60.77% | 28.85% | Fail |
+| rikka multilingual | 1,276 | 70.22% | 78.46% | 58.48% | 67.01% | 17.21% | Fail |
+| beratcmn Turkish | 115 | 66.09% | 63.51% | 79.66% | 70.68% | 48.21% | Fail |
+| S-Labs | 2,101 | 85.34% | 83.26% | 88.49% | 85.79% | 17.81% | Fail |
+| cgoosen combined | 98 | 50.00% | 85.45% | 53.41% | 65.73% | 80.00% | Fail |
+| Smooth-3 | 5,500 | 62.76% | 59.47% | 83.75% | 69.55% | 58.88% | Fail |
+| darkknight25 | 100 | 90.00% | 95.45% | 84.00% | 89.36% | 4.00% | Fail |
+| HSE LLM | 60 | 53.33% | 41.67% | 100.00% | 58.82% | 70.00% | Fail |
+
+The bundled model passes 3/15 strict gates. Pooled accuracy is 71.16%, precision 54.82%, recall 84.26%, F1 66.42%, and FPR 35.55%; these pooled values are descriptive only and cannot override a failed corpus. A multilingual TF-IDF candidate trained on 80,066 globally deduplicated records raised pooled accuracy to 95.52% and precision to 95.34%, but recall remained 91.23% and only 4/15 corpora passed, so it was rejected.
+
+The corpora do not share one perfect definition of injection. Some label roleplay as malicious while others deliberately include roleplay as benign, several are synthetic or translated derivatives, and small sets have wide confidence intervals. Valence records those disagreements instead of tuning per-dataset rules against observed test labels.
+
 Valence ships the 2.99 MB JSON guard as the local default and also supports a bounded HTTP `GuardModelClient` for independently trained enterprise models. The artifact is pinned by SHA-256. Lakera's complete 4,314-input PINT corpus includes proprietary data and is not publicly downloadable, so Valence does not claim a full PINT score.
 
 ```bash
 python -m pip install -r requirements-benchmark.txt
-python pipeline/benchmarks/train_guard_model.py --output gateway/models/prompt-injection-guard.json
+python pipeline/benchmarks/prepare_injection_matrix.py --output .benchmark-data/injection-matrix
+python pipeline/benchmarks/run_injection_matrix.py --matrix .benchmark-data/injection-matrix/matrix.json --model gateway/models/prompt-injection-guard.json --output .benchmark-data/injection-matrix/report.json --repetitions 3 --timeout-seconds 120
+python pipeline/benchmarks/train_guard_model.py --output .benchmark-data/candidate-guard.json
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/wambosec-test.jsonl models/prompt-injection-guard.json 0.95 0.95
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/prompt-injection-guard.json 0.84 0.78
 ```

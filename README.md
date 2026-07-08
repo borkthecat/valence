@@ -140,14 +140,18 @@ If you prefer PowerShell, run:
 .\CHECK-VALENCE.ps1
 ```
 
-The first script copies `.env.example` to `.env` if needed, builds and starts the Docker stack, waits for gateway health, and opens `http://localhost:8090/`. The browser dashboard runs the known-good verifier request, confirms sanitizer behavior, confirms the gateway blocks an injection request with `403`, and checks metrics. The second script runs the same smoke path from PowerShell for CI-style local confirmation.
+The first script copies `.env.example` to `.env` if needed, builds and starts the Docker stack, waits for gateway health, and opens `http://localhost:8090/`. It stops engine checks after 20 seconds, builds after 8 minutes, startup after 2 minutes, and health readiness after 90 seconds, preserving diagnostic logs under the Windows temporary directory. The browser dashboard runs the known-good verifier request, confirms sanitizer behavior, confirms the gateway blocks an injection request with `403`, and checks metrics. These are runtime checks, not accuracy benchmarks. The second script runs the same smoke path from PowerShell for CI-style local confirmation.
+
+Automated checks can run `START-VALENCE.ps1 -NoBrowser`; double-click startup continues to open the dashboard.
 
 ```
 cp .env.example .env
 docker compose up --build
 ```
 
-The gateway is exposed on port 8080 and the Stage 5 verification service on port 8090. The gateway image is a multi-stage Node build; the pipeline image runs its self-verifying stages under the strict warnings-as-errors flag as a build-time integrity gate.
+The gateway is exposed on port 8080 and the Stage 5 verification service on port 8090. The gateway image is a multi-stage Node build; the pipeline image compiles and imports each service under strict warnings-as-errors during image construction.
+
+The manual `Prompt Injection Matrix` GitHub workflow downloads the 15 pinned corpora, runs three repetitions, and uploads the full JSON report. It intentionally fails while any corpus misses the documented 95% accuracy, precision, recall, or F1 gate or exceeds 5% false positives.
 
 For local testing without real upstream model credentials, use the local override:
 
@@ -232,7 +236,7 @@ Kafka topic: `valence-raw-profiles`. The gateway uses Kafka idempotent producer 
 
 Image fields are evidence references, not raw image uploads. Valence validates HTTPS URLs, SHA-256 hashes, MIME type, source, view labels, optional perceptual hashes and quality scores, dimensions, and byte size. Evidence quality counts distinct content digests, so repeating one image does not improve a profile. `links` carry catalog, registry, or document evidence. Set `EVIDENCE_URL_VALIDATION=live` to resolve every unique host, reject private/reserved destinations, disable redirects, and issue bounded `HEAD` checks for dead links and MIME mismatches. Live mode is capped by `MAX_LIVE_EVIDENCE_URLS`.
 
-Valence ships a SHA-256-pinned 2.99 MB English TF-IDF linear guard trained on 5,735 unique prompts from the WamboSec and deepset training splits. On WamboSec's untouched 577-case test split it measures 99.48% accuracy (Wilson 95% CI 98.48%-99.82%) and 99.56% F1; on the separate 116-case deepset split it measures 86.21% accuracy and 84.91% F1. The difference is published because one synthetic corpus cannot establish universal production accuracy. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure stops the protected request under the default fail-closed posture.
+Valence ships a SHA-256-pinned 2.99 MB English TF-IDF linear guard trained on 5,735 unique prompts from the WamboSec and deepset training splits. On WamboSec's untouched 577-case test split it measures 99.48% accuracy (Wilson 95% CI 98.48%-99.82%) and 99.56% F1; on the separate 116-case deepset split it measures 86.21% accuracy and 84.91% F1. The v1.11.0 matrix expands evaluation to 21,485 held-out cases from 15 pinned corpora and the bundled model passes only 3/15 strict gates, so Valence does not claim broad 95% production accuracy. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure stops the protected request under the default fail-closed posture.
 
 ### Accuracy boundary
 
@@ -441,7 +445,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES
 
 ## Releases
 
-The current release target is `v1.10.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.11.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

@@ -11,9 +11,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . ./
 
-RUN python -W error stage4_razor_reranker.py > /dev/null \
-    && python -W error stage5_cognitive_verifier.py > /dev/null \
-    && python -W error stage3_hydrator.py > /dev/null
+RUN python -W error -m py_compile \
+    stage3_hydrator.py \
+    stage4_razor_reranker.py \
+    stage5_cognitive_verifier.py \
+    stream_worker.py \
+    && python -W error -c "import stage3_hydrator, stage4_razor_reranker, stage5_cognitive_verifier, stream_worker"
 
 EXPOSE 8090
 CMD ["uvicorn", "stage5_cognitive_verifier:app", "--host", "0.0.0.0", "--port", "8090"]

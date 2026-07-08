@@ -984,15 +984,15 @@ _DASHBOARD_HTML: Final[str] = """
     <section class="overview">
       <div class="intro">
       <div>
-          <h1>Validate the local LLM safety gateway</h1>
-          <p>Valence checks that the verifier, sanitizer, gateway block path, and metrics are working before you connect real applications or provider credentials.</p>
+          <h1>Validate the local Valence runtime</h1>
+          <p>Valence checks that the verifier, sanitizer, gateway block path, and metrics are running before you connect real applications or provider credentials.</p>
         </div>
         <div class="actions">
           <button id="run">Run validation</button>
           <a class="secondary-link" href="http://localhost:8080/healthz">Gateway health</a>
           <a class="secondary-link" href="/openapi.json">OpenAPI JSON</a>
         </div>
-        <div class="note">Local validation uses mock-provider mode for verifier checks, so no external model calls or API keys are required.</div>
+        <div class="note">These are runtime checks, not accuracy benchmarks. Local validation uses mock-provider mode, so no external model calls or API keys are required.</div>
       </div>
       <div class="summary">
       <div class="stat">
@@ -1004,14 +1004,14 @@ _DASHBOARD_HTML: Final[str] = """
         <div class="value" id="version">-</div>
       </div>
       <div class="stat">
-        <div class="label">Passed checks</div>
+        <div class="label">Passed runtime checks</div>
         <div class="value" id="passed">0 / 0</div>
       </div>
       </div>
     </section>
     <section class="panel">
       <div class="panel-head">
-        <div class="panel-title">Validation checks</div>
+        <div class="panel-title">Runtime validation checks</div>
         <span class="label" id="updated">Not run yet</span>
       </div>
       <div class="checks" id="checks">
@@ -1026,7 +1026,7 @@ _DASHBOARD_HTML: Final[str] = """
       <a href="/docs">Swagger API</a>
       <a href="/openapi.json">OpenAPI JSON</a>
       <a href="http://localhost:8080/healthz">Gateway health</a>
-      <span>Dashboard validation is local-only and safe to rerun.</span>
+      <span>Runtime validation is local-only. Detection accuracy is measured separately across the pinned benchmark matrix.</span>
     </nav>
   </main>
   <script>

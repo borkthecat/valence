@@ -1,0 +1,472 @@
+{
+  "corpora": 15,
+  "passed": 3,
+  "failed": 12,
+  "modelSha256": "e75b413651fcb95761e3d303975d66db75525ca521e64ebf8f252680aa65bc13",
+  "minimum": 0.95,
+  "maximumFpr": 0.05,
+  "pooledMetrics": {
+    "samples": 21485,
+    "truePositive": 6129,
+    "trueNegative": 9159,
+    "falsePositive": 5052,
+    "falseNegative": 1145,
+    "accuracy": 0.7115662089830114,
+    "precision": 0.5481620606385833,
+    "recall": 0.8425900467418201,
+    "f1": 0.6642102411270658,
+    "falsePositiveRate": 0.35549926113573993
+  },
+  "results": [
+    {
+      "name": "wambosec",
+      "dataset": "wambosec/prompt-injections",
+      "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2",
+      "license": "MIT",
+      "trainingRecords": 5189,
+      "testRecords": 577,
+      "testPositive": 346,
+      "testNegative": 231,
+      "fixture": ".benchmark-data\\injection-matrix\\wambosec-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 577,
+        "truePositive": 343,
+        "trueNegative": 231,
+        "falsePositive": 0,
+        "falseNegative": 3,
+        "accuracy": 0.9948006932409013,
+        "precision": 1,
+        "recall": 0.9913294797687862,
+        "f1": 0.9956458635703919,
+        "falsePositiveRate": 0
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9848263249969004,
+        "upper": 0.9982302239610966
+      }
+    },
+    {
+      "name": "deepset",
+      "dataset": "deepset/prompt-injections",
+      "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd",
+      "license": "Apache-2.0",
+      "trainingRecords": 530,
+      "testRecords": 116,
+      "testPositive": 60,
+      "testNegative": 56,
+      "fixture": ".benchmark-data\\injection-matrix\\deepset-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 116,
+        "truePositive": 45,
+        "trueNegative": 55,
+        "falsePositive": 1,
+        "falseNegative": 15,
+        "accuracy": 0.8620689655172413,
+        "precision": 0.9782608695652174,
+        "recall": 0.75,
+        "f1": 0.849056603773585,
+        "falsePositiveRate": 0.017857142857142856
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.787644450634584,
+        "upper": 0.913281596382919
+      }
+    },
+    {
+      "name": "shomi28",
+      "dataset": "Shomi28/prompt-injection-dataset",
+      "revision": "0146454c8404a347ccc170a0291bcec932252fef",
+      "license": "MIT",
+      "trainingRecords": 1023,
+      "testRecords": 128,
+      "testPositive": 60,
+      "testNegative": 68,
+      "fixture": ".benchmark-data\\injection-matrix\\shomi28-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 128,
+        "truePositive": 60,
+        "trueNegative": 66,
+        "falsePositive": 2,
+        "falseNegative": 0,
+        "accuracy": 0.984375,
+        "precision": 0.967741935483871,
+        "recall": 1,
+        "f1": 0.9836065573770492,
+        "falsePositiveRate": 0.029411764705882353
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9448190233201829,
+        "upper": 0.9957045502898559
+      }
+    },
+    {
+      "name": "jackhhao",
+      "dataset": "jackhhao/jailbreak-classification",
+      "revision": "2f2ceeb39658696fd3f462403562b6eea5306287",
+      "license": "Apache-2.0",
+      "trainingRecords": 1018,
+      "testRecords": 262,
+      "testPositive": 139,
+      "testNegative": 123,
+      "fixture": ".benchmark-data\\injection-matrix\\jackhhao-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 262,
+        "truePositive": 139,
+        "trueNegative": 44,
+        "falsePositive": 79,
+        "falseNegative": 0,
+        "accuracy": 0.6984732824427481,
+        "precision": 0.6376146788990825,
+        "recall": 1,
+        "f1": 0.7787114845938375,
+        "falsePositiveRate": 0.6422764227642277
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.6403644207978733,
+        "upper": 0.7508461919536403
+      }
+    },
+    {
+      "name": "cgoosen_guard",
+      "dataset": "cgoosen/llm_guard_dataset",
+      "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4",
+      "license": "Apache-2.0",
+      "trainingRecords": 18024,
+      "testRecords": 4691,
+      "testPositive": 254,
+      "testNegative": 4437,
+      "fixture": ".benchmark-data\\injection-matrix\\cgoosen_guard-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 4691,
+        "truePositive": 195,
+        "trueNegative": 2727,
+        "falsePositive": 1710,
+        "falseNegative": 59,
+        "accuracy": 0.6228949051374973,
+        "precision": 0.10236220472440945,
+        "recall": 0.7677165354330708,
+        "f1": 0.18063918480778138,
+        "falsePositiveRate": 0.385395537525355
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.6089303779603565,
+        "upper": 0.6366583197865583
+      }
+    },
+    {
+      "name": "neuralchemy",
+      "dataset": "neuralchemy/Prompt-injection-dataset",
+      "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75",
+      "license": "Apache-2.0",
+      "trainingRecords": 4356,
+      "testRecords": 942,
+      "testPositive": 552,
+      "testNegative": 390,
+      "fixture": ".benchmark-data\\injection-matrix\\neuralchemy-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 942,
+        "truePositive": 451,
+        "trueNegative": 339,
+        "falsePositive": 51,
+        "falseNegative": 101,
+        "accuracy": 0.8386411889596603,
+        "precision": 0.898406374501992,
+        "recall": 0.8170289855072463,
+        "f1": 0.855787476280835,
+        "falsePositiveRate": 0.13076923076923078
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.8137819666381635,
+        "upper": 0.8607496835133105
+      }
+    },
+    {
+      "name": "wambosec_subtle",
+      "dataset": "wambosec/prompt-injections-subtle",
+      "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524",
+      "license": "MIT",
+      "trainingRecords": 839,
+      "testRecords": 94,
+      "testPositive": 70,
+      "testNegative": 24,
+      "fixture": ".benchmark-data\\injection-matrix\\wambosec_subtle-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 94,
+        "truePositive": 69,
+        "trueNegative": 23,
+        "falsePositive": 1,
+        "falseNegative": 1,
+        "accuracy": 0.9787234042553191,
+        "precision": 0.9857142857142858,
+        "recall": 0.9857142857142858,
+        "f1": 0.9857142857142858,
+        "falsePositiveRate": 0.041666666666666664
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9257097951089703,
+        "upper": 0.9941456637608272
+      }
+    },
+    {
+      "name": "jcanode",
+      "dataset": "jcanode/safeguard-prompt-injection",
+      "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c",
+      "license": "Apache-2.0",
+      "trainingRecords": 97543,
+      "testRecords": 5425,
+      "testPositive": 1072,
+      "testNegative": 4353,
+      "fixture": ".benchmark-data\\injection-matrix\\jcanode-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 5425,
+        "truePositive": 1016,
+        "trueNegative": 3097,
+        "falsePositive": 1256,
+        "falseNegative": 56,
+        "accuracy": 0.7581566820276497,
+        "precision": 0.4471830985915493,
+        "recall": 0.9477611940298507,
+        "f1": 0.6076555023923444,
+        "falsePositiveRate": 0.2885366413967379
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.7465820909862664,
+        "upper": 0.7693659287240864
+      }
+    },
+    {
+      "name": "rikka_multilingual",
+      "dataset": "rikka-snow/prompt-injection-multilingual",
+      "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b",
+      "license": "MIT",
+      "trainingRecords": 5976,
+      "testRecords": 1276,
+      "testPositive": 660,
+      "testNegative": 616,
+      "fixture": ".benchmark-data\\injection-matrix\\rikka_multilingual-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 1276,
+        "truePositive": 386,
+        "trueNegative": 510,
+        "falsePositive": 106,
+        "falseNegative": 274,
+        "accuracy": 0.7021943573667712,
+        "precision": 0.7845528455284553,
+        "recall": 0.5848484848484848,
+        "f1": 0.6701388888888888,
+        "falsePositiveRate": 0.17207792207792208
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.6765268079874026,
+        "upper": 0.7266481293798136
+      }
+    },
+    {
+      "name": "beratcmn_turkish",
+      "dataset": "beratcmn/turkish-prompt-injections",
+      "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1",
+      "license": "Apache-2.0",
+      "trainingRecords": 546,
+      "testRecords": 115,
+      "testPositive": 59,
+      "testNegative": 56,
+      "fixture": ".benchmark-data\\injection-matrix\\beratcmn_turkish-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 115,
+        "truePositive": 47,
+        "trueNegative": 29,
+        "falsePositive": 27,
+        "falseNegative": 12,
+        "accuracy": 0.6608695652173913,
+        "precision": 0.6351351351351351,
+        "recall": 0.7966101694915254,
+        "f1": 0.7067669172932329,
+        "falsePositiveRate": 0.48214285714285715
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.5703960299134965,
+        "upper": 0.7409431304028113
+      }
+    },
+    {
+      "name": "s_labs",
+      "dataset": "S-Labs/prompt-injection-dataset",
+      "revision": "002a9dd18514abd021869823d6b0429b38606d99",
+      "license": "MIT",
+      "trainingRecords": 11088,
+      "testRecords": 2101,
+      "testPositive": 1051,
+      "testNegative": 1050,
+      "fixture": ".benchmark-data\\injection-matrix\\s_labs-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 2101,
+        "truePositive": 930,
+        "trueNegative": 863,
+        "falsePositive": 187,
+        "falseNegative": 121,
+        "accuracy": 0.8534031413612565,
+        "precision": 0.8325872873769025,
+        "recall": 0.884871550903901,
+        "f1": 0.8579335793357933,
+        "falsePositiveRate": 0.17809523809523808
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.8376339352711127,
+        "upper": 0.8678823846288285
+      }
+    },
+    {
+      "name": "cgoosen_combined",
+      "dataset": "cgoosen/prompt_injection_combined",
+      "revision": "483296fde129d392d73077ad0c5d1175087cd9aa",
+      "license": "MIT",
+      "trainingRecords": 315,
+      "testRecords": 98,
+      "testPositive": 88,
+      "testNegative": 10,
+      "fixture": ".benchmark-data\\injection-matrix\\cgoosen_combined-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 98,
+        "truePositive": 47,
+        "trueNegative": 2,
+        "falsePositive": 8,
+        "falseNegative": 41,
+        "accuracy": 0.5,
+        "precision": 0.8545454545454545,
+        "recall": 0.5340909090909091,
+        "f1": 0.6573426573426572,
+        "falsePositiveRate": 0.8
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.40289182562513004,
+        "upper": 0.59710817437487
+      }
+    },
+    {
+      "name": "smooth_3",
+      "dataset": "Smooth-3/llm-prompt-injection-attacks",
+      "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581",
+      "license": "Apache-2.0",
+      "trainingRecords": 49402,
+      "testRecords": 5500,
+      "testPositive": 2793,
+      "testNegative": 2707,
+      "fixture": ".benchmark-data\\injection-matrix\\smooth_3-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 5500,
+        "truePositive": 2339,
+        "trueNegative": 1113,
+        "falsePositive": 1594,
+        "falseNegative": 454,
+        "accuracy": 0.6276363636363637,
+        "precision": 0.5947114162217138,
+        "recall": 0.8374507697815968,
+        "f1": 0.6955099613440381,
+        "falsePositiveRate": 0.5888437384558551
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.6147751472123658,
+        "upper": 0.6403194100172741
+      }
+    },
+    {
+      "name": "darkknight25",
+      "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+      "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666",
+      "license": "MIT",
+      "trainingRecords": 373,
+      "testRecords": 100,
+      "testPositive": 50,
+      "testNegative": 50,
+      "fixture": ".benchmark-data\\injection-matrix\\darkknight25-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 100,
+        "truePositive": 42,
+        "trueNegative": 48,
+        "falsePositive": 2,
+        "falseNegative": 8,
+        "accuracy": 0.9,
+        "precision": 0.9545454545454546,
+        "recall": 0.84,
+        "f1": 0.8936170212765958,
+        "falsePositiveRate": 0.04
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.8256343384950865,
+        "upper": 0.9447708629393249
+      }
+    },
+    {
+      "name": "hse_llm",
+      "dataset": "hse-llm/prompt-injections",
+      "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1",
+      "license": "MIT",
+      "trainingRecords": 236,
+      "testRecords": 60,
+      "testPositive": 20,
+      "testNegative": 40,
+      "fixture": ".benchmark-data\\injection-matrix\\hse_llm-test.jsonl",
+      "repetitions": 3,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 60,
+        "truePositive": 20,
+        "trueNegative": 12,
+        "falsePositive": 28,
+        "falseNegative": 0,
+        "accuracy": 0.5333333333333333,
+        "precision": 0.4166666666666667,
+        "recall": 1,
+        "f1": 0.5882352941176471,
+        "falsePositiveRate": 0.7
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.4089342702715789,
+        "upper": 0.6537209395856151
+      }
+    }
+  ]
+}

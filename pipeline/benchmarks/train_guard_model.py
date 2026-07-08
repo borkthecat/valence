@@ -6,41 +6,18 @@ import json
 import math
 import re
 import unicodedata
-import urllib.request
 from pathlib import Path
 
-import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import LinearSVC
 
-SOURCES = {
-    "wambosec_train": (
-        "https://huggingface.co/datasets/wambosec/prompt-injections/resolve/"
-        "071ee17a60112b7f9f808398156b430aadfaf1d2/data/train-00000-of-00001.parquet?download=true",
-        "6e98332144e5ed52658ba7f899cfd583e388cd7fda733720a8c354af340f03e9",
-    ),
-    "wambosec_test": (
-        "https://huggingface.co/datasets/wambosec/prompt-injections/resolve/"
-        "071ee17a60112b7f9f808398156b430aadfaf1d2/data/test-00000-of-00001.parquet?download=true",
-        "24a7b363225c32260e1e3fddb138315570345c891608e4dd3b32438a9366b782",
-    ),
-    "deepset_train": (
-        "https://huggingface.co/datasets/deepset/prompt-injections/resolve/"
-        "4f61ecb038e9c3fb77e21034b22511b523772cdd/data/train-00000-of-00001-9564e8b05b4757ab.parquet?download=true",
-        "2e10bc7ab30f542c97e4e83e2a5683000b5057d25ec10908784c631d44124c04",
-    ),
-    "deepset_test": (
-        "https://huggingface.co/datasets/deepset/prompt-injections/resolve/"
-        "4f61ecb038e9c3fb77e21034b22511b523772cdd/data/test-00000-of-00001-701d16158af87368.parquet?download=true",
-        "39ac797cabc157eeed58435a08593b2952bb6cb16fc394a2d383f447cc7b246e",
-    ),
-}
-TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
+from injection_corpora import fingerprint, load_corpora
+
+TOKEN_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
 INVISIBLE_PATTERN = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
 MAX_WORDS = 10_000
 MAX_WORD_LENGTH = 60
 MAX_CHARACTER_TEXT = 16_384
-MAX_DOWNLOAD_BYTES = 10 * 1024 * 1024
 
 
 def _sha256(path: Path) -> str:
@@ -49,29 +26,6 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _download(name: str, directory: Path) -> Path:
-    url, expected = SOURCES[name]
-    path = directory / f"{name}.parquet"
-    if not path.exists() or _sha256(path) != expected:
-        request = urllib.request.Request(url, headers={"User-Agent": "Valence-Guard-Training/1.0"})
-        temporary = path.with_suffix(".tmp")
-        total = 0
-        try:
-            with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as target:
-                for chunk in iter(lambda: response.read(1024 * 1024), b""):
-                    total += len(chunk)
-                    if total > MAX_DOWNLOAD_BYTES:
-                        raise ValueError(f"{name} download exceeds 10 MiB")
-                    target.write(chunk)
-            temporary.replace(path)
-        finally:
-            temporary.unlink(missing_ok=True)
-    actual = _sha256(path)
-    if actual != expected:
-        raise ValueError(f"{name} SHA-256 mismatch: {actual}")
-    return path
 
 
 def _normalize(text: str) -> str:
@@ -89,49 +43,50 @@ def _features(text: str) -> list[str]:
     return features
 
 
-def _rows(path: Path, text_column: str) -> list[tuple[str, bool]]:
-    frame = pd.read_parquet(path, columns=[text_column, "label"])
-    rows = [(str(text), bool(label)) for text, label in frame.itertuples(index=False, name=None)]
-    if not rows or any(not text.strip() for text, _ in rows):
-        raise ValueError(f"invalid or empty dataset: {path}")
-    return rows
-
-
-def _deduplicate(rows: list[tuple[str, bool]]) -> list[tuple[str, bool]]:
-    labels: dict[str, tuple[str, bool]] = {}
-    for text, label in rows:
-        key = hashlib.sha256(_normalize(text).encode("utf-8")).hexdigest()
-        previous = labels.get(key)
-        if previous is not None and previous[1] != label:
-            raise ValueError("conflicting labels for a normalized prompt")
-        labels[key] = (text, label)
-    return list(labels.values())
-
-
-def _assert_disjoint(training: list[tuple[str, bool]], tests: list[tuple[str, bool]]) -> None:
-    training_hashes = {hashlib.sha256(_normalize(text).encode("utf-8")).digest() for text, _ in training}
-    test_hashes = {hashlib.sha256(_normalize(text).encode("utf-8")).digest() for text, _ in tests}
-    overlap = training_hashes & test_hashes
-    if overlap:
-        raise ValueError(f"training/test leakage detected: {len(overlap)} normalized prompts")
+def _training_rows(cache: Path, max_per_class: int) -> tuple[list[tuple[str, bool]], int, int]:
+    corpora = load_corpora(cache)
+    test_hashes = {fingerprint(text) for corpus in corpora for text, _ in corpus.test}
+    candidates: dict[bytes, list[tuple[str, bool]]] = {}
+    sampled = 0
+    for corpus in corpora:
+        for label in (False, True):
+            rows = sorted(
+                (
+                    (text, row_label)
+                    for text, row_label in corpus.training
+                    if row_label is label and fingerprint(text) not in test_hashes
+                ),
+                key=lambda row: fingerprint(row[0]),
+            )[:max_per_class]
+            sampled += len(rows)
+            for row in rows:
+                candidates.setdefault(fingerprint(row[0]), []).append(row)
+    conflicts = 0
+    training: list[tuple[str, bool]] = []
+    for rows in candidates.values():
+        labels = {label for _, label in rows}
+        if len(labels) != 1:
+            conflicts += 1
+            continue
+        training.append(rows[0])
+    if {fingerprint(text) for text, _ in training} & test_hashes:
+        raise ValueError("training/test leakage detected")
+    return training, sampled - len(training) - conflicts, conflicts
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Train the bounded Valence prompt-injection guard")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--cache", type=Path, default=Path(".benchmark-data/guard"))
-    parser.add_argument("--max-features", type=int, default=100_000)
+    parser.add_argument("--cache", type=Path, default=Path(".benchmark-data/huggingface"))
+    parser.add_argument("--max-features", type=int, default=150_000)
+    parser.add_argument("--max-per-class-per-corpus", type=int, default=10_000)
+    parser.add_argument("--class-weight", choices=("balanced", "none"), default="balanced")
     args = parser.parse_args()
     if not 10_000 <= args.max_features <= 150_000:
         raise ValueError("--max-features must be between 10000 and 150000")
-    args.cache.mkdir(parents=True, exist_ok=True)
-    wambo_train = _rows(_download("wambosec_train", args.cache), "prompt")
-    deepset_train = _rows(_download("deepset_train", args.cache), "text")
-    wambo_test = _rows(_download("wambosec_test", args.cache), "prompt")
-    deepset_test = _rows(_download("deepset_test", args.cache), "text")
-    training = _deduplicate(wambo_train + deepset_train)
-    tests = _deduplicate(wambo_test + deepset_test)
-    _assert_disjoint(training, tests)
+    if not 100 <= args.max_per_class_per_corpus <= 25_000:
+        raise ValueError("--max-per-class-per-corpus must be between 100 and 25000")
+    training, duplicates, conflicts = _training_rows(args.cache, args.max_per_class_per_corpus)
     vectorizer = TfidfVectorizer(
         analyzer=_features,
         lowercase=False,
@@ -141,7 +96,10 @@ def main() -> int:
         norm="l2",
     )
     matrix = vectorizer.fit_transform([text for text, _ in training])
-    classifier = LinearSVC(C=0.5).fit(matrix, [label for _, label in training])
+    classifier = LinearSVC(
+        C=0.5,
+        class_weight=None if args.class_weight == "none" else "balanced",
+    ).fit(matrix, [label for _, label in training])
     names = vectorizer.get_feature_names_out()
     coefficients = classifier.coef_[0]
     features = {
@@ -151,9 +109,10 @@ def main() -> int:
     }
     model = {
         "format": "valence-linear-tfidf-v1",
-        "source": "wambosec@071ee17+deepset@4f61ecb",
-        "language": "en",
+        "source": "15 pinned public corpora; see DATASETS.md",
+        "language": "multilingual",
         "trainingRecords": len(training),
+        "trainingCorpora": 15,
         "bias": round(float(classifier.intercept_[0]), 7),
         "threshold": 0.0,
         "features": dict(sorted(features.items())),
@@ -162,7 +121,8 @@ def main() -> int:
     args.output.write_text(json.dumps(model, separators=(",", ":")), encoding="utf-8")
     print(json.dumps({
         "trainingRecords": len(training),
-        "reservedTestRecords": len(tests),
+        "duplicatesRemoved": duplicates,
+        "conflictsRemoved": conflicts,
         "features": len(features),
         "bytes": args.output.stat().st_size,
         "sha256": _sha256(args.output),

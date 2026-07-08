@@ -1,3 +1,5 @@
+param([switch]$NoBrowser)
+
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -80,13 +82,47 @@ function Show-SetupHelp {
   Write-Host $Detail
 }
 
+function Invoke-DockerWithTimeout {
+  param(
+    [string[]]$Arguments,
+    [int]$TimeoutSeconds,
+    [string]$Phase
+  )
+
+  $LogRoot = Join-Path $env:TEMP "valence-startup"
+  New-Item -ItemType Directory -Force -Path $LogRoot | Out-Null
+  $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+  $StdoutPath = Join-Path $LogRoot "$Stamp-$Phase.out.log"
+  $StderrPath = Join-Path $LogRoot "$Stamp-$Phase.err.log"
+  $Job = Start-Job -ArgumentList (,$Arguments), $StdoutPath, $StderrPath, $Root -ScriptBlock {
+    param($DockerArguments, $Stdout, $Stderr, $WorkingDirectory)
+    Set-Location $WorkingDirectory
+    & docker @DockerArguments 1> $Stdout 2> $Stderr
+    $LASTEXITCODE
+  }
+  $CompletedJob = Wait-Job -Job $Job -Timeout $TimeoutSeconds
+  if ($null -eq $CompletedJob) {
+    Stop-Job -Job $Job -ErrorAction SilentlyContinue
+    Remove-Job -Job $Job -Force -ErrorAction SilentlyContinue
+    Show-SetupHelp "Docker $Phase timed out" "Valence stopped Docker after $TimeoutSeconds seconds so startup could not run indefinitely." "Diagnostic logs: $LogRoot"
+    exit 1
+  }
+  $ExitCode = Receive-Job -Job $Job | Select-Object -Last 1
+  Remove-Job -Job $Job -Force
+  if ($ExitCode -ne 0) {
+    Show-SetupHelp "Docker $Phase failed" "Docker returned exit code $ExitCode while running the $Phase phase." "Diagnostic logs: $LogRoot"
+    exit 1
+  }
+}
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Show-SetupHelp "Docker Desktop is required" "Valence runs its local gateway and verifier in Docker so the release can start safely on a clean machine." "Docker was not found on this computer."
   exit 1
 }
 
-docker info *> $null
-if ($LASTEXITCODE -ne 0) {
+try {
+  Invoke-DockerWithTimeout -Arguments @("info") -TimeoutSeconds 20 -Phase "engine-check"
+} catch {
   Show-SetupHelp "Docker Desktop is not running" "Valence found Docker, but the Docker engine is not accepting requests yet." "Start Docker Desktop, wait for it to finish loading, then launch Valence again."
   exit 1
 }
@@ -103,19 +139,28 @@ if ($Contexts -contains "desktop-linux") {
   $ContextArgs = @("--context", "desktop-linux")
 }
 
-docker @ContextArgs compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.example up --build -d
+$ComposeArgs = $ContextArgs + @("compose", "-f", "docker-compose.yml", "-f", "docker-compose.local.yml", "--env-file", ".env.example")
+Invoke-DockerWithTimeout -Arguments ($ComposeArgs + @("build")) -TimeoutSeconds 480 -Phase "build"
+Invoke-DockerWithTimeout -Arguments ($ComposeArgs + @("up", "-d", "--remove-orphans")) -TimeoutSeconds 120 -Phase "startup"
 
-$Deadline = (Get-Date).AddSeconds(60)
+$Ready = $false
+$Deadline = (Get-Date).AddSeconds(90)
 do {
   Start-Sleep -Seconds 2
   try {
     $Health = Invoke-RestMethod -Uri "http://localhost:8080/healthz" -TimeoutSec 3
     if ($Health.status -eq "ok") {
+      $Ready = $true
       break
     }
   } catch {
   }
 } while ((Get-Date) -lt $Deadline)
+
+if (-not $Ready) {
+  Show-SetupHelp "Valence health check timed out" "Containers started, but the gateway did not become healthy within 90 seconds." "Run logs are available in Docker Desktop."
+  exit 1
+}
 
 Write-Host ""
 Write-Host "Valence is running."
@@ -124,6 +169,7 @@ Write-Host "Valence dashboard: http://localhost:8090/"
 Write-Host "Stage 5 API dashboard: http://localhost:8090/docs"
 Write-Host "Metrics: curl.exe -H `"x-valence-key: replace-with-a-random-32-plus-character-secret`" http://localhost:8080/metrics"
 Write-Host ""
-Write-Host "Opening the Valence dashboard..."
-
-Start-Process "http://localhost:8090/"
+if (-not $NoBrowser) {
+  Write-Host "Opening the Valence dashboard..."
+  Start-Process "http://localhost:8090/"
+}

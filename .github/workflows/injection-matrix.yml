@@ -1,0 +1,59 @@
+name: Prompt Injection Matrix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: gateway/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          npm --prefix gateway ci
+          python -m pip install -r requirements-benchmark.txt
+
+      - name: Prepare pinned datasets
+        run: python pipeline/benchmarks/prepare_injection_matrix.py --output .benchmark-data/injection-matrix
+
+      - name: Run three stable repetitions
+        id: matrix
+        shell: bash
+        run: |
+          set +e
+          python pipeline/benchmarks/run_injection_matrix.py \
+            --matrix .benchmark-data/injection-matrix/matrix.json \
+            --model gateway/models/prompt-injection-guard.json \
+            --output .benchmark-data/injection-matrix/report.json \
+            --repetitions 3 \
+            --timeout-seconds 120
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: injection-matrix-report
+          path: .benchmark-data/injection-matrix/report.json
+          if-no-files-found: error
+
+      - name: Enforce strict corpus gates
+        env:
+          MATRIX_EXIT_CODE: ${{ steps.matrix.outputs.exit_code }}
+        run: test "$MATRIX_EXIT_CODE" -eq 0

@@ -5,15 +5,25 @@ set -euo pipefail
 COMPOSE=(docker compose --profile enterprise -f docker-compose.yml -f docker-compose.local.yml --env-file .env.example)
 KAFKA_TOPICS=/opt/kafka/bin/kafka-topics.sh
 
+run_bounded() {
+  local seconds="$1"
+  shift
+  timeout --foreground "${seconds}s" "$@"
+}
+
 echo "Booting Valence enterprise streaming stack..."
-"${COMPOSE[@]}" down -v
-"${COMPOSE[@]}" build
-"${COMPOSE[@]}" up -d kafka redis
+run_bounded 120 "${COMPOSE[@]}" down -v
+run_bounded 480 "${COMPOSE[@]}" build
+run_bounded 120 "${COMPOSE[@]}" up -d kafka redis
 
 echo "Waiting for Kafka..."
-until "${COMPOSE[@]}" exec -T kafka "$KAFKA_TOPICS" --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+for _ in {1..45}; do
+  if "${COMPOSE[@]}" exec -T kafka "$KAFKA_TOPICS" --bootstrap-server kafka:9092 --list >/dev/null 2>&1; then
+    break
+  fi
   sleep 2
 done
+"${COMPOSE[@]}" exec -T kafka "$KAFKA_TOPICS" --bootstrap-server kafka:9092 --list >/dev/null
 
 echo "Creating ingestion topic..."
 "${COMPOSE[@]}" exec -T kafka "$KAFKA_TOPICS" \
@@ -33,12 +43,16 @@ echo "Creating ingestion topic..."
   --if-not-exists
 
 echo "Starting gateway, API dashboard, and stream worker..."
-"${COMPOSE[@]}" up -d gateway pipeline pipeline-worker
+run_bounded 120 "${COMPOSE[@]}" up -d gateway pipeline pipeline-worker
 
 echo "Waiting for gateway..."
-until curl -sf http://localhost:8080/healthz >/dev/null; do
+for _ in {1..90}; do
+  if curl -sf http://localhost:8080/healthz >/dev/null; then
+    break
+  fi
   sleep 1
 done
+curl -sf http://localhost:8080/healthz >/dev/null
 
 echo "Posting sample enterprise ingest batch..."
 curl -sf -X POST http://localhost:8080/api/v1/ingest \

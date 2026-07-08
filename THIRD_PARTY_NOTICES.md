@@ -17,3 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 Source: https://huggingface.co/datasets/deepset/prompt-injections
 
 The source dataset is licensed under Apache License 2.0. The repository's root `LICENSE` contains the applicable terms.
+
+## Optional Benchmark Datasets
+
+Valence can download the additional public datasets listed in `DATASETS.md` for local evaluation. Their records are not redistributed in this repository or its release archives. Each source remains governed by the license and notices published by its owner; operators must review those terms before downloading or reusing the data.

@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.10.0`
+Current release target: `v1.11.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.10.0` and `valence-pipeline:1.10.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.0` and `valence-pipeline:1.11.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,20 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.10.0 -m "Valence v1.10.0"
-git push origin main v1.10.0
+git tag -a v1.11.0 -m "Valence v1.11.0"
+git push origin main v1.11.0
 ```
 
 ## Release Notes
+
+`v1.11.0` makes detector limitations and startup behavior measurable:
+
+- Runs 21,485 held-out cases from 15 revision-pinned public corpora three times with strict accuracy, precision, recall, F1, and false-positive gates.
+- Records that the bundled model passes 3/15 strict corpus gates; the experimental multi-corpus candidate was rejected despite 95.52% pooled accuracy because recall and per-corpus gates remained below target.
+- Adds deterministic corpus preparation, global leakage removal, label-conflict removal, Unicode candidate training, and a checked-in compact results report.
+- Bounds Docker engine checks to 20 seconds, builds to 8 minutes, startup to 2 minutes, and health readiness to 90 seconds.
+- Reduces the measured local pipeline image build to 11.7 seconds by keeping exhaustive scale execution in pytest/CI rather than Docker image construction.
+- Clarifies that the dashboard's 5/5 result validates runtime paths, not model accuracy.
 
 `v1.10.0` replaces the initial guard baseline with reproducible multi-corpus training and stronger release evidence:
 

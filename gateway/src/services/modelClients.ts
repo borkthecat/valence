@@ -28,8 +28,9 @@ const LocalGuardModelSchema = z.object({
 const LinearGuardModelSchema = z.object({
     format: z.literal('valence-linear-tfidf-v1'),
     source: z.string().min(1).max(256),
-    language: z.literal('en'),
+    language: z.enum(['en', 'multilingual']),
     trainingRecords: z.number().int().positive().max(1_000_000),
+    trainingCorpora: z.number().int().positive().max(100).optional(),
     bias: z.number().finite(),
     threshold: z.number().finite(),
     features: z.record(
@@ -38,7 +39,8 @@ const LinearGuardModelSchema = z.object({
     ),
 }).strict();
 const GuardModelSchema = z.union([LocalGuardModelSchema, LinearGuardModelSchema]);
-const TOKEN_PATTERN = /[a-z0-9]+/g;
+const ASCII_TOKEN_PATTERN = /[a-z0-9]+/g;
+const UNICODE_TOKEN_PATTERN = /[\p{L}\p{N}]+/gu;
 const MAX_MODEL_FEATURES = 150_000;
 const MAX_MODEL_BYTES = 16 * 1024 * 1024;
 const MAX_CLASSIFIER_TOKENS = 10_000;
@@ -96,7 +98,7 @@ export class HttpGuardModelClient implements GuardModelClient {
 }
 
 function guardFeatures(text: string): string[] {
-    const words = text.normalize('NFKC').toLowerCase().match(TOKEN_PATTERN)?.slice(0, MAX_CLASSIFIER_TOKENS) ?? [];
+    const words = text.normalize('NFKC').toLowerCase().match(ASCII_TOKEN_PATTERN)?.slice(0, MAX_CLASSIFIER_TOKENS) ?? [];
     const features = [...words];
     for (let index = 0; index + 1 < words.length; index += 1) {
         features.push(`${words[index]}_${words[index + 1]}`);
@@ -104,8 +106,9 @@ function guardFeatures(text: string): string[] {
     return features;
 }
 
-function* linearGuardFeatures(text: string): Generator<string> {
-    const words = text.normalize('NFKC').toLowerCase().match(TOKEN_PATTERN)
+function* linearGuardFeatures(text: string, multilingual: boolean): Generator<string> {
+    const pattern = multilingual ? UNICODE_TOKEN_PATTERN : ASCII_TOKEN_PATTERN;
+    const words = text.normalize('NFKC').toLowerCase().match(pattern)
         ?.slice(0, MAX_CLASSIFIER_TOKENS)
         .map((word) => word.slice(0, MAX_TOKEN_LENGTH)) ?? [];
     for (const word of words) {
@@ -167,7 +170,7 @@ export class LocalGuardModelClient implements GuardModelClient {
             throw new Error('invalid linear guard model');
         }
         const counts = new Map<string, number>();
-        for (const feature of linearGuardFeatures(text)) {
+        for (const feature of linearGuardFeatures(text, model.language === 'multilingual')) {
             if (model.features[feature] !== undefined) {
                 counts.set(feature, (counts.get(feature) ?? 0) + 1);
             }

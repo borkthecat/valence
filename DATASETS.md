@@ -23,25 +23,31 @@ Valence does not treat synthetic scale tests as universal accuracy evidence. Lar
 
 Valence supplies the secure classifier client and benchmark contract. Model training remains a separate, versioned ML process so weights, tokenizer, dataset revision, calibration thresholds, and model cards can be reviewed independently of the gateway.
 
-## deepset Prompt Injections
+## Prompt-Injection Matrix
 
-- Owner: deepset
-- Source: https://huggingface.co/datasets/deepset/prompt-injections
-- License: Apache-2.0
-- Scale: 662 labeled benign and injection prompts
-- Use: cross-dataset detector evaluation and training
+The v1.11.0 matrix evaluates 15 revision-pinned public corpora. Official test splits are preserved; train-only corpora receive a deterministic, class-stratified 80/20 split. Normalized test hashes are excluded from candidate training across every source.
 
-The 546-case training split contributes to the bundled model. The 116-case test split remains evaluation-only and is checked separately to expose distribution shift.
+| Dataset | Revision | Declared license |
+| --- | --- | --- |
+| `wambosec/prompt-injections` | `071ee17a60112b7f9f808398156b430aadfaf1d2` | MIT |
+| `deepset/prompt-injections` | `4f61ecb038e9c3fb77e21034b22511b523772cdd` | Apache-2.0 |
+| `Shomi28/prompt-injection-dataset` | `0146454c8404a347ccc170a0291bcec932252fef` | MIT |
+| `jackhhao/jailbreak-classification` | `2f2ceeb39658696fd3f462403562b6eea5306287` | Apache-2.0 |
+| `cgoosen/llm_guard_dataset` | `b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4` | Apache-2.0 |
+| `neuralchemy/Prompt-injection-dataset` | `7d70432dfcf47a821612cbf9d34e9d9e3ad20e75` | Apache-2.0 |
+| `wambosec/prompt-injections-subtle` | `cd789a6e362aa72624d7f835c5270c8c3bdaf524` | MIT |
+| `jcanode/safeguard-prompt-injection` | `61fbe3588450fa9b47ac1176ca7b5d2cc932344c` | Apache-2.0 |
+| `rikka-snow/prompt-injection-multilingual` | `f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b` | MIT |
+| `beratcmn/turkish-prompt-injections` | `c40c38f8ca632052fbfec19e90fab31fce33eda1` | Apache-2.0 |
+| `S-Labs/prompt-injection-dataset` | `002a9dd18514abd021869823d6b0429b38606d99` | MIT |
+| `cgoosen/prompt_injection_combined` | `483296fde129d392d73077ad0c5d1175087cd9aa` | MIT |
+| `Smooth-3/llm-prompt-injection-attacks` | `dd47798b64ebf0e833ecdbff6b1d73be3e440581` | Apache-2.0 |
+| `darkknight25/Prompt_Injection_Benign_Prompt_Dataset` | `a0fc54fb563468a7fd64a9412718ce7cdb366666` | MIT |
+| `hse-llm/prompt-injections` | `6619b5e0f7a907404b8b81df6aa97c2114dd27a1` | MIT |
 
-## WamboSec Prompt Injections
+These corpora differ in language, generation method, and labeling policy. Some treat roleplay as an attack while others use roleplay as benign material; several contain synthetic or translated examples. The matrix therefore reports every corpus separately and never uses a pooled score to override a failed dataset gate.
 
-- Owner: Wambo Security
-- Source: https://huggingface.co/datasets/wambosec/prompt-injections
-- Declared license: MIT
-- Scale: 5,189 training prompts and 577 test prompts; 2,340 benign and 3,426 malicious overall
-- Use: primary English prompt-injection training and held-out release evaluation
-
-The source card says prompts were generated with LLMs across multiple attack techniques. The test split is therefore useful, larger, and independently published, but it is still synthetic and does not establish accuracy on private production traffic. `train_guard_model.py` pins WamboSec revision `071ee17a60112b7f9f808398156b430aadfaf1d2`, deepset revision `4f61ecb038e9c3fb77e21034b22511b523772cdd`, and every source-file SHA-256 digest. It removes normalized duplicates, rejects conflicting labels, and fails if any normalized training prompt appears in either reserved test split.
+Dataset files are downloaded only for local benchmarking and are not included in Valence releases. The checked-in report contains aggregate metrics, not source records. Review each dataset card and license before using downloaded data outside this benchmark.
 
 ## Excluded Defaults
 
