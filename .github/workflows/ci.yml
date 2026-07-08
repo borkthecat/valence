@@ -34,6 +34,7 @@ jobs:
           npm run build
           npm test
           npm run benchmark:injection -- benchmarks/fixtures/injection-smoke.yaml
+          npm run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/deepset-guard-nb.json 0.80
           npm run benchmark:pii -- benchmarks/fixtures/pii-smoke.jsonl
 
   pipeline-integrity-check:
@@ -59,6 +60,9 @@ jobs:
         run: |
           cd pipeline
           python -W error -m pytest -q
+
+      - name: Validate Repository Links
+        run: python scripts/check_links.py README.md BENCHMARKS.md DATASETS.md RELEASE.md
 
   orchestration-container-check:
     name: Isolated Multi-Stage Mesh Build

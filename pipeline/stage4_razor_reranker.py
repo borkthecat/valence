@@ -58,6 +58,7 @@ _OPTIONAL_SCHEMA: Final[dict[str, tuple[type, ...]]] = {
     "attributes": (dict,),
     "signals": (dict,),
     "images": (list,),
+    "links": (list,),
     "evidence_quality_score": (int, float),
     "source_relevance_score": (int, float),
 }
@@ -113,6 +114,7 @@ class Candidate:
     attributes: dict[str, Any] | None = None
     signals: dict[str, Any] | None = None
     images: tuple[dict[str, Any], ...] = ()
+    links: tuple[dict[str, Any], ...] = ()
     evidence_quality_score: float | None = None
     source_relevance_score: float | None = None
 
@@ -280,6 +282,7 @@ def validate_candidate(raw: Any) -> Candidate:
         attributes=raw.get("attributes", None),
         signals=raw.get("signals", None),
         images=tuple(raw.get("images", ())),
+        links=tuple(raw.get("links", ())),
         evidence_quality_score=evidence_quality_score,
         source_relevance_score=source_relevance_score,
     )
@@ -468,6 +471,8 @@ def result_to_stage5_pool(result: RerankResult) -> list[dict[str, Any]]:
             record["signals"] = candidate.signals
         if candidate.images:
             record["images"] = list(candidate.images)
+        if candidate.links:
+            record["links"] = list(candidate.links)
         if candidate.evidence_quality_score is not None:
             record["evidence_quality_score"] = round(candidate.evidence_quality_score, 3)
         if candidate.source_relevance_score is not None:

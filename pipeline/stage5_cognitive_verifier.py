@@ -76,9 +76,21 @@ class ImageEvidence(BaseModel):
     sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
     mime_type: Literal["image/jpeg", "image/png", "image/webp"]
     source: str = Field(min_length=1, max_length=128)
+    view: Literal["front", "back", "side", "detail", "packaging", "label", "other"] | None = None
+    perceptual_hash: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{16}$")
+    quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
     width: int | None = Field(default=None, gt=0, le=20_000)
     height: int | None = Field(default=None, gt=0, le=20_000)
     bytes: int | None = Field(default=None, gt=0, le=25_000_000)
+
+
+class LinkEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    url: str = Field(min_length=8, max_length=2048, pattern=r"^https://")
+    source: str = Field(min_length=1, max_length=128)
+    media_type: str | None = Field(default=None, min_length=1, max_length=128)
+    sha256: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
 
 
 class CandidateProfile(BaseModel):
@@ -97,6 +109,7 @@ class CandidateProfile(BaseModel):
     attributes: dict[str, str | float | bool] | None = Field(default=None, max_length=64)
     signals: dict[str, float] | None = Field(default=None, max_length=64)
     images: list[ImageEvidence] = Field(default_factory=list, max_length=12)
+    links: list[LinkEvidence] = Field(default_factory=list, max_length=12)
     evidence_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
     source_relevance_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
@@ -401,6 +414,8 @@ class ContextualSanitizer:
             record["signals"] = candidate.signals
         if candidate.images:
             record["images"] = [image.model_dump(exclude_none=True) for image in candidate.images]
+        if candidate.links:
+            record["links"] = [link.model_dump(exclude_none=True) for link in candidate.links]
         if candidate.evidence_quality_score is not None:
             record["evidence_quality_score"] = candidate.evidence_quality_score
         if candidate.source_relevance_score is not None:

@@ -25,6 +25,9 @@ class Settings:
     kafka_bootstrap_servers: str
     kafka_ingest_topic: str
     kafka_consumer_group: str
+    kafka_dlq_topic: str
+    redis_url: str
+    idempotency_ttl_seconds: int
 
 
 def _int(name: str, default: int) -> int:
@@ -71,4 +74,7 @@ def get_settings() -> Settings:
         kafka_bootstrap_servers=_str("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
         kafka_ingest_topic=_str("KAFKA_INGEST_TOPIC", "valence-raw-profiles"),
         kafka_consumer_group=_str("KAFKA_CONSUMER_GROUP", "valence-core-pipeline-workers"),
+        kafka_dlq_topic=_str("KAFKA_DLQ_TOPIC", "valence-profile-dlq"),
+        redis_url=_str("REDIS_URL", "redis://redis:6379"),
+        idempotency_ttl_seconds=_int("IDEMPOTENCY_TTL_SECONDS", 604_800),
     )

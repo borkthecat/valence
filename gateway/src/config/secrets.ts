@@ -5,6 +5,8 @@ export interface GatewaySecrets {
     readonly gatewayApiKey: string;
     readonly jwtSecret?: string;
     readonly jwtPublicKeyPem?: string;
+    readonly piiClassifierApiKey?: string;
+    readonly guardModelApiKey?: string;
 }
 export interface SecretsProvider {
     loadGatewaySecrets(): GatewaySecrets;
@@ -19,11 +21,15 @@ export class EnvironmentSecretsProvider implements SecretsProvider {
     public loadGatewaySecrets(): GatewaySecrets {
         const jwtSecret = process.env['JWT_SECRET'];
         const jwtPublicKey = process.env['JWT_PUBLIC_KEY_PEM'];
+        const piiClassifierApiKey = process.env['PII_CLASSIFIER_API_KEY'];
+        const guardModelApiKey = process.env['GUARD_MODEL_API_KEY'];
         const secrets: GatewaySecrets = {
             upstreamApiKey: process.env['UPSTREAM_API_KEY'] ?? '',
             gatewayApiKey: process.env['GATEWAY_API_KEY'] ?? '',
             ...(jwtSecret ? { jwtSecret } : {}),
             ...(jwtPublicKey ? { jwtPublicKeyPem: normalizePem(jwtPublicKey) } : {}),
+            ...(piiClassifierApiKey ? { piiClassifierApiKey } : {}),
+            ...(guardModelApiKey ? { guardModelApiKey } : {}),
         };
         return secrets;
     }
@@ -39,6 +45,8 @@ export class FileSecretsProvider implements SecretsProvider {
         }
         const jwtSecret = optionalString(parsed['JWT_SECRET']);
         const jwtPublicKeyPem = optionalString(parsed['JWT_PUBLIC_KEY_PEM']);
+        const piiClassifierApiKey = optionalString(parsed['PII_CLASSIFIER_API_KEY']);
+        const guardModelApiKey = optionalString(parsed['GUARD_MODEL_API_KEY']);
         return {
             upstreamApiKey,
             gatewayApiKey,
@@ -46,6 +54,8 @@ export class FileSecretsProvider implements SecretsProvider {
             ...(jwtPublicKeyPem === undefined
                 ? {}
                 : { jwtPublicKeyPem: normalizePem(jwtPublicKeyPem) }),
+            ...(piiClassifierApiKey === undefined ? {} : { piiClassifierApiKey }),
+            ...(guardModelApiKey === undefined ? {} : { guardModelApiKey }),
         };
     }
 }

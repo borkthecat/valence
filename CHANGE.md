@@ -2,6 +2,14 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.9.0
+
+- Added a SHA-256-pinned local guard model that raises independent deepset test F1 from 3.3% to 83.8%, plus secure HTTP clients for stronger trained PII and guard services.
+- Added Kafka idempotent production, deterministic batch/message identities, Redis staging and completion tracking, duplicate suppression, and a dead-letter topic.
+- Added multi-view image evidence, structured source links, digest-based duplicate suppression, and optional SSRF-resistant live URL/MIME validation.
+- Added Apache-2.0 dataset exporters and measured baselines for Amazon ESCI ranking, Gretel PII spans, and deepset prompt injections.
+- Added local and external link validation and documented non-commercial datasets excluded from enterprise defaults.
+
 ## 1.8.0
 
 - Corrected enterprise ingestion so relevance no longer masquerades as anniversary evidence.

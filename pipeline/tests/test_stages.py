@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from pathlib import Path
 
 import observability
@@ -173,6 +175,13 @@ def test_stage5_sanitizes_rich_profile_evidence() -> None:
                 source="seller-upload",
             )
         ],
+        links=[
+            s5.LinkEvidence(
+                url="https://catalog.example.test/product/1",
+                source="manufacturer-catalog",
+                media_type="text/html",
+            )
+        ],
         evidence_quality_score=1.0,
         source_relevance_score=0.95,
     )
@@ -181,6 +190,7 @@ def test_stage5_sanitizes_rich_profile_evidence() -> None:
     assert "[NEUTRALIZED]" in record["title"]
     assert "[NEUTRALIZED]" in record["attributes"]["seller_note"]
     assert record["images"][0]["sha256"] == "b" * 64
+    assert record["links"][0]["source"] == "manufacturer-catalog"
     assert record["source_relevance_score"] == 0.95
     assert notes
 
@@ -233,6 +243,29 @@ def test_stream_worker_enterprise_profile_processing() -> None:
     assert pool[0]["id"] == "sku-0"
     assert pool[0]["anniversary"] is False
     assert pool[0]["source_relevance_score"] == 0.95
+
+
+def test_stream_worker_envelope_validation_and_keys() -> None:
+    fingerprint = hashlib.sha256(b"batch").hexdigest()
+    message_id = hashlib.sha256(b"message").hexdigest()
+    envelope = {
+        "message_id": message_id,
+        "batch_fingerprint": fingerprint,
+        "batch_id": "batch-1",
+        "batch_size": 1,
+        "profile_index": 0,
+        "tenant_id": "tenant-a",
+        "data": {"candidate_id": "candidate-a"},
+    }
+    assert stream_worker._parse_envelope(json.dumps(envelope).encode()) == envelope
+    assert stream_worker._digest_key("processed", message_id).startswith("valence:processed:")
+    envelope["profile_index"] = 1
+    try:
+        stream_worker._parse_envelope(json.dumps(envelope).encode())
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("out-of-range profile index must be rejected")
 
 
 def test_stream_worker_keeps_anniversary_separate_from_relevance() -> None:
@@ -291,9 +324,21 @@ def test_stream_worker_rich_profile_evidence_quality() -> None:
                 },
                 {
                     "url": "https://cdn.example.test/back.webp",
-                    "sha256": image_hash,
+                    "sha256": "b" * 64,
                     "mime_type": "image/webp",
                     "source": "seller-upload",
+                },
+            ],
+            "links": [
+                {
+                    "url": "https://catalog.example.test/products/rich-winner",
+                    "source": "manufacturer-catalog",
+                    "media_type": "text/html",
+                },
+                {
+                    "url": "https://registry.example.test/serial/rich-winner",
+                    "source": "serial-registry",
+                    "media_type": "application/json",
                 },
             ],
         },
@@ -314,3 +359,4 @@ def test_stream_worker_rich_profile_evidence_quality() -> None:
     assert pool[0]["id"] == "rich-winner"
     assert pool[0]["evidence_quality_score"] == 1.0
     assert len(pool[0]["images"]) == 2
+    assert len(pool[0]["links"]) == 2

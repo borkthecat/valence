@@ -2,3 +2,6 @@ Valence
 Copyright 2026 Arai Nanami Rachel
 
 This product includes software licensed under the Apache License, Version 2.0.
+
+The bundled guard model is derived from deepset/prompt-injections,
+licensed under Apache-2.0: https://huggingface.co/datasets/deepset/prompt-injections

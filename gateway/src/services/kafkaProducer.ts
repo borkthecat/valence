@@ -1,7 +1,6 @@
 import { Kafka, Producer, logLevel } from 'kafkajs';
 import { environment } from '../config/environment';
-
-export type QueuedProfile = Readonly<Record<string, unknown>>;
+import { buildQueuedMessages, type QueuedProfile } from './queueEnvelope';
 
 let producer: Producer | null = null;
 
@@ -20,6 +19,8 @@ async function getProducer(): Promise<Producer> {
         });
         producer = kafka.producer({
             allowAutoTopicCreation: false,
+            idempotent: true,
+            maxInFlightRequests: 5,
             transactionTimeout: 30000,
         });
         await producer.connect();
@@ -33,17 +34,11 @@ export async function queuePayload(
     profiles: readonly QueuedProfile[],
 ): Promise<void> {
     const client = await getProducer();
+    const messages = buildQueuedMessages(tenantId, batchId, profiles);
     await client.send({
         topic: environment.KAFKA_INGEST_TOPIC,
         acks: -1,
-        messages: profiles.map((profile) => ({
-            key: tenantId,
-            value: JSON.stringify({
-                batch_id: batchId,
-                tenant_id: tenantId,
-                data: profile,
-            }),
-        })),
+        messages,
     });
 }
 

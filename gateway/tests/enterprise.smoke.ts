@@ -11,6 +11,8 @@ import { MetricsRegistry } from '../src/observability/metrics';
 import { HashChainedAuditLog, verifyAuditLog } from '../src/observability/auditLog';
 import { FileSecretsProvider } from '../src/config/secrets';
 import { parseIngestionPayload } from '../src/routes/ingestSchema';
+import { buildQueuedMessages } from '../src/services/queueEnvelope';
+import { validateEvidenceUrls } from '../src/services/evidenceUrlValidator';
 const SECRET = 'jwt-secret-0123456789abcdef0123456789abcdef';
 function b64url(value: unknown): string {
     return Buffer.from(JSON.stringify(value))
@@ -131,14 +133,54 @@ async function run(): Promise<void> {
                         sha256: 'a'.repeat(64),
                         mime_type: 'image/webp',
                         source: 'seller-upload',
+                        view: 'front',
+                        perceptual_hash: '0123456789abcdef',
+                        quality_score: 0.93,
+                    },
+                    {
+                        url: 'https://cdn.example.test/product-back.webp',
+                        sha256: 'b'.repeat(64),
+                        mime_type: 'image/webp',
+                        source: 'seller-upload',
+                        view: 'back',
                     },
                 ],
+                links: [{
+                    url: 'https://catalog.example.test/product-1',
+                    source: 'manufacturer-catalog',
+                    media_type: 'text/html',
+                }],
             },
         ],
     });
     assert.equal(parsedIngest.profiles.length, 1);
-    assert.equal(parsedIngest.profiles[0]?.images?.length, 1);
+    assert.equal(parsedIngest.profiles[0]?.images?.length, 2);
+    assert.equal(parsedIngest.profiles[0]?.links?.length, 1);
     assert.equal(parsedIngest.profiles[0]?.anniversary, true);
+    const queued = buildQueuedMessages('tenant-a', 'batch-1', parsedIngest.profiles);
+    const envelope = JSON.parse(queued[0]?.value ?? '{}') as Record<string, unknown>;
+    assert.equal(queued[0]?.key, `tenant-a:batch-1:${String(envelope.batch_fingerprint)}`);
+    assert.match(String(envelope.message_id), /^[a-f0-9]{64}$/);
+    assert.equal(envelope.batch_size, 1);
+    assert.equal(envelope.profile_index, 0);
+    const checkedUrls = await validateEvidenceUrls(parsedIngest.profiles, {
+        maxUrls: 10,
+        timeoutMs: 1000,
+        resolve: async () => ['93.184.216.34'],
+        request: async (input, init) => {
+            const url = String(input);
+            const type = url.includes('catalog') ? 'text/html' : 'image/webp';
+            assert.equal(init?.method, 'HEAD');
+            assert.equal(init?.redirect, 'error');
+            return new globalThis.Response(null, { status: 200, headers: { 'content-type': type } });
+        },
+    });
+    assert.equal(checkedUrls, 3);
+    await assert.rejects(() => validateEvidenceUrls(parsedIngest.profiles, {
+        maxUrls: 10,
+        timeoutMs: 1000,
+        resolve: async () => ['127.0.0.1'],
+    }));
     assert.throws(() => parseIngestionPayload({
         batch_id: 'batch-score',
         tenant_id: 'tenant-a',
@@ -149,6 +191,14 @@ async function run(): Promise<void> {
             era: '2020s',
             raw_score: 101,
         }],
+    }));
+    assert.throws(() => parseIngestionPayload({
+        batch_id: 'batch-duplicate',
+        tenant_id: 'tenant-a',
+        profiles: [
+            { candidate_id: 'same', age: 1, retail_channel: 'direct', era: '2025', raw_score: 50 },
+            { candidate_id: 'same', age: 2, retail_channel: 'direct', era: '2025', raw_score: 60 },
+        ],
     }));
     assert.throws(() => parseIngestionPayload({
         batch_id: 'batch-1',

@@ -93,6 +93,14 @@ All configuration is validated at boot with Zod. An invalid environment terminat
 | `RATE_LIMIT_MAX_REQUESTS` | no (default 120) | 1-100000 | Requests allowed per tenant per window |
 | `AUDIT_LOG_PATH` | no (default audit/valence-audit.log) | path or off | Hash-chained audit JSONL destination |
 | `SECRETS_FILE_PATH` | no | JSON file path | Loads gateway secrets from a local file instead of raw environment variables |
+| `PII_CLASSIFIER_URL` | no | https or loopback http | Trained span-classifier endpoint |
+| `PII_CLASSIFIER_API_KEY` | no | min 16 chars | Classifier bearer credential; supports secrets files |
+| `GUARD_MODEL_URL` | no | https or loopback http | Trained injection-model endpoint |
+| `GUARD_MODEL_API_KEY` | no | min 16 chars | Guard bearer credential; supports secrets files |
+| `GUARD_MODEL_PATH` | no | local JSON path | Bounded local guard model; mutually exclusive with URL |
+| `GUARD_MODEL_SHA256` | with model path | lowercase SHA-256 | Fails boot if local model bytes drift |
+| `MODEL_SERVICE_TIMEOUT_MS` | no (default 3000) | 100-30000 | Per-model deadline |
+| `EVIDENCE_URL_VALIDATION` | no (default syntax) | syntax or live | Enables SSRF-resistant dead-link and MIME checks during ingest |
 | `NODE_ENV` | no (default production) | development, test, production | Log verbosity and hardening profile |
 
 ### SECURITY_MODE semantics
@@ -149,7 +157,7 @@ If the failure occurs after response headers were sent, there is no status code 
 - Surrogate reconstitution operates on the raw byte stream. A surrogate split across two separate SSE events (interleaved with `data:` framing) requires a provider-specific delta codec to reassemble; same-stream and same-event splits are fully handled. If your provider tokenizes surrogates apart across events, add a delta-parsing adapter in front of the reconstructor.
 - JavaScript strings cannot be zeroed in place. Scrubbing drops every reference (WeakMap registry plus explicit buffer clearing), which is the strongest guarantee the runtime offers. If byte-level erasure is a hard requirement, the text channel must remain in Buffers end to end.
 - Without `REDIS_URL`, the fallback vault is in-memory and a crash loses pending mappings. Docker and multi-instance deployments should use Redis.
-- Heuristic detection is a floor, not a ceiling. The current AI4Privacy sample result and reproduction commands are in [../BENCHMARKS.md](../BENCHMARKS.md). Wire real `ClassifierClient` and `GuardModelClient` implementations and calibrate them on held-out data.
+- The bundled deepset-trained guard improves test F1 substantially but remains English-heavy and small-data. Current Apache-2.0 Gretel and deepset results are in [../BENCHMARKS.md](../BENCHMARKS.md). Configure the supplied HTTP clients with stronger trained services and calibrate them on held-out deployment data.
 
 ## Development
 
@@ -159,7 +167,7 @@ npm run typecheck  # strict compile, no emit
 npm test           # executable smoke suites
 npm run build && npm run audit:verify -- audit/valence-audit.log
 npm run benchmark:injection -- /path/to/pint-compatible.yaml
-npm run benchmark:pii -- /path/to/ai4privacy-compatible.jsonl
+npm run benchmark:pii -- /path/to/pii-span-labels.jsonl
 npm run benchmark:http -- 1000 20
 ```
 

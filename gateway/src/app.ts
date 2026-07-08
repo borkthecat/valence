@@ -18,6 +18,7 @@ import { createGatewayMetrics } from './observability/metrics';
 import { createAuditLog } from './observability/auditLog';
 import { ingestRouter } from './routes/ingest';
 import { disconnectProducer } from './services/kafkaProducer';
+import { HttpClassifierClient, HttpGuardModelClient, LocalGuardModelClient } from './services/modelClients';
 const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
 const SHUTDOWN_GRACE_MS = 10000;
 const DEFAULT_PROXY_SCOPE = 'valence:proxy';
@@ -48,13 +49,29 @@ export async function shutdownGatewayResources(): Promise<void> {
 export function buildApp(logger: Logger): Express {
     const vault = createConfiguredVault();
     activeVault = vault;
+    const classifierClient = environment.PII_CLASSIFIER_URL === undefined
+        ? new NullClassifierClient()
+        : new HttpClassifierClient({
+            url: environment.PII_CLASSIFIER_URL,
+            timeoutMs: environment.MODEL_SERVICE_TIMEOUT_MS,
+            ...(environment.PII_CLASSIFIER_API_KEY === undefined ? {} : { apiKey: environment.PII_CLASSIFIER_API_KEY }),
+        });
+    const guardClient = environment.GUARD_MODEL_PATH !== undefined
+        ? new LocalGuardModelClient(environment.GUARD_MODEL_PATH, environment.GUARD_MODEL_SHA256)
+        : environment.GUARD_MODEL_URL !== undefined
+        ? new HttpGuardModelClient({
+            url: environment.GUARD_MODEL_URL,
+            timeoutMs: environment.MODEL_SERVICE_TIMEOUT_MS,
+            ...(environment.GUARD_MODEL_API_KEY === undefined ? {} : { apiKey: environment.GUARD_MODEL_API_KEY }),
+        })
+        : new NullGuardModelClient();
     const scanner = new PiiScanner(vault, [
         new HeuristicPiiDetector(),
-        new EmbeddingClassifierDetector(new NullClassifierClient()),
+        new EmbeddingClassifierDetector(classifierClient),
     ]);
     const shield = new InjectionShield([
         new HeuristicInjectionDetector(),
-        new GuardModelDetector(new NullGuardModelClient()),
+        new GuardModelDetector(guardClient),
     ]);
     const metrics = createGatewayMetrics();
     const audit = createAuditLog(environment.AUDIT_LOG_PATH);

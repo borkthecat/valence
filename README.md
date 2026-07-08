@@ -94,7 +94,7 @@ Stage 3 also includes a synthetic-distribution regression gate. It audits schema
 
 ### Stage 5: Cognitive Verification Pass
 
-`pipeline/stage5_cognitive_verifier.py`. Asynchronous FastAPI controller exposing `POST /v1/valence/stage5/verify`. Validates inbound payloads with strict Pydantic v2 schemas, sanitizes each profile against indirect injection and context poisoning, enforces a per-profile byte quota, and routes the request through the Valence Gateway over a non-blocking asyncio HTTP client with distributed trace headers. Rich profiles can include entity type, title, description, attributes, numeric signals, evidence quality, and image metadata; raw image bytes are not sent to the verifier. The result is an immutable, schema-validated verdict. Any upstream drop, connection failure, or security rejection triggers a fail-closed protocol that freezes the transaction and flags the tenant.
+`pipeline/stage5_cognitive_verifier.py`. Asynchronous FastAPI controller exposing `POST /v1/valence/stage5/verify`. Validates inbound payloads with strict Pydantic v2 schemas, sanitizes each profile against indirect injection and context poisoning, enforces a per-profile byte quota, and routes the request through the Valence Gateway over a non-blocking asyncio HTTP client with distributed trace headers. Rich profiles can include entity type, title, description, attributes, numeric signals, evidence quality, up to 12 image views, and up to 12 source links; raw image bytes are not sent to the verifier. The result is an immutable, schema-validated verdict. Any upstream drop, connection failure, or security rejection triggers a fail-closed protocol that freezes the transaction and flags the tenant.
 
 ### Getting started
 
@@ -228,9 +228,11 @@ Payload shape:
 }
 ```
 
-Kafka topic: `valence-raw-profiles`. The `pipeline-worker` service consumes that topic, maps records into the Stage 4 scoring schema, computes an evidence-quality score when rich fields are present, and emits Stage 5-ready pools in its logs. `raw_score` is a required, finite relevance score from 0 to 100 supplied by the domain adapter; it is normalized and bounded before scoring. `anniversary` is an independent optional boolean and is never inferred from relevance.
+Kafka topic: `valence-raw-profiles`. The gateway uses Kafka idempotent producer mode and emits deterministic message and batch fingerprints. The worker stages complete batches in Redis, ignores completed message identities for seven days by default, and sends malformed or failed records to `valence-profile-dlq`. It then maps records into the Stage 4 scoring schema and emits Stage 5-ready pools. `raw_score` is a required, finite relevance score from 0 to 100 supplied by the domain adapter; it is normalized and bounded before scoring. `anniversary` is an independent optional boolean and is never inferred from relevance.
 
-Image fields are evidence references, not raw image uploads. Valence validates HTTPS URLs, SHA-256 hashes, MIME type, source, and optional dimensions/byte size. A production deployment should store the image in an enterprise object store, run malware scanning and OCR/vision analysis outside the ingestion request, then pass the resulting metadata and scores into this API.
+Image fields are evidence references, not raw image uploads. Valence validates HTTPS URLs, SHA-256 hashes, MIME type, source, view labels, optional perceptual hashes and quality scores, dimensions, and byte size. Evidence quality counts distinct content digests, so repeating one image does not improve a profile. `links` carry catalog, registry, or document evidence. Set `EVIDENCE_URL_VALIDATION=live` to resolve every unique host, reject private/reserved destinations, disable redirects, and issue bounded `HEAD` checks for dead links and MIME mismatches. Live mode is capped by `MAX_LIVE_EVIDENCE_URLS`.
+
+Valence ships a SHA-256-pinned 70 KB guard model trained on deepset's Apache-2.0 training split. On the untouched 116-case test split, heuristic-plus-model F1 is 83.8%, up from the 3.3% heuristic baseline. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure stops the protected request under the default fail-closed posture.
 
 ### Accuracy boundary
 
@@ -245,6 +247,8 @@ python ranking_evaluator.py company-held-out.jsonl --min-top1 0.90 --min-ndcg 0.
 ```
 
 The threshold command fails unless the lower bound of the top-1 confidence interval meets `--min-top1`; this prevents a small favorable sample from passing a production gate. The included two-batch fixture only tests the evaluator and is not accuracy evidence. A real gate should use representative, independently adjudicated, versioned labels with enough samples per product type, language, region, and risk class.
+
+The first independent product-ranking run uses 1,000 held-out rows from Amazon Science's Apache-2.0 ESCI benchmark. A label-blind lexical adapter produced 34 query groups: top-1 38.2% (95% CI 23.9%-55.0%), top-5 winner recall 94.1%, MRR 0.620, and NDCG@5 0.562. These results are a baseline, not a production target. See [DATASETS.md](DATASETS.md) and [BENCHMARKS.md](BENCHMARKS.md) for provenance and reproduction.
 
 ## Local guided test
 
@@ -410,7 +414,7 @@ Stage 3/4 scale validation drives 2,000,000 deterministic generated profiles thr
 
 ## Benchmarks
 
-[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current measured AI4Privacy sample shows that default heuristic PII coverage is not production-grade, particularly for phone detection and unsupported entity families. The repository includes PINT-compatible injection evaluation, AI4Privacy-compatible PII span evaluation, independently labeled ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
+[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current Apache-2.0 Gretel and deepset runs prove that default heuristics are not production-grade. The repository includes secure trained-model adapters, PINT-compatible injection evaluation, exact-span PII evaluation, independently labeled Amazon ESCI ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
 
 ### Continuous integration
 
@@ -437,7 +441,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.8.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.9.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

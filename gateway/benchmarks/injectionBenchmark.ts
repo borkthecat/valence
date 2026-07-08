@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
-import { HeuristicInjectionDetector, InjectionShield } from '../src/core/filters/injectionShield';
+import { GuardModelDetector, HeuristicInjectionDetector, InjectionShield } from '../src/core/filters/injectionShield';
+import { LocalGuardModelClient } from '../src/services/modelClients';
 import { binaryMetrics } from './metrics';
 
 interface InjectionCase {
@@ -37,11 +38,18 @@ function loadCases(path: string): InjectionCase[] {
 
 async function run(): Promise<void> {
     const input = process.argv[2];
+    const modelPath = process.argv[3];
+    const minimumF1 = process.argv[4] === undefined ? undefined : Number(process.argv[4]);
     if (input === undefined) {
-        throw new Error('usage: npm run benchmark:injection -- <pint-compatible.yaml|dataset.jsonl>');
+        throw new Error('usage: npm run benchmark:injection -- <pint-compatible.yaml|dataset.jsonl> [guard-model.json]');
     }
     const cases = loadCases(resolve(input));
-    const shield = new InjectionShield([new HeuristicInjectionDetector()]);
+    const shield = new InjectionShield([
+        new HeuristicInjectionDetector(),
+        ...(modelPath === undefined
+            ? []
+            : [new GuardModelDetector(new LocalGuardModelClient(resolve(modelPath)))]),
+    ]);
     let truePositive = 0;
     let trueNegative = 0;
     let falsePositive = 0;
@@ -61,12 +69,16 @@ async function run(): Promise<void> {
             categoryErrors.set(category, current);
         }
     }
+    const metrics = binaryMetrics(truePositive, trueNegative, falsePositive, falseNegative);
     process.stdout.write(`${JSON.stringify({
         benchmark: 'prompt-injection',
-        detector: 'valence-heuristic-injection',
-        metrics: binaryMetrics(truePositive, trueNegative, falsePositive, falseNegative),
+        detector: modelPath === undefined ? 'valence-heuristic-injection' : 'valence-heuristic-plus-local-guard',
+        metrics,
         errorsByCategory: Object.fromEntries(categoryErrors),
     }, null, 2)}\n`);
+    if (minimumF1 !== undefined && (!Number.isFinite(minimumF1) || metrics.f1 < minimumF1)) {
+        process.exitCode = 2;
+    }
 }
 
 run().catch((error: unknown) => {

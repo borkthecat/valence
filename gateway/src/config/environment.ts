@@ -7,6 +7,7 @@ export type AuthMode = (typeof AUTH_MODES)[number];
 export const JWT_ALGORITHMS = ['HS256', 'RS256'] as const;
 export type JwtAlgorithm = (typeof JWT_ALGORITHMS)[number];
 export const ENTERPRISE_INGEST_AUTH_MODES = ['jwks', 'api_key'] as const;
+export const EVIDENCE_URL_VALIDATION_MODES = ['syntax', 'live'] as const;
 export type EnterpriseIngestAuthMode = (typeof ENTERPRISE_INGEST_AUTH_MODES)[number];
 const MIN_UPSTREAM_KEY_LENGTH = 16;
 const MIN_GATEWAY_KEY_LENGTH = 32;
@@ -16,6 +17,10 @@ const portSchema = z.coerce
     .int('port must be an integer')
     .min(1, 'port must be >= 1')
     .max(65535, 'port must be <= 65535');
+const secureServiceUrl = z.string().trim().url().refine((value) => {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' || (parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname));
+}, 'service URL must use HTTPS, except for loopback development services');
 const environmentSchema = z.object({
     PORT: portSchema.default(8443),
     GATEWAY_PORT: portSchema.optional(),
@@ -60,6 +65,16 @@ const environmentSchema = z.object({
     KAFKA_BOOTSTRAP_SERVERS: z.string().trim().min(1).default('kafka:9092'),
     KAFKA_INGEST_TOPIC: z.string().trim().min(1).default('valence-raw-profiles'),
     REDIS_URL: z.string().trim().url().optional(),
+    PII_CLASSIFIER_URL: secureServiceUrl.optional(),
+    PII_CLASSIFIER_API_KEY: z.string().trim().min(16).optional(),
+    GUARD_MODEL_URL: secureServiceUrl.optional(),
+    GUARD_MODEL_PATH: z.string().trim().min(1).optional(),
+    GUARD_MODEL_SHA256: z.string().trim().regex(/^[a-f0-9]{64}$/).optional(),
+    GUARD_MODEL_API_KEY: z.string().trim().min(16).optional(),
+    MODEL_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(3000),
+    EVIDENCE_URL_VALIDATION: z.enum(EVIDENCE_URL_VALIDATION_MODES).default('syntax'),
+    EVIDENCE_URL_TIMEOUT_MS: z.coerce.number().int().min(100).max(10000).default(3000),
+    MAX_LIVE_EVIDENCE_URLS: z.coerce.number().int().min(1).max(1000).default(100),
     RATE_LIMIT_WINDOW_MS: z.coerce
         .number({ invalid_type_error: 'RATE_LIMIT_WINDOW_MS must be numeric' })
         .int('RATE_LIMIT_WINDOW_MS must be an integer')
@@ -95,6 +110,20 @@ const environmentSchema = z.object({
             message: 'JWT_PUBLIC_KEY_PEM is required when AUTH_MODE=jwt and JWT_ALGORITHM=RS256',
         });
     }
+    if (value.GUARD_MODEL_URL !== undefined && value.GUARD_MODEL_PATH !== undefined) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['GUARD_MODEL_PATH'],
+            message: 'configure either GUARD_MODEL_URL or GUARD_MODEL_PATH, not both',
+        });
+    }
+    if (value.GUARD_MODEL_PATH !== undefined && value.GUARD_MODEL_SHA256 === undefined) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['GUARD_MODEL_SHA256'],
+            message: 'GUARD_MODEL_SHA256 is required with GUARD_MODEL_PATH',
+        });
+    }
 });
 export type Environment = Readonly<z.infer<typeof environmentSchema>>;
 function formatValidationIssues(error: z.ZodError): string {
@@ -115,6 +144,12 @@ function loadEnvironment(): Environment {
         ...(secrets.jwtPublicKeyPem === undefined
             ? {}
             : { JWT_PUBLIC_KEY_PEM: secrets.jwtPublicKeyPem }),
+        ...(secrets.piiClassifierApiKey === undefined
+            ? {}
+            : { PII_CLASSIFIER_API_KEY: secrets.piiClassifierApiKey }),
+        ...(secrets.guardModelApiKey === undefined
+            ? {}
+            : { GUARD_MODEL_API_KEY: secrets.guardModelApiKey }),
     });
     if (!result.success) {
         process.stderr.write([

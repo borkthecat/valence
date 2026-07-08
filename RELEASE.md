@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.8.0`
+Current release target: `v1.9.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.8.0` and `valence-pipeline:1.8.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.9.0` and `valence-pipeline:1.9.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.8.0 -m "Valence v1.8.0"
-git push origin main v1.8.0
+git tag -a v1.9.0 -m "Valence v1.9.0"
+git push origin main v1.9.0
 ```
 
 ## Release Notes
+
+`v1.9.0` adds production model integration, durable ingest semantics, and external evidence:
+
+- Ships a SHA-256-pinned local guard that raises deepset test F1 from 3.3% to 83.8%, and connects stronger PII/guard services through bounded fail-closed HTTP clients.
+- Adds Kafka idempotent production, Redis-backed completion tracking, and a DLQ.
+- Adds distinct multi-image views, structured links, and SSRF-resistant live URL validation.
+- Publishes measured Apache-2.0 Amazon ESCI, Gretel PII, and deepset injection baselines.
+- Adds deterministic local link checks and optional external dead-link checks.
 
 `v1.8.0` corrects enterprise relevance scoring and adds defensible ranking evaluation:
 

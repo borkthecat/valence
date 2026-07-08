@@ -10,42 +10,34 @@ Measured on July 9, 2026. These results separate internal regression checks from
 
 ## PII detection
 
-Dataset: first 100 validation rows streamed from [`ai4privacy/pii-masking-300k`](https://huggingface.co/datasets/ai4privacy/pii-masking-300k) through the Hugging Face datasets server.
+Dataset: first 1,000 rows of Gretel.ai's Apache-2.0 [`gretel-pii-masking-en-v1`](https://huggingface.co/datasets/gretelai/gretel-pii-masking-en-v1) corpus.
 
 Detector: `HeuristicPiiDetector`, without an external classifier.
 
 | Metric | Result |
 | --- | ---: |
-| Annotated entities | 615 |
-| Entities in compatible label families | 71 |
-| Compatible-label coverage | 11.5% |
-| Exact-span precision | 64.7% |
-| Exact-span recall | 62.0% |
-| Exact-span F1 | 63.3% |
+| Annotated entities | 4,314 |
+| Entities in compatible label families | 783 |
+| Compatible-label coverage | 18.2% |
+| Exact-span precision | 49.2% |
+| Exact-span recall | 63.2% |
+| Exact-span F1 | 55.3% |
 
 Per compatible label:
 
 | Label | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: |
-| Email | 86.7% | 100.0% | 92.9% |
-| IPv4/IP | 100.0% | 48.1% | 65.0% |
-| Phone | 46.2% | 58.1% | 51.4% |
+| Email | 98.3% | 99.6% | 98.9% |
+| SSN | 97.3% | 59.3% | 73.7% |
+| Phone | 15.1% | 29.8% | 20.1% |
 
-This result is not production-grade PII coverage. The largest gap is label breadth: names, addresses, passports, identity cards, dates of birth, usernames, and other dataset categories are not covered by the default heuristic detector. Phone precision is also weak. Production deployments should wire a trained `ClassifierClient`, calibrate it against their languages and jurisdictions, and rerun this benchmark.
+This result is not production-grade. The largest gaps are label breadth and phone precision. Production deployments should connect a trained classifier through `PII_CLASSIFIER_URL`, calibrate it by locale and jurisdiction, and rerun the benchmark. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use.
 
 Reproduce:
 
 ```bash
-pip install -r requirements-benchmark.txt
-python pipeline/benchmarks/export_ai4privacy.py \
-  --dataset ai4privacy/pii-masking-300k \
-  --split validation \
-  --language English \
-  --limit 10000 \
-  --output .benchmark-data/ai4privacy.jsonl
-
-cd gateway
-npm run benchmark:pii -- ../.benchmark-data/ai4privacy.jsonl
+python pipeline/benchmarks/export_gretel_pii.py --rows 1000 --output .benchmark-data/gretel-pii-1000.jsonl
+npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl
 ```
 
 ## Prompt injection
@@ -57,9 +49,14 @@ cd gateway
 npm run benchmark:injection -- /path/to/pint-compatible.yaml
 ```
 
-The public eight-case `example-dataset.yaml` from the PINT repository produced 8/8 correct classifications after adding explicit Developer Mode detection. This is only a runner integration smoke test. It is not a PINT score: Lakera states that the full 4,314-input benchmark blends public and proprietary data and the public example is not representative.
+The public eight-case `example-dataset.yaml` from the PINT repository produced 8/8 correct classifications. On the independent Apache-2.0 deepset test split, the heuristic detector produced 1 true positive, 56 true negatives, 0 false positives, and 59 false negatives: 1.7% recall and 3.3% F1. The bundled multinomial guard, trained only on deepset's training split with its threshold selected on a deterministic 20% training holdout, produced 44 true positives, 55 true negatives, 1 false positive, and 16 false negatives: 97.8% precision, 73.3% recall, 83.8% F1, and a 1.8% false-positive rate.
 
-The default gateway still uses a heuristic detector plus a null guard-model client. A production claim requires evaluation against the full PINT corpus or another independent held-out corpus, plus a real `GuardModelClient`.
+Valence ships the 70 KB JSON guard as the local default and also supports a bounded HTTP `GuardModelClient` for stronger enterprise models. The bundled artifact is SHA-256 pinned and intentionally modest; operators should calibrate replacement models on held-out traffic. Lakera's complete 4,314-input PINT corpus includes proprietary data and is not publicly downloadable, so Valence does not claim a full PINT score.
+
+```bash
+python pipeline/benchmarks/train_deepset_guard.py --output gateway/models/deepset-guard-nb.json
+npm --prefix gateway run benchmark:injection -- ../.benchmark-data/deepset-injections-test.jsonl models/deepset-guard-nb.json
+```
 
 ## Ranking diagnostics
 
@@ -74,6 +71,16 @@ Ground truth: the self-derived Stage 4 scoring specification. These numbers meas
 | Stage 4 internal consistency | 100.0% | 100.0% |
 
 External domain accuracy remains unmeasured until a use case supplies independently labeled profiles.
+
+An initial external run used the first 1,000 held-out test rows from Amazon Science's Apache-2.0 ESCI corpus, grouped into 34 queries. The deterministic lexical adapter did not consume ESCI labels during scoring.
+
+| Metric | Result |
+| --- | ---: |
+| Top-1 | 38.2% |
+| Top-1 95% CI | 23.9%-55.0% |
+| Top-5 winner recall | 94.1% |
+| MRR | 0.620 |
+| NDCG@5 | 0.562 |
 
 For external evaluation, `pipeline/ranking_evaluator.py` accepts independently labeled JSONL and reports top-1 accuracy with a Wilson 95% confidence interval, top-5 winner recall, mean reciprocal rank, NDCG@5, and fail-closed batches. Release gates compare `--min-top1` against the confidence interval's lower bound rather than the point estimate. The checked-in fixture verifies metric behavior only and is not an external benchmark.
 
@@ -108,7 +115,7 @@ Synthetic fingerprints remain useful for detecting deterministic regression, but
 ## Unmeasured production areas
 
 - The full proprietary PINT corpus has not been run, so Valence has no official PINT score.
-- Kafka ingestion does not yet provide a checked-in dead-letter queue, end-to-end idempotency ledger, or measured consumer-lag/backpressure report.
+- Kafka now has deterministic identities, idempotent production, Redis completion tracking, and a DLQ; measured consumer lag, replay tooling, and multi-region recovery remain open.
 - Encryption at rest, retention policy, deletion workflow, and PDPA/GDPR control mapping depend on the operator's Kafka, Redis, object-store, and logging configuration and are not supplied as compliance guarantees by this repository.
 - The HTTP latency run is local loopback, not multi-host sustained load.
 - Real-world ranking accuracy remains unmeasured without independently labeled domain data.

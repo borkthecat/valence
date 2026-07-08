@@ -24,6 +24,14 @@ echo "Creating ingestion topic..."
   --replication-factor 1 \
   --if-not-exists
 
+"${COMPOSE[@]}" exec -T kafka "$KAFKA_TOPICS" \
+  --bootstrap-server kafka:9092 \
+  --create \
+  --topic valence-profile-dlq \
+  --partitions 3 \
+  --replication-factor 1 \
+  --if-not-exists
+
 echo "Starting gateway, API dashboard, and stream worker..."
 "${COMPOSE[@]}" up -d gateway pipeline pipeline-worker
 
