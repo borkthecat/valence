@@ -78,9 +78,24 @@ def test_stage4_determinism() -> None:
 
 
 def test_stage4_quality_validation() -> None:
-    report = s4.run_quality_validation(batches=1_000, batch_size=s4.MAX_BATCH_SIZE)
+    report = s4.run_internal_consistency_validation(
+        batches=1_000, batch_size=s4.MAX_BATCH_SIZE
+    )
     assert report.top1_accuracy >= 0.995
     assert report.top5_recall >= 1.0
+
+
+def test_stage4_baselines_are_weaker_than_internal_consistency() -> None:
+    consistency = s4.run_internal_consistency_validation(
+        batches=1_000, batch_size=s4.MAX_BATCH_SIZE
+    )
+    baselines = s4.run_baseline_validation(
+        batches=1_000, batch_size=s4.MAX_BATCH_SIZE
+    )
+    assert baselines.evaluated_batches == consistency.evaluated_batches
+    assert baselines.random_top1_rate < consistency.top1_accuracy
+    assert baselines.target_channel_top1_rate < consistency.top1_accuracy
+    assert baselines.random_top5_recall < consistency.top5_recall
 
 
 def test_stage5_json_healer() -> None:

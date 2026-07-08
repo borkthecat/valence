@@ -70,8 +70,8 @@ const INJECTION_RULES: readonly InjectionRule[] = [
     {
         id: 'do-anything-now',
         description: 'Named jailbreak persona invocation',
-        pattern: /\b(?:do anything now|\bdan mode\b|developer mode enabled|aim jailbreak)\b/,
-        weight: 0.7,
+        pattern: /\b(?:do anything now|\bdan mode\b|(?:simulate|enable|activate|enter)\s+developer mode|developer mode enabled|aim jailbreak)\b/,
+        weight: 0.8,
     },
     {
         id: 'pretend-no-rules',

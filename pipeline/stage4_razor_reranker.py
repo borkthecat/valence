@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import random
 from dataclasses import dataclass
 from typing import Any, Final
 
@@ -162,6 +163,43 @@ class QualityReport:
     def top5_recall(self) -> float:
         return (
             self.top5_contains_oracle / self.evaluated_batches
+            if self.evaluated_batches
+            else 0.0
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class BaselineReport:
+    evaluated_batches: int
+    random_top1_matches: int
+    target_channel_top1_matches: int
+    random_top5_contains_oracle: int
+    target_channel_top5_contains_oracle: int
+
+    @property
+    def random_top1_rate(self) -> float:
+        return self.random_top1_matches / self.evaluated_batches if self.evaluated_batches else 0.0
+
+    @property
+    def target_channel_top1_rate(self) -> float:
+        return (
+            self.target_channel_top1_matches / self.evaluated_batches
+            if self.evaluated_batches
+            else 0.0
+        )
+
+    @property
+    def random_top5_recall(self) -> float:
+        return (
+            self.random_top5_contains_oracle / self.evaluated_batches
+            if self.evaluated_batches
+            else 0.0
+        )
+
+    @property
+    def target_channel_top5_recall(self) -> float:
+        return (
+            self.target_channel_top5_contains_oracle / self.evaluated_batches
             if self.evaluated_batches
             else 0.0
         )
@@ -494,7 +532,7 @@ def _synthetic_oracle_score(candidate: Candidate, context: RerankContext) -> flo
     return score
 
 
-def run_quality_validation(
+def run_internal_consistency_validation(
     batches: int = 1_000,
     batch_size: int = MAX_BATCH_SIZE,
     seed: int = 20260708,
@@ -544,6 +582,71 @@ def run_quality_validation(
         fail_closed_batches=fail_closed,
     )
 
+
+def run_quality_validation(
+    batches: int = 1_000,
+    batch_size: int = MAX_BATCH_SIZE,
+    seed: int = 20260708,
+) -> QualityReport:
+    return run_internal_consistency_validation(batches, batch_size, seed)
+
+
+def run_baseline_validation(
+    batches: int = 1_000,
+    batch_size: int = MAX_BATCH_SIZE,
+    seed: int = 20260708,
+) -> BaselineReport:
+    from stage3_hydrator import FuzzDataGenerator
+
+    context = _default_context()
+    generator = FuzzDataGenerator(seed=seed)
+    rng = random.Random(seed)
+    evaluated = 0
+    random_top1 = 0
+    channel_top1 = 0
+    random_top5 = 0
+    channel_top5 = 0
+
+    for batch_index in range(batches):
+        raw_batch = generator.generate(batch_size)
+        for index, candidate in enumerate(raw_batch):
+            candidate["id"] = f"baseline-{batch_index:04d}-{index:02d}"
+        candidates = [validate_candidate(raw) for raw in raw_batch]
+        eligible = [
+            candidate
+            for candidate in candidates
+            if _synthetic_oracle_score(candidate, context) is not None
+        ]
+        if len(eligible) < OUTPUT_POOL_SIZE:
+            continue
+        oracle_winner = min(
+            eligible,
+            key=lambda candidate: (
+                -float(_synthetic_oracle_score(candidate, context) or 0.0),
+                candidate.id,
+            ),
+        ).id
+        random_order = rng.sample(eligible, len(eligible))
+        channel_order = sorted(
+            eligible,
+            key=lambda candidate: (
+                candidate.channel != context.target_channel,
+                candidate.id,
+            ),
+        )
+        evaluated += 1
+        random_top1 += int(random_order[0].id == oracle_winner)
+        channel_top1 += int(channel_order[0].id == oracle_winner)
+        random_top5 += int(oracle_winner in {candidate.id for candidate in random_order[:5]})
+        channel_top5 += int(oracle_winner in {candidate.id for candidate in channel_order[:5]})
+
+    return BaselineReport(
+        evaluated_batches=evaluated,
+        random_top1_matches=random_top1,
+        target_channel_top1_matches=channel_top1,
+        random_top5_contains_oracle=random_top5,
+        target_channel_top5_contains_oracle=channel_top5,
+    )
 
 
 
@@ -750,9 +853,14 @@ def _run_verification() -> None:
     else:
         raise AssertionError("engine should fail closed on thin eligible pool")
 
-    quality = run_quality_validation(batches=1_000, batch_size=MAX_BATCH_SIZE)
-    assert quality.top1_accuracy >= 0.995, quality
-    assert quality.top5_recall >= 1.0, quality
+    consistency = run_internal_consistency_validation(
+        batches=1_000, batch_size=MAX_BATCH_SIZE
+    )
+    assert consistency.top1_accuracy >= 0.995, consistency
+    assert consistency.top5_recall >= 1.0, consistency
+    baselines = run_baseline_validation(batches=1_000, batch_size=MAX_BATCH_SIZE)
+    assert baselines.random_top1_rate < consistency.top1_accuracy, baselines
+    assert baselines.target_channel_top1_rate < consistency.top1_accuracy, baselines
 
 
 

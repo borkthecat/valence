@@ -33,6 +33,8 @@ jobs:
           npm run typecheck
           npm run build
           npm test
+          npm run benchmark:injection -- benchmarks/fixtures/injection-smoke.yaml
+          npm run benchmark:pii -- benchmarks/fixtures/pii-smoke.jsonl
 
   pipeline-integrity-check:
     name: Python Analytical Pipeline Matrix

@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.6.0`
+Current release target: `v1.7.0`
 
 ## Preflight
 
@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.6.0` and `valence-pipeline:1.6.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.7.0` and `valence-pipeline:1.7.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +39,21 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.6.0 -m "Valence v1.6.0"
-git push origin main v1.6.0
+git tag -a v1.7.0 -m "Valence v1.7.0"
+git push origin main v1.7.0
 ```
 
 ## Release Notes
+
+`v1.7.0` replaces self-referential quality claims with reproducible benchmark tooling:
+
+- Renames the synthetic Stage 4 oracle check as internal consistency and adds random and target-channel-only baselines.
+- Adds PINT-compatible injection evaluation and AI4Privacy-compatible exact-span PII evaluation.
+- Adds local in-process and HTTP gateway latency benchmarks with percentile and throughput output.
+- Publishes measured AI4Privacy sample results and explicitly documents weak default PII breadth and phone precision.
+- Adds Developer Mode jailbreak detection plus conservative phone and IPv4 PII rules.
+- Adds benchmark smoke fixtures to CI.
+- Documents remaining gaps: no official full PINT score, no independently labeled ranking corpus, local-only latency, and incomplete Kafka/compliance controls.
 
 `v1.6.0` adds rich evidence profiles for more realistic enterprise accuracy work:
 
@@ -118,7 +128,7 @@ git push origin main v1.6.0
 
 - Raises deterministic pipeline scale validation from 10,000 to 2,000,000 profiles, processed in staggered 100,000-profile windows.
 - Adds calibrated Stage 4 scoring with target-channel priority and continuous era proximity.
-- Adds a synthetic oracle quality check for top-1 accuracy and top-5 recall.
+- Adds a self-derived synthetic oracle regression for top-1 consistency and top-5 containment.
 - Carries final Stage 4 scores into Stage 5-ready candidate pools.
 - Adds local Docker Compose mock-provider testing for no-cost Stage 5 requests.
 - Fixes the production gateway image audit-log directory permissions for the non-root `node` user.

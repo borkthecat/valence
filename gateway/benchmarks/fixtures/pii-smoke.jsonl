@@ -1,0 +1,3 @@
+{"source_text":"Contact alice@example.com for the report.","privacy_mask":[{"value":"alice@example.com","start":8,"end":25,"label":"EMAIL"}],"language":"English"}
+{"source_text":"Use card 4111 1111 1111 1111 for the sandbox.","privacy_mask":[{"value":"4111 1111 1111 1111","start":9,"end":28,"label":"CREDIT_CARD"}],"language":"English"}
+{"source_text":"Call +65 6123 4567 for assistance.","privacy_mask":[{"value":"+65 6123 4567","start":5,"end":18,"label":"TEL"}],"language":"English"}

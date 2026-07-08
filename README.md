@@ -1,6 +1,6 @@
 # Valence
 
-Valence is a zero-trust processing platform for high-stakes candidate identification. It pairs a deterministic, multi-stage identification pipeline with an inline security gateway so that every profile is scored, verified, and adjudicated behind a strict fail-closed boundary. Sensitive data is tokenized before it ever leaves the trust boundary, and any integrity failure at any layer removes the candidate rather than letting an uncertain result pass through.
+Valence is an experimental zero-trust processing platform for candidate ranking and LLM traffic protection. It combines a deterministic profile-ranking pipeline with an inline security gateway. Detected sensitive data is tokenized before upstream transit, and security subsystem failures default to fail-closed behavior.
 
 The platform ships as a single package with two cooperating components:
 
@@ -47,7 +47,7 @@ An inline, stateless reverse proxy that enforces a fail-closed security model fo
 - Optional HS256 or RS256 JWT verification with required RBAC scopes and per-tenant request context.
 - Per-tenant fixed-window rate limiting before payload parsing or upstream spend.
 - Injection screening (instruction override, persona jailbreaks, control-token smuggling, exfiltration attempts) with bounded, backtracking-safe rules.
-- PII and secret tokenization against a five-minute TTL vault. Local code can use the in-memory vault; Docker and enterprise deployments use Redis so multiple gateway instances share restoration state. The upstream provider only ever sees opaque surrogates.
+- PII and secret tokenization against a five-minute TTL vault. Local code can use the in-memory vault; Docker and enterprise deployments use Redis so multiple gateway instances share restoration state. Values detected by the configured PII layers are replaced with opaque surrogates; undetected PII remains a known risk measured in [BENCHMARKS.md](BENCHMARKS.md).
 - Per-request restoration scope, so a response can only restore the surrogates minted for its own request. Concurrent callers can never receive one another's data.
 - Streaming surrogate reconstitution that survives arbitrary chunk and byte boundary splits.
 - A fail-closed error boundary that scrubs sensitive buffers, and severs the connection outright on mid-stream failure so a truncated response can never look complete.
@@ -86,7 +86,7 @@ Self-contained stages, each of which runs its own verification and simulation ro
 
 `pipeline/stage3_hydrator.py`. Pure standard library. Provides a `FuzzDataGenerator` that produces deterministic candidate profiles with controlled edge-case distribution across structurally impossible ages, unauthorized channels, historical era anomalies, and complex adversarial cases. The default scale validation drives 2,000,000 generated profiles through Stage 4 in 100,000-profile windows and asserts that output ordering is identical across runs and that no disqualified profile ever reaches a result pool.
 
-Stage 3 also includes a profile-quality gate. It audits schema validity, uniqueness, unauthorized-channel coverage, impossible-age coverage, elevated-age coverage, era anomalies, complex-profile rate, boundary classes, and a deterministic fingerprint. A curated profile suite covers clean target matches, authorized near misses, unauthorized-but-perfect actors, corrupted ages, exact boundary ages, fractional ages, far-era drift, normalization noise, and low-signal valid candidates.
+Stage 3 also includes a synthetic-distribution regression gate. It audits schema validity, uniqueness, configured anomaly coverage, boundary classes, and a deterministic fingerprint. These percentages describe generator configuration and regression coverage, not observed production prevalence. A curated profile suite covers clean target matches, authorized near misses, unauthorized-but-perfect actors, corrupted ages, exact boundary ages, fractional ages, far-era drift, normalization noise, and low-signal valid candidates.
 
 ### Stage 4: Razor Reranking Engine
 
@@ -233,7 +233,7 @@ Image fields are evidence references, not raw image uploads. Valence validates H
 
 ### Accuracy boundary
 
-Valence can now test richer real-world profiles, but production accuracy is only meaningful for a declared domain schema with labeled validation data. The bundled synthetic generator proves deterministic ranking behavior, fail-closed handling, and adversarial coverage; it does not prove that every enterprise product, customer, vendor, or fraud profile will be correctly judged without domain calibration. For each enterprise use case, define the required evidence fields, map them into `attributes`, `signals`, and `images`, then validate top-1 accuracy, top-5 recall, false positives, and false negatives against a held-out labeled dataset before using results operationally.
+Valence can test richer profiles, but production accuracy is only meaningful for a declared domain schema with independently labeled validation data. The bundled synthetic generator proves deterministic implementation behavior, fail-closed handling, and configured adversarial coverage; it does not prove real-world preference accuracy. For each use case, define the evidence fields, map them into `attributes`, `signals`, and `images`, then validate top-1 accuracy, top-5 recall, false positives, and false negatives against a held-out labeled dataset before using results operationally.
 
 ## Local guided test
 
@@ -395,7 +395,11 @@ pip install -r requirements-dev.txt
 python -W error -m pytest -q
 ```
 
-Stage 3/4 scale validation now drives 2,000,000 deterministic generated profiles through the reranker in 100,000-profile windows. The generator includes complex adversarial cases such as boundary ages, fractional ages, near-threshold era offsets, unauthorized-but-otherwise-perfect actors, and case/whitespace normalization. Stage 4 includes a calibrated synthetic oracle quality check for top-1 accuracy and top-5 recall. The profile-quality gate runs as part of pytest and rejects shallow synthetic distributions that would make accuracy look better than the real decision surface deserves.
+Stage 3/4 scale validation drives 2,000,000 deterministic generated profiles through the reranker in 100,000-profile windows. The generator includes configured adversarial cases such as boundary ages, fractional ages, near-threshold era offsets, unauthorized high-signal actors, and case/whitespace normalization. Stage 4 runs an internal consistency regression against the same scoring specification, plus random and target-channel-only baselines. This checks implementation drift and synthetic task difficulty; it is not external accuracy evidence.
+
+## Benchmarks
+
+[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current measured AI4Privacy sample shows that default heuristic PII coverage is not production-grade, particularly for phone detection and unsupported entity families. The repository includes PINT-compatible injection evaluation, AI4Privacy-compatible PII span evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
 
 ### Continuous integration
 
@@ -422,7 +426,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE).
 
 ## Releases
 
-The current release target is `v1.6.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.7.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

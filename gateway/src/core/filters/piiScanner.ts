@@ -85,6 +85,25 @@ function isValidSsn(match: string): boolean {
     }
     return true;
 }
+function isValidPhone(match: string): boolean {
+    if (
+        /^\d{3}-\d{2}-\d{4}$/.test(match)
+        || /^\d{4}(?:[ -]\d{4}){2,3}$/.test(match)
+    ) {
+        return false;
+    }
+    const digits = match.replace(/\D/g, '');
+    return digits.length >= 7 && digits.length <= 15 && !/^(\d)\1+$/.test(digits);
+}
+function isValidIpv4(match: string): boolean {
+    const octets = match.split('.');
+    return octets.length === 4 && octets.every((octet) => {
+        if (!/^\d{1,3}$/.test(octet)) {
+            return false;
+        }
+        return Number(octet) <= 255 && (octet === '0' || !octet.startsWith('0'));
+    });
+}
 const HEURISTIC_RULES: readonly HeuristicRule[] = [
     {
         id: 'email-rfc-lite',
@@ -98,6 +117,20 @@ const HEURISTIC_RULES: readonly HeuristicRule[] = [
         pattern: /\b\d{3}-\d{2}-\d{4}\b/g,
         confidence: 0.9,
         validate: isValidSsn,
+    },
+    {
+        id: 'phone-international',
+        category: SurrogateCategory.PHONE,
+        pattern: /(?<![\w.])(?:\+\d{1,3}[ .-]?)?(?:\(\d{2,4}\)[ .-]?|\d{2,4}[ .-]){1,3}\d{3,4}(?![\w.])/g,
+        confidence: 0.75,
+        validate: isValidPhone,
+    },
+    {
+        id: 'ipv4',
+        category: SurrogateCategory.IP_ADDRESS,
+        pattern: /(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])/g,
+        confidence: 0.9,
+        validate: isValidIpv4,
     },
     {
         id: 'credit-card-luhn',

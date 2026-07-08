@@ -2,6 +2,17 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.7.0
+
+- Reframed the Stage 4 synthetic oracle as an internal consistency regression rather than external accuracy evidence.
+- Added random and target-channel-only ranking baselines for synthetic task-difficulty context.
+- Added PINT-compatible prompt-injection benchmarking with precision, recall, F1, false-positive rate, and category errors.
+- Added AI4Privacy-compatible exact-span PII benchmarking with compatible-label coverage and per-label metrics.
+- Added in-process security-path and full local HTTP gateway latency benchmarks with p50, p95, p99, throughput, and direct-upstream comparison.
+- Added conservative phone and IPv4 heuristic PII rules and explicit Developer Mode jailbreak detection.
+- Added `BENCHMARKS.md` with measured external/sample results, reproduction commands, limitations, and unmeasured production areas.
+- Added benchmark smoke fixtures to CI and corrected README claims about detected PII, prompt-injection limits, synthetic distributions, and ranking accuracy.
+
 ## 1.6.0
 
 - Added rich enterprise profile evidence fields for ingestion: entity type, title, description, attributes, numeric signals, colorway, and bounded image metadata.
@@ -81,7 +92,7 @@ This project keeps a change record for released source modifications.
 
 - Raised deterministic pipeline scale validation from 10,000 to 100,000 profiles.
 - Added calibrated Stage 4 scoring with target-channel priority and continuous era proximity.
-- Added synthetic oracle quality validation for ranking accuracy and top-5 recall.
+- Added a self-derived synthetic oracle regression for ranking consistency and top-5 containment.
 - Added Stage 5-ready pool export with final Stage 4 scores.
 - Added a local Docker Compose override for no-cost mock-provider testing.
 

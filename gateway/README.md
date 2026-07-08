@@ -1,8 +1,8 @@
 # Valence Gateway
 
-An open-source, zero-trust AI Security Gateway Proxy for LLM traffic. Valence Gateway sits inline between your applications and an upstream LLM provider, enforcing a strict fail-closed security model against the OWASP Top 10 for LLM Applications: prompt injection screening on the way in, PII and secret tokenization before anything leaves your trust boundary, and streaming surrogate reconstitution on the way back.
+An open-source AI security gateway proxy for LLM traffic. Valence Gateway sits inline between applications and an upstream provider, applying fail-closed authentication, heuristic prompt-injection screening, detected-PII tokenization, and streaming surrogate restoration. Heuristic detection is defense in depth, not complete protection against prompt injection or all PII forms.
 
-Built with Node.js 20+, TypeScript (maximum strictness), Express, Axios, and Zod. Stateless across requests except for a single in-memory token vault with a hard 5-minute TTL.
+Built with Node.js 20+, TypeScript, Express, Axios, and Zod. The local fallback vault is in-memory; deployments can use the Redis-backed vault through `REDIS_URL`.
 
 ## How it works
 
@@ -26,7 +26,7 @@ Built with Node.js 20+, TypeScript (maximum strictness), Express, Axios, and Zod
 Key properties:
 
 - The client credential never reaches the provider. The provider credential never reaches the client.
-- Raw PII and secrets never reach the provider. The provider only ever sees opaque surrogates backed by 64 bits of CSPRNG entropy each.
+- PII and secrets found by the configured detectors are replaced with opaque surrogates backed by 64 bits of CSPRNG entropy. Undetected sensitive data can still reach the provider; benchmark detector recall for the deployment domain.
 - Vault entries evict on a hard 5-minute TTL with per-entry timers, so the plaintext-to-surrogate mapping is short-lived and memory is bounded.
 - Restoration is scoped per request: a response stream may only resolve the surrogates minted for its own request. Even if a foreign surrogate with a live vault entry appears in a response, it is treated as unknown, so concurrent clients can never receive one another's data.
 - Every scanner regex uses bounded quantifiers (RFC-derived caps for emails, fixed ceilings for key formats), so no payload can trigger catastrophic backtracking on the single-threaded event loop.
@@ -40,8 +40,8 @@ Key properties:
 
 | Risk | Control |
 | --- | --- |
-| LLM01 Prompt Injection | Weighted heuristic shield (instruction override, persona jailbreaks, control-token smuggling, exfiltration asks) plus a pluggable guard-model tier |
-| LLM02 Sensitive Information Disclosure | PII/secret tokenization with Luhn and SSA semantic validation; vault TTL bounds exposure |
+| LLM01 Prompt Injection | Weighted heuristic shield plus a pluggable guard-model tier; not a complete solution |
+| LLM02 Sensitive Information Disclosure | Detected PII/secret tokenization with Luhn and SSA semantic validation; benchmark recall before production use |
 | LLM04 Denial of Service | Body size limits, credential length caps, bounded streaming holdback (O(1) memory per stream) |
 | LLM06 Excessive Agency / data exfil | Markdown image beacon and tool-result forgery rules in the shield |
 | LLM08 Supply chain (keys) | Provider key isolated server-side; client keys checked in constant time |
@@ -148,16 +148,19 @@ If the failure occurs after response headers were sent, there is no status code 
 
 - Surrogate reconstitution operates on the raw byte stream. A surrogate split across two separate SSE events (interleaved with `data:` framing) requires a provider-specific delta codec to reassemble; same-stream and same-event splits are fully handled. If your provider tokenizes surrogates apart across events, add a delta-parsing adapter in front of the reconstructor.
 - JavaScript strings cannot be zeroed in place. Scrubbing drops every reference (WeakMap registry plus explicit buffer clearing), which is the strongest guarantee the runtime offers. If byte-level erasure is a hard requirement, the text channel must remain in Buffers end to end.
-- The vault is in-memory by design. A crash loses pending mappings, which fails safe: the client sees a severed stream, never someone else's data.
-- Heuristic detection is a floor, not a ceiling. Wire real `ClassifierClient` and `GuardModelClient` implementations for the cognitive tier; the Null clients ship so the composition stays uniform.
+- Without `REDIS_URL`, the fallback vault is in-memory and a crash loses pending mappings. Docker and multi-instance deployments should use Redis.
+- Heuristic detection is a floor, not a ceiling. The current AI4Privacy sample result and reproduction commands are in [../BENCHMARKS.md](../BENCHMARKS.md). Wire real `ClassifierClient` and `GuardModelClient` implementations and calibrate them on held-out data.
 
 ## Development
 
 ```bash
 npm run dev        # watch mode
 npm run typecheck  # strict compile, no emit
-npm test           # vitest
+npm test           # executable smoke suites
 npm run build && npm run audit:verify -- audit/valence-audit.log
+npm run benchmark:injection -- /path/to/pint-compatible.yaml
+npm run benchmark:pii -- /path/to/ai4privacy-compatible.jsonl
+npm run benchmark:http -- 1000 20
 ```
 
 ## License

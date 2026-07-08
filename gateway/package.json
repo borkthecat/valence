@@ -1,6 +1,6 @@
 {
   "name": "valence-gateway",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Zero-trust, fail-closed LLM security gateway proxy: prompt injection screening, PII tokenization, and streaming surrogate reconstitution.",
   "license": "Apache-2.0",
   "author": "Arai Nanami Rachel",
@@ -24,7 +24,11 @@
     "test:enterprise": "tsx tests/enterprise.smoke.ts",
     "test:e2e": "tsx tests/e2e.smoke.ts",
     "test:e2e:redis": "tsx tests/e2e.smoke.ts",
-    "test:redis-vault": "tsx tests/redis-vault.smoke.ts"
+    "test:redis-vault": "tsx tests/redis-vault.smoke.ts",
+    "benchmark:injection": "tsx benchmarks/injectionBenchmark.ts",
+    "benchmark:pii": "tsx benchmarks/piiBenchmark.ts",
+    "benchmark:latency": "tsx benchmarks/securityLatency.ts",
+    "benchmark:http": "tsx benchmarks/httpLatency.ts"
   },
   "dependencies": {
     "axios": "^1.12.0",
@@ -43,6 +47,7 @@
     "@types/node": "^20.17.12",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "yaml": "^2.8.1"
   }
 }
