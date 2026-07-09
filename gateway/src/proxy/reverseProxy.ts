@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { SecurityMode } from '../config/environment';
 import type { TokenVaultBackend } from '../core/crypto/tokenVault';
 import { PiiScanner } from '../core/filters/piiScanner';
-import type { InjectionVerdict } from '../core/filters/injectionShield';
+import type { GuardPolicy, InjectionVerdict } from '../core/filters/injectionShield';
 import { InjectionShield } from '../core/filters/injectionShield';
 import { SurrogateChunkReconstructor, createReconstitutionStream, } from '../core/streaming/chunkReconstructor';
 import { registerSensitiveTrace, scrubSensitiveTraces, } from '../middleware/errorHandler';
@@ -73,6 +73,7 @@ export interface ReverseProxyDeps {
     readonly vault: TokenVaultBackend;
     readonly scanner: PiiScanner;
     readonly shield: InjectionShield;
+    readonly guardUserPolicy: GuardPolicy;
     readonly http?: AxiosInstance;
     readonly sink?: ProxyEventSink;
 }
@@ -82,6 +83,9 @@ function requestIdOf(res: Response): string {
 }
 function isShieldTarget(message: ProxyMessage): boolean {
     return message.role === 'user' || message.role === 'tool';
+}
+function guardPolicyForMessage(message: ProxyMessage, userPolicy: GuardPolicy): GuardPolicy {
+    return message.role === 'tool' ? 'indirect' : userPolicy;
 }
 export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
     const http = deps.http ??
@@ -135,7 +139,12 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
                 if (!isShieldTarget(message)) {
                     continue;
                 }
-                const verdict = await guarded(() => deps.shield.evaluate(message.content), benignVerdict, 'injection-shield', requestId);
+                const verdict = await guarded(
+                    () => deps.shield.evaluate(message.content, { policy: guardPolicyForMessage(message, deps.guardUserPolicy) }),
+                    benignVerdict,
+                    'injection-shield',
+                    requestId,
+                );
                 if (verdict.blocked) {
                     const ruleIds = verdict.matches.map((match) => match.ruleId);
                     deps.sink?.onPromptBlocked({

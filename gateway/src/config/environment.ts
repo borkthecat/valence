@@ -6,6 +6,7 @@ export const AUTH_MODES = ['api_key', 'jwt'] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];
 export const JWT_ALGORITHMS = ['HS256', 'RS256'] as const;
 export type JwtAlgorithm = (typeof JWT_ALGORITHMS)[number];
+export const GUARD_USER_POLICIES = ['direct', 'secret'] as const;
 export const ENTERPRISE_INGEST_AUTH_MODES = ['jwks', 'api_key'] as const;
 export const EVIDENCE_URL_VALIDATION_MODES = ['syntax', 'live'] as const;
 export type EnterpriseIngestAuthMode = (typeof ENTERPRISE_INGEST_AUTH_MODES)[number];
@@ -71,6 +72,7 @@ const environmentSchema = z.object({
     GUARD_MODEL_PATH: z.string().trim().min(1).optional(),
     GUARD_MODEL_SHA256: z.string().trim().regex(/^[a-f0-9]{64}$/).optional(),
     GUARD_MODEL_API_KEY: z.string().trim().min(16).optional(),
+    GUARD_USER_POLICY: z.enum(GUARD_USER_POLICIES).default('direct'),
     MODEL_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(3000),
     EVIDENCE_URL_VALIDATION: z.enum(EVIDENCE_URL_VALIDATION_MODES).default('syntax'),
     EVIDENCE_URL_TIMEOUT_MS: z.coerce.number().int().min(100).max(10000).default(3000),
@@ -122,6 +124,13 @@ const environmentSchema = z.object({
             code: z.ZodIssueCode.custom,
             path: ['GUARD_MODEL_SHA256'],
             message: 'GUARD_MODEL_SHA256 is required with GUARD_MODEL_PATH',
+        });
+    }
+    if (value.NODE_ENV === 'production' && value.SECURITY_MODE === 'FAIL_OPEN') {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['SECURITY_MODE'],
+            message: 'SECURITY_MODE=FAIL_OPEN is not allowed when NODE_ENV=production',
         });
     }
 });

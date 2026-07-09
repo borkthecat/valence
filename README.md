@@ -2,6 +2,8 @@
 
 Valence is an experimental zero-trust processing platform for candidate ranking and LLM traffic protection. It combines a deterministic profile-ranking pipeline with an inline security gateway. Detected sensitive data is tokenized before upstream transit, and security subsystem failures default to fail-closed behavior.
 
+In simple terms: Valence lets companies put an LLM behind a security gateway so private data, tool outputs, product records, and candidate profiles are checked before they reach the model. It also provides a reproducible verification pipeline so profile-ranking behavior and security controls can be tested instead of trusted by assumption.
+
 The platform ships as a single package with two cooperating components:
 
 | Component | Path | Language | Role |
@@ -236,7 +238,7 @@ Kafka topic: `valence-raw-profiles`. The gateway uses Kafka idempotent producer 
 
 Image fields are evidence references, not raw image uploads. Valence validates HTTPS URLs, SHA-256 hashes, MIME type, source, view labels, optional perceptual hashes and quality scores, dimensions, and byte size. Evidence quality counts distinct content digests, so repeating one image does not improve a profile. `links` carry catalog, registry, or document evidence. Set `EVIDENCE_URL_VALIDATION=live` to resolve every unique host, reject private/reserved destinations, disable redirects, and issue bounded `HEAD` checks for dead links and MIME mismatches. Live mode is capped by `MAX_LIVE_EVIDENCE_URLS`.
 
-Valence ships a SHA-256-pinned 2.99 MB English TF-IDF linear guard trained on 5,735 unique prompts from the WamboSec and deepset training splits. On WamboSec's untouched 577-case test split it measures 99.48% accuracy (Wilson 95% CI 98.48%-99.82%) and 99.56% F1; on the separate 116-case deepset split it measures 86.21% accuracy and 84.91% F1. The v1.11.0 matrix expands evaluation to 21,485 held-out cases from 15 pinned corpora and the bundled model passes only 3/15 strict gates, so Valence does not claim broad 95% production accuracy. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure stops the protected request under the default fail-closed posture.
+Valence ships a SHA-256-pinned 2.99 MB English TF-IDF linear guard trained on 5,735 unique prompts from the WamboSec and deepset training splits. On WamboSec's untouched 577-case test split it measures 99.48% accuracy (Wilson 95% CI 98.48%-99.82%) and 99.56% F1; on the separate 116-case deepset split it measures 86.21% accuracy and 84.91% F1. The v1.11.0 matrix expands evaluation to 21,485 held-out cases from 15 pinned corpora and the bundled compact model passes only 3/15 strict gates, so Valence does not claim broad 95% production accuracy. A local policy-aware mmBERT experiment reached 9/15 strict gates, but it is not bundled and still misses the 14/15 enterprise target. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`; guard services receive a policy value of `direct`, `indirect`, or `secret` so user prompts, tool output, and secret-exfiltration checks can be calibrated separately. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure stops the protected request under the default fail-closed posture.
 
 ### Accuracy boundary
 
@@ -418,7 +420,7 @@ Stage 3/4 scale validation drives 2,000,000 deterministic generated profiles thr
 
 ## Benchmarks
 
-[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current Gretel, deepset, and WamboSec results show both improved model performance and remaining distribution sensitivity. The repository includes secure trained-model adapters, PINT-compatible injection evaluation, exact-span PII evaluation, independently labeled Amazon ESCI ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
+[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current Gretel, deepset, WamboSec, and fifteen-corpus injection results show both improved model performance and remaining distribution sensitivity. The repository includes secure trained-model adapters, policy-aware prompt-injection evaluation, PINT-compatible injection tooling, exact-span PII evaluation, independently labeled Amazon ESCI ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
 
 ### Continuous integration
 
@@ -445,7 +447,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES
 
 ## Releases
 
-The current release target is `v1.11.0`. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
+The current release target is `v1.11.1` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process.
 
 ## Authorship
 

@@ -2,6 +2,16 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.1
+
+- Added policy-aware prompt-injection guard context so direct user prompts, untrusted tool output, and secret-exfiltration checks can use separate thresholds and model behavior.
+- Routed gateway user messages through `GUARD_USER_POLICY` and tool messages through the stricter `indirect` policy, with smoke coverage proving the HTTP guard receives the policy value.
+- Refused `SECURITY_MODE=FAIL_OPEN` when `NODE_ENV=production`, keeping scanner or model failures from silently forwarding production traffic.
+- Added transformer guard training, calibration, and evaluation tooling for the fifteen-corpus matrix. The best local policy-aware mmBERT experiment passed 9/15 strict gates; later augmentation attempts and public off-the-shelf classifiers did not improve it enough to justify a 95% enterprise claim.
+- Documented that the checked-in compact JSON guard still passes 3/15 strict gates, while the 9/15 transformer result is an experimental local artifact and not the bundled default.
+- Added train-only synthetic direct and indirect examples for future experiments, including corrected multilingual prompt variants.
+- Split heavyweight transformer dependencies into `requirements-transformer.txt` so the normal benchmark workflow stays lightweight.
+
 ## 1.11.0
 
 - Added a revision-pinned fifteen-corpus prompt-injection matrix with 21,485 held-out cases, global train/test overlap removal, conflict removal, deterministic splits, and three-run stability checks.

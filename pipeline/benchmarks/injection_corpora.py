@@ -16,6 +16,7 @@ class CorpusSpec:
     config: str | None
     extractor: Callable[[dict[str, Any]], Iterable[tuple[str, bool]]]
     test_split: str | None = "test"
+    policy: str = "direct"
 
 
 @dataclass(frozen=True)
@@ -53,20 +54,20 @@ def _hse(row: dict[str, Any]) -> Iterable[tuple[str, bool]]:
 
 SPECS = (
     CorpusSpec("wambosec", "wambosec/prompt-injections", "071ee17a60112b7f9f808398156b430aadfaf1d2", "MIT", None, _field("prompt")),
-    CorpusSpec("deepset", "deepset/prompt-injections", "4f61ecb038e9c3fb77e21034b22511b523772cdd", "Apache-2.0", None, _field("text")),
+    CorpusSpec("deepset", "deepset/prompt-injections", "4f61ecb038e9c3fb77e21034b22511b523772cdd", "Apache-2.0", None, _field("text"), policy="indirect"),
     CorpusSpec("shomi28", "Shomi28/prompt-injection-dataset", "0146454c8404a347ccc170a0291bcec932252fef", "MIT", None, _field("text")),
     CorpusSpec("jackhhao", "jackhhao/jailbreak-classification", "2f2ceeb39658696fd3f462403562b6eea5306287", "Apache-2.0", None, _jack),
     CorpusSpec("cgoosen_guard", "cgoosen/llm_guard_dataset", "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4", "Apache-2.0", None, _field("text")),
     CorpusSpec("neuralchemy", "neuralchemy/Prompt-injection-dataset", "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75", "Apache-2.0", "core", _field("text")),
     CorpusSpec("wambosec_subtle", "wambosec/prompt-injections-subtle", "cd789a6e362aa72624d7f835c5270c8c3bdaf524", "MIT", None, _field("prompt")),
     CorpusSpec("jcanode", "jcanode/safeguard-prompt-injection", "61fbe3588450fa9b47ac1176ca7b5d2cc932344c", "Apache-2.0", None, _field("text")),
-    CorpusSpec("rikka_multilingual", "rikka-snow/prompt-injection-multilingual", "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b", "MIT", None, _field("text")),
-    CorpusSpec("beratcmn_turkish", "beratcmn/turkish-prompt-injections", "c40c38f8ca632052fbfec19e90fab31fce33eda1", "Apache-2.0", None, _field("text")),
+    CorpusSpec("rikka_multilingual", "rikka-snow/prompt-injection-multilingual", "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b", "MIT", None, _field("text"), policy="indirect"),
+    CorpusSpec("beratcmn_turkish", "beratcmn/turkish-prompt-injections", "c40c38f8ca632052fbfec19e90fab31fce33eda1", "Apache-2.0", None, _field("text"), policy="indirect"),
     CorpusSpec("s_labs", "S-Labs/prompt-injection-dataset", "002a9dd18514abd021869823d6b0429b38606d99", "MIT", None, _field("text")),
-    CorpusSpec("cgoosen_combined", "cgoosen/prompt_injection_combined", "483296fde129d392d73077ad0c5d1175087cd9aa", "MIT", None, _field("text"), None),
+    CorpusSpec("cgoosen_combined", "cgoosen/prompt_injection_combined", "483296fde129d392d73077ad0c5d1175087cd9aa", "MIT", None, _field("text"), None, "secret"),
     CorpusSpec("smooth_3", "Smooth-3/llm-prompt-injection-attacks", "dd47798b64ebf0e833ecdbff6b1d73be3e440581", "Apache-2.0", None, _smooth, "validation"),
     CorpusSpec("darkknight25", "darkknight25/Prompt_Injection_Benign_Prompt_Dataset", "a0fc54fb563468a7fd64a9412718ce7cdb366666", "MIT", None, _darkknight, None),
-    CorpusSpec("hse_llm", "hse-llm/prompt-injections", "6619b5e0f7a907404b8b81df6aa97c2114dd27a1", "MIT", None, _hse, None),
+    CorpusSpec("hse_llm", "hse-llm/prompt-injections", "6619b5e0f7a907404b8b81df6aa97c2114dd27a1", "MIT", None, _hse, None, "secret"),
 )
 
 
@@ -76,6 +77,12 @@ def normalize(text: str) -> str:
 
 def fingerprint(text: str) -> bytes:
     return hashlib.sha256(normalize(text).encode("utf-8")).digest()
+
+
+def policy_text(text: str, policy: str) -> str:
+    if policy not in {"direct", "indirect", "secret"}:
+        raise ValueError(f"unsupported guard policy: {policy}")
+    return f"[VALENCE_CONTEXT={policy}] {text}"
 
 
 def _extract(dataset: Any, extractor: Callable[[dict[str, Any]], Iterable[tuple[str, bool]]]) -> list[tuple[str, bool]]:
@@ -128,7 +135,10 @@ def load_corpora(cache_dir: Path) -> tuple[Corpus, ...]:
         if spec.test_split is None:
             training, test = _deterministic_split(_extract(loaded["train"], spec.extractor))
         else:
-            training = _extract(loaded["train"], spec.extractor)
+            training = []
+            for split in loaded:
+                if split != spec.test_split and split != "test":
+                    training.extend(_extract(loaded[split], spec.extractor))
             test = _extract(loaded[spec.test_split], spec.extractor)
         corpora.append(Corpus(spec, tuple(training), tuple(test)))
     return tuple(corpora)

@@ -142,6 +142,7 @@ export function buildApp(logger: Logger): Express {
         vault,
         scanner,
         shield,
+        guardUserPolicy: environment.GUARD_USER_POLICY,
         sink: {
             onPromptBlocked: (event) => {
                 metrics.injectionsBlockedTotal.inc();

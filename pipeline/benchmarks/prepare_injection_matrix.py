@@ -30,6 +30,7 @@ def main() -> int:
             "dataset": corpus.spec.dataset,
             "revision": corpus.spec.revision,
             "license": corpus.spec.license,
+            "policy": corpus.spec.policy,
             "trainingRecords": sum(fingerprint(text) not in test_hashes for text, _ in corpus.training),
             "testRecords": len(corpus.test),
             "testPositive": sum(label for _, label in corpus.test),

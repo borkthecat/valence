@@ -11,9 +11,14 @@ export interface InjectionVerdict {
     readonly threshold: number;
     readonly matches: readonly InjectionMatch[];
 }
+export const GUARD_POLICIES = ['direct', 'indirect', 'secret'] as const;
+export type GuardPolicy = (typeof GUARD_POLICIES)[number];
+export interface InjectionDetectionContext {
+    readonly policy: GuardPolicy;
+}
 export interface InjectionDetector {
     readonly name: string;
-    detect(normalizedText: string): Promise<readonly InjectionMatch[]>;
+    detect(normalizedText: string, context: InjectionDetectionContext): Promise<readonly InjectionMatch[]>;
 }
 export class InjectionShieldError extends Error {
     public readonly failedDetectors: readonly string[];
@@ -40,7 +45,7 @@ export function normalizePrompt(text: string): string {
 function excerptAround(text: string, index: number): string {
     const start = Math.max(0, index - 8);
     const slice = text.slice(start, start + EXCERPT_LIMIT);
-    return slice.length < EXCERPT_LIMIT ? slice : `${slice}…`;
+    return slice.length < EXCERPT_LIMIT ? slice : `${slice}...`;
 }
 interface InjectionRule {
     readonly id: string;
@@ -122,7 +127,7 @@ export class HeuristicInjectionDetector implements InjectionDetector {
     public constructor(rules: readonly InjectionRule[] = INJECTION_RULES) {
         this.rules = rules;
     }
-    public detect(normalizedText: string): Promise<readonly InjectionMatch[]> {
+    public detect(normalizedText: string, _context: InjectionDetectionContext): Promise<readonly InjectionMatch[]> {
         const matches: InjectionMatch[] = [];
         for (const rule of this.rules) {
             const match = rule.pattern.exec(normalizedText);
@@ -145,7 +150,7 @@ export interface GuardModelAssessment {
     readonly score: number;
 }
 export interface GuardModelClient {
-    assess(text: string): Promise<GuardModelAssessment>;
+    assess(text: string, context: InjectionDetectionContext): Promise<GuardModelAssessment>;
 }
 const HOSTILE_GUARD_LABELS: ReadonlySet<string> = new Set([
     'prompt_injection',
@@ -164,8 +169,8 @@ export class GuardModelDetector implements InjectionDetector {
         this.name = options.name ?? 'guard-model';
         this.minimumScore = options.minimumScore ?? 0.5;
     }
-    public async detect(normalizedText: string): Promise<readonly InjectionMatch[]> {
-        const assessment = await this.client.assess(normalizedText);
+    public async detect(normalizedText: string, context: InjectionDetectionContext): Promise<readonly InjectionMatch[]> {
+        const assessment = await this.client.assess(normalizedText, context);
         const label = assessment.label.toLowerCase();
         if (!HOSTILE_GUARD_LABELS.has(label) || assessment.score < this.minimumScore) {
             return [];
@@ -182,7 +187,7 @@ export class GuardModelDetector implements InjectionDetector {
     }
 }
 export class NullGuardModelClient implements GuardModelClient {
-    public assess(): Promise<GuardModelAssessment> {
+    public assess(_text: string, _context: InjectionDetectionContext): Promise<GuardModelAssessment> {
         return Promise.resolve({ label: 'benign', score: 0 });
     }
 }
@@ -203,7 +208,7 @@ export class InjectionShield {
         this.detectors = detectors;
         this.blockThreshold = threshold;
     }
-    public async evaluate(rawText: string): Promise<InjectionVerdict> {
+    public async evaluate(rawText: string, context: InjectionDetectionContext = { policy: 'direct' }): Promise<InjectionVerdict> {
         const normalized = normalizePrompt(rawText);
         if (normalized.length === 0) {
             return {
@@ -213,7 +218,7 @@ export class InjectionShield {
                 matches: [],
             };
         }
-        const settled = await Promise.allSettled(this.detectors.map((detector) => detector.detect(normalized)));
+        const settled = await Promise.allSettled(this.detectors.map((detector) => detector.detect(normalized, context)));
         const failed: string[] = [];
         const allMatches: InjectionMatch[] = [];
         let score = 0;

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ClassifiedSpan, ClassifierClient } from '../core/filters/piiScanner';
-import type { GuardModelAssessment, GuardModelClient } from '../core/filters/injectionShield';
+import type { GuardModelAssessment, GuardModelClient, InjectionDetectionContext } from '../core/filters/injectionShield';
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const ClassifierResponseSchema = z.object({
@@ -54,7 +54,7 @@ interface HttpModelClientOptions {
     readonly request?: typeof fetch;
 }
 
-async function postJson(options: HttpModelClientOptions, text: string): Promise<unknown> {
+async function postJson(options: HttpModelClientOptions, payload: unknown): Promise<unknown> {
     const request = options.request ?? fetch;
     const response = await request(options.url, {
         method: 'POST',
@@ -63,7 +63,7 @@ async function postJson(options: HttpModelClientOptions, text: string): Promise<
             'accept': 'application/json',
             ...(options.apiKey === undefined ? {} : { authorization: `Bearer ${options.apiKey}` }),
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(options.timeoutMs),
         redirect: 'error',
     });
@@ -85,15 +85,15 @@ export class HttpClassifierClient implements ClassifierClient {
     public constructor(private readonly options: HttpModelClientOptions) {}
 
     public async classify(text: string): Promise<readonly ClassifiedSpan[]> {
-        return ClassifierResponseSchema.parse(await postJson(this.options, text)).spans;
+        return ClassifierResponseSchema.parse(await postJson(this.options, { text })).spans;
     }
 }
 
 export class HttpGuardModelClient implements GuardModelClient {
     public constructor(private readonly options: HttpModelClientOptions) {}
 
-    public async assess(text: string): Promise<GuardModelAssessment> {
-        return GuardResponseSchema.parse(await postJson(this.options, text));
+    public async assess(text: string, context: InjectionDetectionContext): Promise<GuardModelAssessment> {
+        return GuardResponseSchema.parse(await postJson(this.options, { text, policy: context.policy }));
     }
 }
 
@@ -148,7 +148,7 @@ export class LocalGuardModelClient implements GuardModelClient {
         this.model = model;
     }
 
-    public assess(text: string): Promise<GuardModelAssessment> {
+    public assess(text: string, _context?: InjectionDetectionContext): Promise<GuardModelAssessment> {
         if (this.model.format === 'valence-linear-tfidf-v1') {
             return Promise.resolve(this.assessLinear(text));
         }

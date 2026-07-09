@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.0`
+Current release target: `v1.11.1` research preview
 
 ## Preflight
 
@@ -21,6 +21,16 @@ cd ..
 docker compose --env-file .env.example config
 ```
 
+Accuracy preflight for prompt-injection work:
+
+```bash
+python -m pip install -r requirements-benchmark.txt
+python pipeline/benchmarks/prepare_injection_matrix.py --output .benchmark-data/injection-matrix
+python pipeline/benchmarks/run_injection_matrix.py --matrix .benchmark-data/injection-matrix/matrix.json --model gateway/models/prompt-injection-guard.json --output .benchmark-data/injection-matrix/report.json --repetitions 3 --timeout-seconds 120
+```
+
+The release must not be described as 95% production-accurate unless the matrix report reaches the documented gates. The current compact bundled guard remains below that bar.
+
 Optional local image check:
 
 ```bash
@@ -28,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.0` and `valence-pipeline:1.11.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.1` and `valence-pipeline:1.11.1` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -39,11 +49,20 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.0 -m "Valence v1.11.0"
-git push origin main v1.11.0
+git tag -a v1.11.1 -m "Valence v1.11.1"
+git push origin main v1.11.1
 ```
 
 ## Release Notes
+
+`v1.11.1` hardens the guard architecture without overstating accuracy:
+
+- Adds policy-aware guard evaluation for `direct`, `indirect`, and `secret` contexts.
+- Sends user messages through `GUARD_USER_POLICY` and untrusted tool messages through the `indirect` policy.
+- Rejects `SECURITY_MODE=FAIL_OPEN` under `NODE_ENV=production`.
+- Adds transformer training, calibration, and evaluation scripts for the fifteen-corpus matrix.
+- Records that the best local policy-aware mmBERT experiment reached 9/15 strict corpus gates, while the bundled compact JSON guard remains at 3/15.
+- Keeps the release status at research preview until an independently validated guard reaches the 14/15 and 95% gates repeatedly.
 
 `v1.11.0` makes detector limitations and startup behavior measurable:
 
