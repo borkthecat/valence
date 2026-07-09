@@ -109,6 +109,7 @@ def main() -> int:
     parser.add_argument("--calibration", type=Path)
     parser.add_argument("--trust-remote-code", action="store_true")
     parser.add_argument("--positive-label-pattern")
+    parser.add_argument("--no-policy-prefix", action="store_true")
     args = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=args.trust_remote_code)
@@ -130,8 +131,12 @@ def main() -> int:
         rows = [json.loads(line) for line in Path(corpus["fixture"]).read_text(encoding="utf-8").splitlines()]
         predictions: list[bool] = []
         for start in range(0, len(rows), args.batch_size):
+            texts = [
+                row["text"] if args.no_policy_prefix else policy_text(row["text"], corpus["policy"])
+                for row in rows[start:start + args.batch_size]
+            ]
             batch = tokenizer(
-                [policy_text(row["text"], corpus["policy"]) for row in rows[start:start + args.batch_size]],
+                texts,
                 padding=True,
                 truncation=True,
                 max_length=args.max_length,
@@ -163,6 +168,7 @@ def main() -> int:
         "modelSha256": _model_sha256(args.model),
         "positiveLabelIndex": positive_index,
         "id2label": model.config.id2label,
+        "policyPrefix": not args.no_policy_prefix,
         "minimum": args.minimum,
         "maximumFpr": args.maximum_fpr,
         "thresholds": thresholds,

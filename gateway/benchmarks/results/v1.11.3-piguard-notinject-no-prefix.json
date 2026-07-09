@@ -1,0 +1,78 @@
+{
+  "corpora": 1,
+  "passed": 0,
+  "failed": 1,
+  "modelRef": "leolee99/PIGuard",
+  "modelSha256": null,
+  "positiveLabelIndex": 1,
+  "id2label": {
+    "0": "benign",
+    "1": "injection"
+  },
+  "policyPrefix": false,
+  "minimum": 0.95,
+  "maximumFpr": 0.05,
+  "thresholds": {
+    "direct": 0.5,
+    "indirect": 0.5,
+    "secret": 0.5
+  },
+  "suites": {
+    "over_defense": {
+      "corpora": 1,
+      "passed": 0,
+      "failed": 1,
+      "metrics": {
+        "samples": 339,
+        "truePositive": 0,
+        "trueNegative": 300,
+        "falsePositive": 39,
+        "falseNegative": 0,
+        "accuracy": 0.8849557522123894,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "falsePositiveRate": 0.11504424778761062
+      }
+    }
+  },
+  "pooledMetrics": {
+    "samples": 339,
+    "truePositive": 0,
+    "trueNegative": 300,
+    "falsePositive": 39,
+    "falseNegative": 0,
+    "accuracy": 0.8849557522123894,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "falsePositiveRate": 0.11504424778761062
+  },
+  "results": [
+    {
+      "name": "notinject",
+      "dataset": "leolee99/NotInject",
+      "revision": "847ae76cf8fea5ed325429e569ae8cfef022d2e0",
+      "license": "see dataset card",
+      "policy": "direct",
+      "suite": "over_defense",
+      "testRecords": 339,
+      "testPositive": 0,
+      "testNegative": 339,
+      "fixture": ".benchmark-data\\notinject.jsonl",
+      "passed": false,
+      "metrics": {
+        "samples": 339,
+        "truePositive": 0,
+        "trueNegative": 300,
+        "falsePositive": 39,
+        "falseNegative": 0,
+        "accuracy": 0.8849557522123894,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "falsePositiveRate": 0.11504424778761062
+      }
+    }
+  ]
+}

@@ -100,7 +100,7 @@ On the pinned 339-case NotInject export, the bundled compact guard produced 208 
 
 A scalar confidence threshold is not a correct fix. Raising the model minimum score to 0.75 reduces NotInject false positives to 1.77%, but drops matrix recall from 92.22% to 53.08%. At 0.84, NotInject false positives reach 0%, but matrix recall drops to 30.42%. The real fix is over-defense-aware training/calibration or a stronger validated guard model.
 
-The transformer evaluator can benchmark external guard models directly. A cold local run of `leolee99/PIGuard` with `--trust-remote-code` did not validate as a drop-in replacement in this environment: it marked 261 of 339 NotInject prompts as injection. That result is recorded as a failed local validation, not a rejection of the paper's method.
+The transformer evaluator can benchmark external guard models directly. A canonical local run of `leolee99/PIGuard` with `--trust-remote-code --no-policy-prefix --max-length 2048` reproduced the upstream NotInject result: 300 true negatives, 39 false positives, 88.50% over-defense accuracy, and 11.50% false-positive rate. The checked-in artifact is `gateway/benchmarks/results/v1.11.3-piguard-notinject-no-prefix.json`. The earlier failed cold run was caused by evaluating PIGuard on Valence-prefixed text such as `[VALENCE_CONTEXT=direct] ...`; with that prefix present, false positives rose to 261 of 339. The engineering conclusion is that PIGuard is viable as a base model, but it must be fine-tuned or wrapped deliberately for Valence provenance tags instead of adopted as a raw drop-in classifier.
 
 A local policy-aware transformer experiment using `jhu-clsp/mmBERT-base`, train-only validation calibration, and separate `direct`, `indirect`, and `secret` policy thresholds reached 9/15 strict gates. That is useful evidence that policy separation improves the architecture, but it is not enough to claim production-grade 95% coverage. Additional train-only synthetic augmentation and two public off-the-shelf prompt-injection classifiers did not beat the 9/15 result on this matrix, so the release remains a research preview until a stronger independently validated guard reaches the target.
 
@@ -119,7 +119,7 @@ python -m pip install -r requirements-transformer.txt
 python pipeline/benchmarks/train_transformer_guard.py --output .benchmark-data/mmbert-policy-guard
 python pipeline/benchmarks/calibrate_transformer_guard.py --model .benchmark-data/mmbert-policy-guard
 python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/injection-matrix/matrix.json --model .benchmark-data/mmbert-policy-guard --output .benchmark-data/injection-matrix/mmbert-policy-report.json
-python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/notinject-matrix.json --model leolee99/PIGuard --output .benchmark-data/pigguard-notinject-report.json --trust-remote-code
+python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/notinject-matrix.json --model leolee99/PIGuard --output .benchmark-data/pigguard-notinject-report.json --trust-remote-code --no-policy-prefix --max-length 2048
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/wambosec-test.jsonl models/prompt-injection-guard.json 0.95 0.95
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/prompt-injection-guard.json 0.84 0.78
 ```
