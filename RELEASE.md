@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.3` research preview
+Current release target: `v1.11.4` research preview
 
 ## Preflight
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.3` and `valence-pipeline:1.11.3` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.4` and `valence-pipeline:1.11.4` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -49,11 +49,17 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.3 -m "Valence v1.11.3"
-git push origin main v1.11.3
+git tag -a v1.11.4 -m "Valence v1.11.4"
+git push origin main v1.11.4
 ```
 
 ## Release Notes
+
+`v1.11.4` corrects the PIGuard validation path and project punch list:
+
+- Adds `PROJECT_BLOCKERS.md` with the current production blockers and candidate/job profile domain call.
+- Adds `--no-policy-prefix` to the transformer evaluator so external guard models can be benchmarked canonically.
+- Records that canonical PIGuard evaluation on NotInject reaches 88.50% over-defense accuracy, while Valence provenance tags create domain shift unless the model is fine-tuned or wrapped deliberately.
 
 `v1.11.3` corrects the benchmark framing and exposes over-defense:
 

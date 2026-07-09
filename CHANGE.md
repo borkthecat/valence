@@ -2,6 +2,13 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.4
+
+- Added `PROJECT_BLOCKERS.md` with the current production punch list and candidate/job profile domain call.
+- Added `--no-policy-prefix` to the transformer guard evaluator so external Hugging Face guard models can be tested canonically without Valence provenance text.
+- Reproduced PIGuard's canonical NotInject behavior locally: 300 true negatives, 39 false positives, 88.50% over-defense accuracy, and 11.50% false-positive rate.
+- Documented that PIGuard is viable as a base model, but Valence provenance tags create domain shift unless the model is fine-tuned or wrapped deliberately.
+
 ## 1.11.3
 
 - Split prompt-injection evaluation into explicit suites for direct attacks, indirect/provenance attacks, secret exfiltration, and over-defense instead of treating a pooled score as a single accuracy claim.
