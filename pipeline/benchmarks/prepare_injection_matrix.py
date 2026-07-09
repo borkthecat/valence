@@ -24,6 +24,7 @@ def main() -> int:
                     "text": text,
                     "label": label,
                     "category": corpus.spec.name,
+                    "policy": corpus.spec.policy,
                 }, ensure_ascii=True, separators=(",", ":")) + "\n")
         matrix.append({
             "name": corpus.spec.name,

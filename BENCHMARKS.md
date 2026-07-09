@@ -60,33 +60,33 @@ The WamboSec confusion matrix is 343 true positives, 231 true negatives, zero fa
 
 ### Fifteen-corpus matrix
 
-v1.11.0 adds 15 revision-pinned corpora and 21,485 test records. A corpus passes only when accuracy, precision, recall, and F1 are each at least 95% and false-positive rate is no more than 5%. Three complete runs produced identical metrics.
+v1.11.2 uses 15 revision-pinned corpora and 21,485 test records. A corpus passes only when accuracy, precision, recall, and F1 are each at least 95% and false-positive rate is no more than 5%.
 
 | Corpus | Cases | Accuracy | Precision | Recall | F1 | FPR | Gate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| WamboSec | 577 | 99.48% | 100.00% | 99.13% | 99.56% | 0.00% | Pass |
-| deepset | 116 | 86.21% | 97.83% | 75.00% | 84.91% | 1.79% | Fail |
-| Shomi28 | 128 | 98.44% | 96.77% | 100.00% | 98.36% | 2.94% | Pass |
-| jackhhao | 262 | 69.85% | 63.76% | 100.00% | 77.87% | 64.23% | Fail |
-| cgoosen guard | 4,691 | 62.29% | 10.24% | 76.77% | 18.06% | 38.54% | Fail |
-| Neuralchemy | 942 | 83.86% | 89.84% | 81.70% | 85.58% | 13.08% | Fail |
-| WamboSec subtle | 94 | 97.87% | 98.57% | 98.57% | 98.57% | 4.17% | Pass |
-| jcanode | 5,425 | 75.82% | 44.72% | 94.78% | 60.77% | 28.85% | Fail |
-| rikka multilingual | 1,276 | 70.22% | 78.46% | 58.48% | 67.01% | 17.21% | Fail |
-| beratcmn Turkish | 115 | 66.09% | 63.51% | 79.66% | 70.68% | 48.21% | Fail |
-| S-Labs | 2,101 | 85.34% | 83.26% | 88.49% | 85.79% | 17.81% | Fail |
-| cgoosen combined | 98 | 50.00% | 85.45% | 53.41% | 65.73% | 80.00% | Fail |
-| Smooth-3 | 5,500 | 62.76% | 59.47% | 83.75% | 69.55% | 58.88% | Fail |
-| darkknight25 | 100 | 90.00% | 95.45% | 84.00% | 89.36% | 4.00% | Fail |
-| HSE LLM | 60 | 53.33% | 41.67% | 100.00% | 58.82% | 70.00% | Fail |
+| WamboSec | 577 | 99.13% | 100.00% | 98.55% | 99.27% | 0.00% | Pass |
+| deepset | 116 | 79.31% | 100.00% | 60.00% | 75.00% | 0.00% | Fail |
+| Shomi28 | 128 | 100.00% | 100.00% | 100.00% | 100.00% | 0.00% | Pass |
+| jackhhao | 262 | 94.27% | 94.29% | 94.96% | 94.62% | 6.50% | Fail |
+| cgoosen guard | 4,691 | 98.98% | 91.20% | 89.76% | 90.48% | 0.50% | Fail |
+| Neuralchemy | 942 | 95.22% | 96.51% | 95.29% | 95.90% | 4.87% | Pass |
+| WamboSec subtle | 94 | 98.94% | 100.00% | 98.57% | 99.28% | 0.00% | Pass |
+| jcanode | 5,425 | 97.51% | 89.40% | 99.16% | 94.03% | 2.89% | Fail |
+| rikka multilingual | 1,276 | 84.33% | 98.73% | 70.61% | 82.33% | 0.97% | Fail |
+| beratcmn Turkish | 115 | 86.09% | 100.00% | 72.88% | 84.31% | 0.00% | Fail |
+| S-Labs | 2,101 | 95.53% | 99.08% | 91.91% | 95.36% | 0.86% | Fail |
+| cgoosen combined | 98 | 63.27% | 91.94% | 64.77% | 76.00% | 50.00% | Fail |
+| Smooth-3 | 5,500 | 95.16% | 95.47% | 94.99% | 95.23% | 4.65% | Fail |
+| darkknight25 | 100 | 99.00% | 98.04% | 100.00% | 99.01% | 2.00% | Pass |
+| HSE LLM | 60 | 80.00% | 64.29% | 90.00% | 75.00% | 25.00% | Fail |
 
-The bundled model passes 3/15 strict gates. Pooled accuracy is 71.16%, precision 54.82%, recall 84.26%, F1 66.42%, and FPR 35.55%; these pooled values are descriptive only and cannot override a failed corpus. A multilingual TF-IDF candidate trained on 80,066 globally deduplicated records raised pooled accuracy to 95.52% and precision to 95.34%, but recall remained 91.23% and only 4/15 corpora passed, so it was rejected.
+The bundled model passes 5/15 strict gates. Pooled accuracy is 95.82%, precision is 95.28%, recall is 92.22%, F1 is 93.73%, and FPR is 2.34%; these pooled values are descriptive only and cannot override failed corpora. The improvement comes from replacing the old WamboSec/deepset-only English artifact with a 15-corpus multilingual compact model trained on 74,963 records and calibrated on 8,495 train-only holdout records.
 
 A local policy-aware transformer experiment using `jhu-clsp/mmBERT-base`, train-only validation calibration, and separate `direct`, `indirect`, and `secret` policy thresholds reached 9/15 strict gates. That is useful evidence that policy separation improves the architecture, but it is not enough to claim production-grade 95% coverage. Additional train-only synthetic augmentation and two public off-the-shelf prompt-injection classifiers did not beat the 9/15 result on this matrix, so the release remains a research preview until a stronger independently validated guard reaches the target.
 
 The corpora do not share one perfect definition of injection. Some label roleplay as malicious while others deliberately include roleplay as benign, several are synthetic or translated derivatives, and small sets have wide confidence intervals. Valence records those disagreements instead of tuning per-dataset rules against observed test labels.
 
-Valence ships the 2.99 MB JSON guard as the local default and also supports bounded local and HTTP `GuardModelClient` integrations for independently trained enterprise models. HTTP guard services receive the normalized text and a policy value of `direct`, `indirect`, or `secret`. The compact artifact is pinned by SHA-256. Lakera's complete 4,314-input PINT corpus includes proprietary data and is not publicly downloadable, so Valence does not claim a full PINT score.
+Valence ships the 4.97 MB JSON guard as the local default and also supports bounded local and HTTP `GuardModelClient` integrations for independently trained enterprise models. HTTP guard services receive the normalized text and a policy value of `direct`, `indirect`, or `secret`. The compact artifact is pinned by SHA-256. Lakera's complete 4,314-input PINT corpus includes proprietary data and is not publicly downloadable, so Valence does not claim a full PINT score.
 
 ```bash
 python -m pip install -r requirements-benchmark.txt

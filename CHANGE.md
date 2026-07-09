@@ -2,13 +2,20 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.2
+
+- Replaced the default prompt-injection guard with a policy-aware multilingual compact model trained on 74,963 non-test records from 15 pinned public corpora and calibrated on 8,495 train-only holdout records.
+- Updated the gateway local model loader to support policy-aware compact artifacts and per-policy thresholds while preserving strict schema validation and SHA-256 pinning.
+- Updated the injection benchmark fixtures and runner so matrix cases are evaluated with the same `direct`, `indirect`, and `secret` context production requests use.
+- Raised the bundled compact guard from 3/15 to 5/15 strict corpus gates. This is an improvement, not a 95% enterprise accuracy claim; the release remains a research preview.
+
 ## 1.11.1
 
 - Added policy-aware prompt-injection guard context so direct user prompts, untrusted tool output, and secret-exfiltration checks can use separate thresholds and model behavior.
 - Routed gateway user messages through `GUARD_USER_POLICY` and tool messages through the stricter `indirect` policy, with smoke coverage proving the HTTP guard receives the policy value.
 - Refused `SECURITY_MODE=FAIL_OPEN` when `NODE_ENV=production`, keeping scanner or model failures from silently forwarding production traffic.
 - Added transformer guard training, calibration, and evaluation tooling for the fifteen-corpus matrix. The best local policy-aware mmBERT experiment passed 9/15 strict gates; later augmentation attempts and public off-the-shelf classifiers did not improve it enough to justify a 95% enterprise claim.
-- Documented that the checked-in compact JSON guard still passes 3/15 strict gates, while the 9/15 transformer result is an experimental local artifact and not the bundled default.
+- Documented that the checked-in compact JSON guard still passed 3/15 strict gates in 1.11.1, while the 9/15 transformer result was an experimental local artifact and not the bundled default.
 - Added train-only synthetic direct and indirect examples for future experiments, including corrected multilingual prompt variants.
 - Split heavyweight transformer dependencies into `requirements-transformer.txt` so the normal benchmark workflow stays lightweight.
 

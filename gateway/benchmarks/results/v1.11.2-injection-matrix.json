@@ -1,0 +1,487 @@
+{
+  "corpora": 15,
+  "passed": 5,
+  "failed": 10,
+  "modelSha256": "c9e6888213773172ff6127d1165146f02cb03d079d8011b6e20429e0d9bcec02",
+  "minimum": 0.95,
+  "maximumFpr": 0.05,
+  "pooledMetrics": {
+    "samples": 21485,
+    "truePositive": 6708,
+    "trueNegative": 13879,
+    "falsePositive": 332,
+    "falseNegative": 566,
+    "accuracy": 0.958203397719339,
+    "precision": 0.9528409090909091,
+    "recall": 0.9221886169920264,
+    "f1": 0.9372642168506358,
+    "falsePositiveRate": 0.023362184223488847
+  },
+  "results": [
+    {
+      "name": "wambosec",
+      "dataset": "wambosec/prompt-injections",
+      "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2",
+      "license": "MIT",
+      "policy": "direct",
+      "trainingRecords": 5189,
+      "testRecords": 577,
+      "testPositive": 346,
+      "testNegative": 231,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\wambosec-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 577,
+        "truePositive": 341,
+        "trueNegative": 231,
+        "falsePositive": 0,
+        "falseNegative": 5,
+        "accuracy": 0.9913344887348353,
+        "precision": 1,
+        "recall": 0.9855491329479769,
+        "f1": 0.992721979621543,
+        "falsePositiveRate": 0
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9798768942368904,
+        "upper": 0.996293093957828
+      }
+    },
+    {
+      "name": "deepset",
+      "dataset": "deepset/prompt-injections",
+      "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd",
+      "license": "Apache-2.0",
+      "policy": "indirect",
+      "trainingRecords": 530,
+      "testRecords": 116,
+      "testPositive": 60,
+      "testNegative": 56,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\deepset-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 116,
+        "truePositive": 36,
+        "trueNegative": 56,
+        "falsePositive": 0,
+        "falseNegative": 24,
+        "accuracy": 0.7931034482758621,
+        "precision": 1,
+        "recall": 0.6,
+        "f1": 0.7499999999999999,
+        "falsePositiveRate": 0
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.7105774078005253,
+        "upper": 0.8568389159755486
+      }
+    },
+    {
+      "name": "shomi28",
+      "dataset": "Shomi28/prompt-injection-dataset",
+      "revision": "0146454c8404a347ccc170a0291bcec932252fef",
+      "license": "MIT",
+      "policy": "direct",
+      "trainingRecords": 1151,
+      "testRecords": 128,
+      "testPositive": 60,
+      "testNegative": 68,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\shomi28-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 128,
+        "truePositive": 60,
+        "trueNegative": 68,
+        "falsePositive": 0,
+        "falseNegative": 0,
+        "accuracy": 1,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "falsePositiveRate": 0
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9708630437264916,
+        "upper": 1
+      }
+    },
+    {
+      "name": "jackhhao",
+      "dataset": "jackhhao/jailbreak-classification",
+      "revision": "2f2ceeb39658696fd3f462403562b6eea5306287",
+      "license": "Apache-2.0",
+      "policy": "direct",
+      "trainingRecords": 1018,
+      "testRecords": 262,
+      "testPositive": 139,
+      "testNegative": 123,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\jackhhao-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 262,
+        "truePositive": 132,
+        "trueNegative": 115,
+        "falsePositive": 8,
+        "falseNegative": 7,
+        "accuracy": 0.9427480916030534,
+        "precision": 0.9428571428571428,
+        "recall": 0.9496402877697842,
+        "f1": 0.9462365591397849,
+        "falsePositiveRate": 0.06504065040650407
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9076995049250769,
+        "upper": 0.9650010927513764
+      }
+    },
+    {
+      "name": "cgoosen_guard",
+      "dataset": "cgoosen/llm_guard_dataset",
+      "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4",
+      "license": "Apache-2.0",
+      "policy": "direct",
+      "trainingRecords": 18024,
+      "testRecords": 4691,
+      "testPositive": 254,
+      "testNegative": 4437,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\cgoosen_guard-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 4691,
+        "truePositive": 228,
+        "trueNegative": 4415,
+        "falsePositive": 22,
+        "falseNegative": 26,
+        "accuracy": 0.9897676401620124,
+        "precision": 0.912,
+        "recall": 0.8976377952755905,
+        "f1": 0.9047619047619047,
+        "falsePositiveRate": 0.004958305161144917
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9864604659195154,
+        "upper": 0.9922733295246072
+      }
+    },
+    {
+      "name": "neuralchemy",
+      "dataset": "neuralchemy/Prompt-injection-dataset",
+      "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75",
+      "license": "Apache-2.0",
+      "policy": "direct",
+      "trainingRecords": 5288,
+      "testRecords": 942,
+      "testPositive": 552,
+      "testNegative": 390,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\neuralchemy-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 942,
+        "truePositive": 526,
+        "trueNegative": 371,
+        "falsePositive": 19,
+        "falseNegative": 26,
+        "accuracy": 0.9522292993630573,
+        "precision": 0.9651376146788991,
+        "recall": 0.9528985507246377,
+        "f1": 0.95897903372835,
+        "falsePositiveRate": 0.04871794871794872
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9366768503107106,
+        "upper": 0.9641083627442357
+      }
+    },
+    {
+      "name": "wambosec_subtle",
+      "dataset": "wambosec/prompt-injections-subtle",
+      "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524",
+      "license": "MIT",
+      "policy": "direct",
+      "trainingRecords": 839,
+      "testRecords": 94,
+      "testPositive": 70,
+      "testNegative": 24,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\wambosec_subtle-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 94,
+        "truePositive": 69,
+        "trueNegative": 24,
+        "falsePositive": 0,
+        "falseNegative": 1,
+        "accuracy": 0.9893617021276596,
+        "precision": 1,
+        "recall": 0.9857142857142858,
+        "f1": 0.9928057553956835,
+        "falsePositiveRate": 0
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9421770870372144,
+        "upper": 0.998119604251912
+      }
+    },
+    {
+      "name": "jcanode",
+      "dataset": "jcanode/safeguard-prompt-injection",
+      "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c",
+      "license": "Apache-2.0",
+      "policy": "direct",
+      "trainingRecords": 102931,
+      "testRecords": 5425,
+      "testPositive": 1072,
+      "testNegative": 4353,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\jcanode-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 5425,
+        "truePositive": 1063,
+        "trueNegative": 4227,
+        "falsePositive": 126,
+        "falseNegative": 9,
+        "accuracy": 0.9751152073732718,
+        "precision": 0.8940285954583683,
+        "recall": 0.9916044776119403,
+        "f1": 0.9402919062361786,
+        "falsePositiveRate": 0.028945554789800137
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9706216878180812,
+        "upper": 0.9789363420308544
+      }
+    },
+    {
+      "name": "rikka_multilingual",
+      "dataset": "rikka-snow/prompt-injection-multilingual",
+      "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b",
+      "license": "MIT",
+      "policy": "indirect",
+      "trainingRecords": 5976,
+      "testRecords": 1276,
+      "testPositive": 660,
+      "testNegative": 616,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\rikka_multilingual-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 1276,
+        "truePositive": 466,
+        "trueNegative": 610,
+        "falsePositive": 6,
+        "falseNegative": 194,
+        "accuracy": 0.8432601880877743,
+        "precision": 0.9872881355932204,
+        "recall": 0.706060606060606,
+        "f1": 0.823321554770318,
+        "falsePositiveRate": 0.00974025974025974
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.8222855004727678,
+        "upper": 0.8621742769180876
+      }
+    },
+    {
+      "name": "beratcmn_turkish",
+      "dataset": "beratcmn/turkish-prompt-injections",
+      "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1",
+      "license": "Apache-2.0",
+      "policy": "indirect",
+      "trainingRecords": 546,
+      "testRecords": 115,
+      "testPositive": 59,
+      "testNegative": 56,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\beratcmn_turkish-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 115,
+        "truePositive": 43,
+        "trueNegative": 56,
+        "falsePositive": 0,
+        "falseNegative": 16,
+        "accuracy": 0.8608695652173913,
+        "precision": 1,
+        "recall": 0.7288135593220338,
+        "f1": 0.8431372549019608,
+        "falsePositiveRate": 0
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.7858987820513625,
+        "upper": 0.9125106856852203
+      }
+    },
+    {
+      "name": "s_labs",
+      "dataset": "S-Labs/prompt-injection-dataset",
+      "revision": "002a9dd18514abd021869823d6b0429b38606d99",
+      "license": "MIT",
+      "policy": "direct",
+      "trainingRecords": 13073,
+      "testRecords": 2101,
+      "testPositive": 1051,
+      "testNegative": 1050,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\s_labs-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 2101,
+        "truePositive": 966,
+        "trueNegative": 1041,
+        "falsePositive": 9,
+        "falseNegative": 85,
+        "accuracy": 0.9552594002855783,
+        "precision": 0.9907692307692307,
+        "recall": 0.9191246431969553,
+        "f1": 0.9536031589338598,
+        "falsePositiveRate": 0.008571428571428572
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9455577131457088,
+        "upper": 0.9632993373381887
+      }
+    },
+    {
+      "name": "cgoosen_combined",
+      "dataset": "cgoosen/prompt_injection_combined",
+      "revision": "483296fde129d392d73077ad0c5d1175087cd9aa",
+      "license": "MIT",
+      "policy": "secret",
+      "trainingRecords": 315,
+      "testRecords": 98,
+      "testPositive": 88,
+      "testNegative": 10,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\cgoosen_combined-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 98,
+        "truePositive": 57,
+        "trueNegative": 5,
+        "falsePositive": 5,
+        "falseNegative": 31,
+        "accuracy": 0.6326530612244898,
+        "precision": 0.9193548387096774,
+        "recall": 0.6477272727272727,
+        "f1": 0.76,
+        "falsePositiveRate": 0.5
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.5338875533526599,
+        "upper": 0.7214112247783229
+      }
+    },
+    {
+      "name": "smooth_3",
+      "dataset": "Smooth-3/llm-prompt-injection-attacks",
+      "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581",
+      "license": "Apache-2.0",
+      "policy": "direct",
+      "trainingRecords": 49402,
+      "testRecords": 5500,
+      "testPositive": 2793,
+      "testNegative": 2707,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\smooth_3-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 5500,
+        "truePositive": 2653,
+        "trueNegative": 2581,
+        "falsePositive": 126,
+        "falseNegative": 140,
+        "accuracy": 0.9516363636363636,
+        "precision": 0.9546599496221663,
+        "recall": 0.949874686716792,
+        "f1": 0.9522613065326633,
+        "falsePositiveRate": 0.046545991872922056
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9456446379119274,
+        "upper": 0.9569976415160288
+      }
+    },
+    {
+      "name": "darkknight25",
+      "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+      "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666",
+      "license": "MIT",
+      "policy": "direct",
+      "trainingRecords": 373,
+      "testRecords": 100,
+      "testPositive": 50,
+      "testNegative": 50,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\darkknight25-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": true,
+      "metrics": {
+        "samples": 100,
+        "truePositive": 50,
+        "trueNegative": 49,
+        "falsePositive": 1,
+        "falseNegative": 0,
+        "accuracy": 0.99,
+        "precision": 0.9803921568627451,
+        "recall": 1,
+        "f1": 0.99009900990099,
+        "falsePositiveRate": 0.02
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.9455138038212946,
+        "upper": 0.9982325679358593
+      }
+    },
+    {
+      "name": "hse_llm",
+      "dataset": "hse-llm/prompt-injections",
+      "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1",
+      "license": "MIT",
+      "policy": "secret",
+      "trainingRecords": 236,
+      "testRecords": 60,
+      "testPositive": 20,
+      "testNegative": 40,
+      "fixture": ".benchmark-data\\injection-matrix-policy\\hse_llm-test.jsonl",
+      "repetitions": 1,
+      "stable": true,
+      "passed": false,
+      "metrics": {
+        "samples": 60,
+        "truePositive": 18,
+        "trueNegative": 30,
+        "falsePositive": 10,
+        "falseNegative": 2,
+        "accuracy": 0.8,
+        "precision": 0.6428571428571429,
+        "recall": 0.9,
+        "f1": 0.75,
+        "falsePositiveRate": 0.25
+      },
+      "accuracy95ConfidenceInterval": {
+        "lower": 0.6821819419437211,
+        "upper": 0.8817149467710251
+      }
+    }
+  ]
+}

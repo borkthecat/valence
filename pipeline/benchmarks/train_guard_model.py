@@ -11,13 +11,14 @@ from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import LinearSVC
 
-from injection_corpora import fingerprint, load_corpora
+from injection_corpora import fingerprint, load_corpora, policy_text
 
 TOKEN_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
 INVISIBLE_PATTERN = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
 MAX_WORDS = 10_000
 MAX_WORD_LENGTH = 60
 MAX_CHARACTER_TEXT = 16_384
+POLICIES = ("direct", "indirect", "secret")
 
 
 def _sha256(path: Path) -> str:
@@ -43,16 +44,71 @@ def _features(text: str) -> list[str]:
     return features
 
 
-def _training_rows(cache: Path, max_per_class: int) -> tuple[list[tuple[str, bool]], int, int]:
+def _metrics(labels: list[bool], predictions: list[bool]) -> dict[str, float]:
+    true_positive = sum(label and prediction for label, prediction in zip(labels, predictions, strict=True))
+    true_negative = sum(not label and not prediction for label, prediction in zip(labels, predictions, strict=True))
+    false_positive = sum(not label and prediction for label, prediction in zip(labels, predictions, strict=True))
+    false_negative = sum(label and not prediction for label, prediction in zip(labels, predictions, strict=True))
+    precision = true_positive / (true_positive + false_positive) if true_positive + false_positive else 0.0
+    recall = true_positive / (true_positive + false_negative) if true_positive + false_negative else 0.0
+    false_positive_rate = false_positive / (true_negative + false_positive) if true_negative + false_positive else 0.0
+    accuracy = (true_positive + true_negative) / len(labels) if labels else 0.0
+    return {
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
+        "falsePositiveRate": false_positive_rate,
+    }
+
+
+def _threshold_score(metrics: dict[str, float]) -> float:
+    return min(
+        metrics["accuracy"],
+        metrics["precision"],
+        metrics["recall"],
+        metrics["f1"],
+        1.0 - metrics["falsePositiveRate"],
+    )
+
+
+def _calibrate_thresholds(
+    scores: list[tuple[float, bool, str]],
+    default_threshold: float,
+) -> dict[str, float]:
+    thresholds: dict[str, float] = {}
+    for policy in POLICIES:
+        rows = [(score, label) for score, label, row_policy in scores if row_policy == policy]
+        if not rows:
+            thresholds[policy] = default_threshold
+            continue
+        candidates = {default_threshold}
+        candidates.update(round(score, 4) for score, _ in rows)
+        candidates.update(round(score + 1e-4, 4) for score, _ in rows)
+        best_threshold = default_threshold
+        best_score = -1.0
+        labels = [label for _, label in rows]
+        for threshold in sorted(candidates):
+            predictions = [score >= threshold for score, _ in rows]
+            metrics = _metrics(labels, predictions)
+            score = _threshold_score(metrics)
+            if score > best_score or (math.isclose(score, best_score) and abs(threshold) < abs(best_threshold)):
+                best_score = score
+                best_threshold = threshold
+        thresholds[policy] = best_threshold
+    return thresholds
+
+
+def _training_rows(cache: Path, max_per_class: int) -> tuple[list[tuple[str, bool, str]], list[tuple[str, bool, str]], int, int]:
     corpora = load_corpora(cache)
     test_hashes = {fingerprint(text) for corpus in corpora for text, _ in corpus.test}
-    candidates: dict[bytes, list[tuple[str, bool]]] = {}
+    candidates: dict[bytes, list[tuple[str, bool, str]]] = {}
     sampled = 0
     for corpus in corpora:
         for label in (False, True):
             rows = sorted(
                 (
-                    (text, row_label)
+                    (policy_text(text, corpus.spec.policy), row_label, corpus.spec.policy)
                     for text, row_label in corpus.training
                     if row_label is label and fingerprint(text) not in test_hashes
                 ),
@@ -62,16 +118,21 @@ def _training_rows(cache: Path, max_per_class: int) -> tuple[list[tuple[str, boo
             for row in rows:
                 candidates.setdefault(fingerprint(row[0]), []).append(row)
     conflicts = 0
-    training: list[tuple[str, bool]] = []
+    training: list[tuple[str, bool, str]] = []
+    calibration: list[tuple[str, bool, str]] = []
     for rows in candidates.values():
-        labels = {label for _, label in rows}
+        labels = {label for _, label, _ in rows}
         if len(labels) != 1:
             conflicts += 1
             continue
-        training.append(rows[0])
-    if {fingerprint(text) for text, _ in training} & test_hashes:
+        row = rows[0]
+        if fingerprint(row[0])[-1] < 26:
+            calibration.append(row)
+        else:
+            training.append(row)
+    if {fingerprint(text) for text, _, _ in training} & test_hashes:
         raise ValueError("training/test leakage detected")
-    return training, sampled - len(training) - conflicts, conflicts
+    return training, calibration, sampled - len(training) - len(calibration) - conflicts, conflicts
 
 
 def main() -> int:
@@ -86,7 +147,7 @@ def main() -> int:
         raise ValueError("--max-features must be between 10000 and 150000")
     if not 100 <= args.max_per_class_per_corpus <= 25_000:
         raise ValueError("--max-per-class-per-corpus must be between 100 and 25000")
-    training, duplicates, conflicts = _training_rows(args.cache, args.max_per_class_per_corpus)
+    training, calibration, duplicates, conflicts = _training_rows(args.cache, args.max_per_class_per_corpus)
     vectorizer = TfidfVectorizer(
         analyzer=_features,
         lowercase=False,
@@ -95,11 +156,17 @@ def main() -> int:
         sublinear_tf=True,
         norm="l2",
     )
-    matrix = vectorizer.fit_transform([text for text, _ in training])
+    matrix = vectorizer.fit_transform([text for text, _, _ in training])
     classifier = LinearSVC(
         C=0.5,
         class_weight=None if args.class_weight == "none" else "balanced",
-    ).fit(matrix, [label for _, label in training])
+    ).fit(matrix, [label for _, label, _ in training])
+    calibration_matrix = vectorizer.transform([text for text, _, _ in calibration])
+    calibration_scores = [
+        (float(score), label, policy)
+        for score, (_, label, policy) in zip(classifier.decision_function(calibration_matrix), calibration, strict=True)
+    ]
+    policy_thresholds = _calibrate_thresholds(calibration_scores, 0.0)
     names = vectorizer.get_feature_names_out()
     coefficients = classifier.coef_[0]
     features = {
@@ -112,7 +179,10 @@ def main() -> int:
         "source": "15 pinned public corpora; see DATASETS.md",
         "language": "multilingual",
         "trainingRecords": len(training),
+        "calibrationRecords": len(calibration),
         "trainingCorpora": 15,
+        "policyAware": True,
+        "policyThresholds": policy_thresholds,
         "bias": round(float(classifier.intercept_[0]), 7),
         "threshold": 0.0,
         "features": dict(sorted(features.items())),
@@ -121,6 +191,8 @@ def main() -> int:
     args.output.write_text(json.dumps(model, separators=(",", ":")), encoding="utf-8")
     print(json.dumps({
         "trainingRecords": len(training),
+        "calibrationRecords": len(calibration),
+        "policyThresholds": policy_thresholds,
         "duplicatesRemoved": duplicates,
         "conflictsRemoved": conflicts,
         "features": len(features),

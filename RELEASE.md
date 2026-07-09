@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.1` research preview
+Current release target: `v1.11.2` research preview
 
 ## Preflight
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.1` and `valence-pipeline:1.11.1` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.2` and `valence-pipeline:1.11.2` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -49,11 +49,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.1 -m "Valence v1.11.1"
-git push origin main v1.11.1
+git tag -a v1.11.2 -m "Valence v1.11.2"
+git push origin main v1.11.2
 ```
 
 ## Release Notes
+
+`v1.11.2` improves the bundled compact guard without overstating accuracy:
+
+- Ships the policy-aware multilingual compact JSON guard as the local default.
+- Trains on 74,963 non-test records from 15 pinned public corpora and calibrates policy thresholds on 8,495 train-only holdout records.
+- Evaluates the default model with production-equivalent `direct`, `indirect`, and `secret` policy context.
+- Raises the bundled strict matrix result from 3/15 to 5/15 gates, with pooled accuracy 95.82%, precision 95.28%, recall 92.22%, F1 93.73%, and FPR 2.34%.
+- Keeps the release status at research preview because ten corpora still fail one or more per-corpus gates.
 
 `v1.11.1` hardens the guard architecture without overstating accuracy:
 
@@ -61,7 +69,7 @@ git push origin main v1.11.1
 - Sends user messages through `GUARD_USER_POLICY` and untrusted tool messages through the `indirect` policy.
 - Rejects `SECURITY_MODE=FAIL_OPEN` under `NODE_ENV=production`.
 - Adds transformer training, calibration, and evaluation scripts for the fifteen-corpus matrix.
-- Records that the best local policy-aware mmBERT experiment reached 9/15 strict corpus gates, while the bundled compact JSON guard remains at 3/15.
+- Records that the best local policy-aware mmBERT experiment reached 9/15 strict corpus gates, while the bundled compact JSON guard remained at 3/15.
 - Keeps the release status at research preview until an independently validated guard reaches the 14/15 and 95% gates repeatedly.
 
 `v1.11.0` makes detector limitations and startup behavior measurable:

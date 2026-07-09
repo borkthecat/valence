@@ -6,6 +6,8 @@ services:
     environment:
       GATEWAY_PORT: "8080"
       GUARD_USER_POLICY: ${GUARD_USER_POLICY:-direct}
+      GUARD_MODEL_PATH: ${GUARD_MODEL_PATH:-models/prompt-injection-guard.json}
+      GUARD_MODEL_SHA256: ${GUARD_MODEL_SHA256:-c9e6888213773172ff6127d1165146f02cb03d079d8011b6e20429e0d9bcec02}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_INGEST_TOPIC: valence-raw-profiles
       REDIS_URL: redis://redis:6379

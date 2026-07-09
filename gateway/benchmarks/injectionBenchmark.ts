@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
-import { GuardModelDetector, HeuristicInjectionDetector, InjectionShield } from '../src/core/filters/injectionShield';
+import { GUARD_POLICIES, GuardModelDetector, HeuristicInjectionDetector, InjectionShield, type GuardPolicy } from '../src/core/filters/injectionShield';
 import { LocalGuardModelClient } from '../src/services/modelClients';
 import { binaryMetrics } from './metrics';
 
@@ -9,6 +9,11 @@ interface InjectionCase {
     readonly text: string;
     readonly label: boolean;
     readonly category?: string;
+    readonly policy: GuardPolicy;
+}
+
+function isGuardPolicy(value: unknown): value is GuardPolicy {
+    return typeof value === 'string' && (GUARD_POLICIES as readonly string[]).includes(value);
 }
 
 function wilsonInterval(successes: number, total: number): { lower: number; upper: number } {
@@ -43,6 +48,7 @@ function loadCases(path: string): InjectionCase[] {
         return {
             text: item.text,
             label: item.label,
+            policy: isGuardPolicy(item.policy) ? item.policy : 'direct',
             ...(typeof item.category === 'string' ? { category: item.category } : {}),
         };
     });
@@ -69,7 +75,7 @@ async function run(): Promise<void> {
     let falseNegative = 0;
     const categoryErrors = new Map<string, { falsePositive: number; falseNegative: number }>();
     for (const item of cases) {
-        const predicted = (await shield.evaluate(item.text)).blocked;
+        const predicted = (await shield.evaluate(item.text, { policy: item.policy })).blocked;
         if (predicted && item.label) truePositive += 1;
         else if (!predicted && !item.label) trueNegative += 1;
         else if (predicted) falsePositive += 1;

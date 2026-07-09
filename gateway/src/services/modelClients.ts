@@ -30,7 +30,14 @@ const LinearGuardModelSchema = z.object({
     source: z.string().min(1).max(256),
     language: z.enum(['en', 'multilingual']),
     trainingRecords: z.number().int().positive().max(1_000_000),
+    calibrationRecords: z.number().int().nonnegative().max(1_000_000).optional(),
     trainingCorpora: z.number().int().positive().max(100).optional(),
+    policyAware: z.boolean().optional(),
+    policyThresholds: z.object({
+        direct: z.number().finite(),
+        indirect: z.number().finite(),
+        secret: z.number().finite(),
+    }).strict().optional(),
     bias: z.number().finite(),
     threshold: z.number().finite(),
     features: z.record(
@@ -150,7 +157,7 @@ export class LocalGuardModelClient implements GuardModelClient {
 
     public assess(text: string, _context?: InjectionDetectionContext): Promise<GuardModelAssessment> {
         if (this.model.format === 'valence-linear-tfidf-v1') {
-            return Promise.resolve(this.assessLinear(text));
+            return Promise.resolve(this.assessLinear(text, _context ?? { policy: 'direct' }));
         }
         let logOdds = this.model.bias;
         for (const feature of guardFeatures(text)) {
@@ -164,13 +171,16 @@ export class LocalGuardModelClient implements GuardModelClient {
         });
     }
 
-    private assessLinear(text: string): GuardModelAssessment {
+    private assessLinear(text: string, context: InjectionDetectionContext): GuardModelAssessment {
         const model = this.model;
         if (model.format !== 'valence-linear-tfidf-v1') {
             throw new Error('invalid linear guard model');
         }
+        const assessedText = model.policyAware === true
+            ? `[VALENCE_CONTEXT=${context.policy}] ${text}`
+            : text;
         const counts = new Map<string, number>();
-        for (const feature of linearGuardFeatures(text, model.language === 'multilingual')) {
+        for (const feature of linearGuardFeatures(assessedText, model.language === 'multilingual')) {
             if (model.features[feature] !== undefined) {
                 counts.set(feature, (counts.get(feature) ?? 0) + 1);
             }
@@ -185,11 +195,12 @@ export class LocalGuardModelClient implements GuardModelClient {
             weightedSum += value * parameters[1];
         }
         const decision = model.bias + (squaredNorm === 0 ? 0 : weightedSum / Math.sqrt(squaredNorm));
+        const threshold = model.policyThresholds?.[context.policy] ?? model.threshold;
         const bounded = Math.max(-30, Math.min(30, decision));
         const score = 1 / (1 + Math.exp(-bounded));
         return {
-            label: decision >= model.threshold ? 'prompt_injection' : 'benign',
-            score: decision >= model.threshold ? score : 1 - score,
+            label: decision >= threshold ? 'prompt_injection' : 'benign',
+            score: decision >= threshold ? score : 1 - score,
         };
     }
 }
