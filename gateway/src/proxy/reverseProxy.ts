@@ -6,8 +6,9 @@ import { z } from 'zod';
 import type { SecurityMode } from '../config/environment';
 import type { TokenVaultBackend } from '../core/crypto/tokenVault';
 import { PiiScanner } from '../core/filters/piiScanner';
-import type { GuardPolicy, InjectionVerdict } from '../core/filters/injectionShield';
+import type { GuardPolicy, InjectionDetectionContext, InjectionVerdict } from '../core/filters/injectionShield';
 import { InjectionShield } from '../core/filters/injectionShield';
+import { routeForProvenance } from '../core/filters/provenanceRouting';
 import { SurrogateChunkReconstructor, createReconstitutionStream, } from '../core/streaming/chunkReconstructor';
 import { registerSensitiveTrace, scrubSensitiveTraces, } from '../middleware/errorHandler';
 import type { AuthenticatedRequest } from '../middleware/types';
@@ -84,8 +85,14 @@ function requestIdOf(res: Response): string {
 function isShieldTarget(message: ProxyMessage): boolean {
     return message.role === 'user' || message.role === 'tool';
 }
-function guardPolicyForMessage(message: ProxyMessage, userPolicy: GuardPolicy): GuardPolicy {
-    return message.role === 'tool' ? 'indirect' : userPolicy;
+function guardContextForMessage(message: ProxyMessage, userPolicy: GuardPolicy): InjectionDetectionContext {
+    if (message.role === 'tool') {
+        return routeForProvenance({ boundary: 'retrieved_document' });
+    }
+    if (userPolicy === 'direct') {
+        return routeForProvenance({ boundary: 'user_session' });
+    }
+    return { policy: userPolicy };
 }
 export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
     const http = deps.http ??
@@ -140,7 +147,7 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
                     continue;
                 }
                 const verdict = await guarded(
-                    () => deps.shield.evaluate(message.content, { policy: guardPolicyForMessage(message, deps.guardUserPolicy) }),
+                    () => deps.shield.evaluate(message.content, guardContextForMessage(message, deps.guardUserPolicy)),
                     benignVerdict,
                     'injection-shield',
                     requestId,

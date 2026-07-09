@@ -2,6 +2,14 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.5
+
+- Added provenance-aware contrastive prompt-injection data generation so the same payload can be evaluated as direct user text, untrusted retrieved/source text, or quoted article evidence.
+- Added active provenance routing in the gateway guard path, including conservative direct thresholds and stricter indirect routing for retrieved tool content without prepending provenance tokens to model text.
+- Added an EMSCAD fake-job importer and fraud evaluator that report precision, recall, F1, false-positive rate, and Fraud Exposure Rate before and after risk-adjusted reranking.
+- Added Python and gateway smoke coverage for provenance routing, EMSCAD mapping, and fraud exposure reduction on the checked-in fixture.
+- Documented that this is a measurable evaluation layer, not a final 95% production-accuracy claim until the full public EMSCAD CSV and independently labelled ranking data are run.
+
 ## 1.11.4
 
 - Added `PROJECT_BLOCKERS.md` with the current production punch list and candidate/job profile domain call.

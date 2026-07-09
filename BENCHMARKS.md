@@ -108,6 +108,12 @@ The corpora do not share one perfect definition of injection. Some label rolepla
 
 Valence ships the 4.97 MB JSON guard as the local default and also supports bounded local and HTTP `GuardModelClient` integrations for independently trained enterprise models. HTTP guard services receive the normalized text and a policy value of `direct`, `indirect`, or `secret`. The compact artifact is pinned by SHA-256. Lakera's complete 4,314-input PINT corpus includes proprietary data and is not publicly downloadable, so Valence does not claim a full PINT score.
 
+### Provenance contrastive pairs
+
+`pipeline/benchmarks/generate_provenance_pairs.py` creates a provenance-aware contrastive set from any attack JSONL file. The same payload is wrapped as literal user text, raw web source text, retrieved document text, and quoted article evidence. Raw and retrieved source envelopes are labelled as indirect attacks; literal user tests and quoted evidence are labelled benign. This is designed to measure the exact failure mode that appeared when PIGuard was evaluated on Valence-prefixed text.
+
+The gateway now routes provenance as structured evaluation context instead of prepending it to the text sent to the guard model. User-session content uses conservative direct routing; retrieved tool content uses indirect routing with a lower minimum hostile-model score.
+
 ```bash
 python -m pip install -r requirements-benchmark.txt
 python pipeline/benchmarks/prepare_injection_matrix.py --output .benchmark-data/injection-matrix
@@ -120,6 +126,7 @@ python pipeline/benchmarks/train_transformer_guard.py --output .benchmark-data/m
 python pipeline/benchmarks/calibrate_transformer_guard.py --model .benchmark-data/mmbert-policy-guard
 python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/injection-matrix/matrix.json --model .benchmark-data/mmbert-policy-guard --output .benchmark-data/injection-matrix/mmbert-policy-report.json
 python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/notinject-matrix.json --model leolee99/PIGuard --output .benchmark-data/pigguard-notinject-report.json --trust-remote-code --no-policy-prefix --max-length 2048
+python pipeline/benchmarks/generate_provenance_pairs.py --input gateway/benchmarks/fixtures/wambosec-test.jsonl --output .benchmark-data/provenance-pairs.jsonl --matrix-output .benchmark-data/provenance-pairs-matrix.json --limit 100
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/wambosec-test.jsonl models/prompt-injection-guard.json 0.95 0.95
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/prompt-injection-guard.json 0.84 0.78
 ```
@@ -150,9 +157,17 @@ An initial external run used the first 1,000 held-out test rows from Amazon Scie
 
 For external evaluation, `pipeline/ranking_evaluator.py` accepts independently labeled JSONL and reports top-1 accuracy with a Wilson 95% confidence interval, top-5 winner recall, mean reciprocal rank, NDCG@5, and fail-closed batches. Release gates compare `--min-top1` against the confidence interval's lower bound rather than the point estimate. The checked-in fixture verifies metric behavior only and is not an external benchmark.
 
+### Job-profile fraud baseline
+
+EMSCAD is the first candidate/job profile safety benchmark because it contains real job postings with binary fraudulent labels. `pipeline/benchmarks/export_emscad.py` converts the CSV into Valence rich-profile JSONL, and `pipeline/fraud_evaluator.py` reports fraud precision, recall, F1, false-positive rate, and Fraud Exposure Rate at top-k before and after risk-adjusted reranking.
+
+The repository includes a four-row EMSCAD-shaped smoke fixture to test the mapping and metrics. It does not include the full public dataset, so the fixture result is not an accuracy claim.
+
 ```bash
 cd pipeline
 python ranking_evaluator.py /path/to/held-out.jsonl --min-top1 0.90 --min-ndcg 0.95
+python benchmarks/export_emscad.py --input /path/to/fake_job_postings.csv --output ../.benchmark-data/emscad.jsonl
+python fraud_evaluator.py ../.benchmark-data/emscad.jsonl --threshold 0.5 --top-k 50 --risk-penalty 0.8
 ```
 
 ## Latency

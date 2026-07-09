@@ -1,0 +1,5 @@
+job_id,title,location,department,salary_range,company_profile,description,requirements,benefits,telecommuting,has_company_logo,has_questions,employment_type,required_experience,required_education,industry,function,fraudulent
+1,Senior Data Analyst,US,Analytics,90000-120000,Established analytics company,Analyze reporting pipelines,SQL Python dashboards,Health and retirement,0,1,1,Full-time,Mid-Senior level,Bachelor,Technology,Analytics,0
+2,Work from home assistant,Remote,,180000-250000,Fast-growing remote services firm,Earn high income from home immediately,Email availability and payment-processing experience,Weekly cash bonus,1,0,0,Part-time,Not Applicable,,Unknown,Administrative,1
+3,Backend Engineer,GB,Engineering,70000-90000,Cloud infrastructure company,Build APIs and services,Go Kubernetes distributed systems,Flexible leave,0,1,1,Full-time,Mid-Senior level,Bachelor,Technology,Engineering,0
+4,Entry level payment processor,Remote,,120000-200000,International finance operations partner,Process client payments remotely,No experience required,Immediate start,1,0,0,Contract,Entry level,,Finance,Accounting,1

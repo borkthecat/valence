@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.4` research preview
+Current release target: `v1.11.5` research preview
 
 ## Preflight
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.4` and `valence-pipeline:1.11.4` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.5` and `valence-pipeline:1.11.5` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -49,11 +49,18 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.4 -m "Valence v1.11.4"
-git push origin main v1.11.4
+git tag -a v1.11.5 -m "Valence v1.11.5"
+git push origin main v1.11.5
 ```
 
 ## Release Notes
+
+`v1.11.5` adds the first production-oriented evaluation layer for provenance and job-profile fraud:
+
+- Adds provenance-aware contrastive data generation for identical prompt-injection payloads under user, raw-source, retrieved-document, and quoted-article envelopes.
+- Wires active gateway guard routing so provenance controls guard policy and minimum model score without polluting model input text with Valence tags.
+- Adds EMSCAD CSV import and Fraud Exposure Rate evaluation for candidate/job profile fraud baselining.
+- Keeps the release status at research preview until the full EMSCAD dataset, provenance-trained guard model, and independently labelled ranking data pass repeatable gates.
 
 `v1.11.4` corrects the PIGuard validation path and project punch list:
 

@@ -15,6 +15,7 @@ export const GUARD_POLICIES = ['direct', 'indirect', 'secret'] as const;
 export type GuardPolicy = (typeof GUARD_POLICIES)[number];
 export interface InjectionDetectionContext {
     readonly policy: GuardPolicy;
+    readonly minimumModelScore?: number;
 }
 export interface InjectionDetector {
     readonly name: string;
@@ -172,7 +173,8 @@ export class GuardModelDetector implements InjectionDetector {
     public async detect(normalizedText: string, context: InjectionDetectionContext): Promise<readonly InjectionMatch[]> {
         const assessment = await this.client.assess(normalizedText, context);
         const label = assessment.label.toLowerCase();
-        if (!HOSTILE_GUARD_LABELS.has(label) || assessment.score < this.minimumScore) {
+        const minimumScore = context.minimumModelScore ?? this.minimumScore;
+        if (!HOSTILE_GUARD_LABELS.has(label) || assessment.score < minimumScore) {
             return [];
         }
         return [

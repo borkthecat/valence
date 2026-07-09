@@ -420,7 +420,7 @@ Stage 3/4 scale validation drives 2,000,000 deterministic generated profiles thr
 
 ## Benchmarks
 
-[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current Gretel, deepset, WamboSec, and fifteen-corpus injection results show both improved model performance and remaining distribution sensitivity. The repository includes secure trained-model adapters, policy-aware prompt-injection evaluation, PINT-compatible injection tooling, exact-span PII evaluation, independently labeled Amazon ESCI ranking evaluation, ranking baselines, and HTTP/in-process latency benchmarks.
+[BENCHMARKS.md](BENCHMARKS.md) separates internal regression checks from external evaluation. The current Gretel, deepset, WamboSec, fifteen-corpus injection, NotInject, provenance-pair, EMSCAD fraud, and Amazon ESCI ranking paths show both improved model performance and remaining distribution sensitivity. The repository includes secure trained-model adapters, provenance-aware prompt-injection evaluation, PINT-compatible injection tooling, exact-span PII evaluation, independently labeled ranking/fraud evaluation contracts, ranking baselines, and HTTP/in-process latency benchmarks.
 
 ### Continuous integration
 
@@ -447,7 +447,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES
 
 ## Releases
 
-The current release target is `v1.11.4` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
+The current release target is `v1.11.5` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
 
 ## Authorship
 

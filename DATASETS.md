@@ -59,6 +59,16 @@ Dataset files are downloaded only for local benchmarking and are not included in
 
 `pipeline/benchmarks/export_notinject.py` exports all records as benign JSONL cases with suite `over_defense`. Valence uses this as an evaluation set, not as bundled training data.
 
+## EMSCAD Fake Job Postings
+
+- Owner: University of the Aegean / EMSCAD
+- Source: http://emscad.samos.aegean.gr/
+- Common mirror: https://www.kaggle.com/datasets/shivamb/real-or-fake-fake-jobposting-prediction
+- Scale: 17,880 job postings, including 866 fraudulent postings
+- Use: candidate/job profile fraud baseline and Fraud Exposure Rate evaluation
+
+`pipeline/benchmarks/export_emscad.py` maps EMSCAD rows into Valence rich-profile records with `fraudulent`, `risk_score`, and `source_relevance_score` fields. `pipeline/fraud_evaluator.py` measures fraud precision, recall, F1, false-positive rate, and Fraud Exposure Rate before and after risk-adjusted reranking. The full CSV is not bundled; only a small EMSCAD-shaped fixture is checked in for CI smoke coverage.
+
 ## Excluded Defaults
 
 Amazon Berkeley Objects is useful for multi-view product research but is CC BY-NC 4.0. AI4Privacy's current dataset license restricts commercial use and redistribution. Neither dataset is bundled, trained on, or presented as an enterprise-safe default.

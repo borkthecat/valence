@@ -25,6 +25,12 @@ Required next work:
 2. Re-run direct, indirect/provenance, secret-exfiltration, and over-defense suites separately.
 3. Keep block and review thresholds separate; do not collapse results into a single pooled score.
 
+Current implementation support:
+
+- `pipeline/benchmarks/generate_provenance_pairs.py` creates contrastive examples where identical payload text receives different labels based on structured provenance.
+- `gateway/src/core/filters/provenanceRouting.ts` maps provenance boundaries to guard policies and minimum model scores.
+- The gateway applies provenance routing to user-session and retrieved tool content without prepending Valence tags to the text sent to the guard model.
+
 ## Priority 2: Real Candidate/Job Profile Evaluation
 
 The synthetic profile generator proves deterministic behavior, not real-world accuracy. Candidate/job profiles need a public, independently labeled starting point before claiming production accuracy.
@@ -37,6 +43,12 @@ Required next work:
 2. Define a fraud/risk label contract separate from Stage 4 ranking relevance.
 3. Measure precision, recall, F1, and false-positive rate against EMSCAD before adding private labels.
 4. Build a separate ranking dataset only after the fraud baseline is reproducible.
+
+Current implementation support:
+
+- `pipeline/benchmarks/export_emscad.py` converts EMSCAD CSV rows into Valence rich-profile JSONL with fraud labels and bounded risk scores.
+- `pipeline/fraud_evaluator.py` measures binary fraud metrics and Fraud Exposure Rate before and after risk-adjusted reranking.
+- The checked-in EMSCAD fixture is only a smoke sample; the full public CSV is still required for a release-grade result.
 
 ## Priority 3: Indirect Injection Needs Schema, Not Just More Data
 
