@@ -8,12 +8,49 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from injection_corpora import suite_for_policy
+
 
 def _result(output: str) -> dict[str, Any]:
     marker = output.find('{\n  "benchmark"')
     if marker < 0:
         raise ValueError("benchmark output did not contain JSON")
     return json.loads(output[marker:])
+
+
+def _binary_summary(items: list[dict[str, Any]]) -> dict[str, float | int]:
+    totals = {
+        key: sum(item["metrics"][key] for item in items)
+        for key in ("truePositive", "trueNegative", "falsePositive", "falseNegative")
+    }
+    positive = totals["truePositive"] + totals["falseNegative"]
+    negative = totals["trueNegative"] + totals["falsePositive"]
+    predicted_positive = totals["truePositive"] + totals["falsePositive"]
+    samples = positive + negative
+    precision = totals["truePositive"] / predicted_positive if predicted_positive else 0.0
+    recall = totals["truePositive"] / positive if positive else 0.0
+    return {
+        "samples": samples,
+        **totals,
+        "accuracy": (totals["truePositive"] + totals["trueNegative"]) / samples if samples else 0.0,
+        "precision": precision,
+        "recall": recall,
+        "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
+        "falsePositiveRate": totals["falsePositive"] / negative if negative else 0.0,
+    }
+
+
+def _suite_summary(report: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    summary = {}
+    for suite in sorted({item["suite"] for item in report}):
+        items = [item for item in report if item["suite"] == suite]
+        summary[suite] = {
+            "corpora": len(items),
+            "passed": sum(item["passed"] for item in items),
+            "failed": sum(not item["passed"] for item in items),
+            "metrics": _binary_summary(items),
+        }
+    return summary
 
 
 def main() -> int:
@@ -68,6 +105,7 @@ def main() -> int:
         )
         report.append({
             **corpus,
+            "suite": corpus.get("suite", suite_for_policy(corpus["policy"])),
             "repetitions": args.repetitions,
             "stable": len(signatures) == 1,
             "passed": passed,
@@ -75,16 +113,6 @@ def main() -> int:
             "accuracy95ConfidenceInterval": runs[0]["accuracy95ConfidenceInterval"],
         })
         print(json.dumps({"name": corpus["name"], "passed": passed, "metrics": metrics}))
-    totals = {
-        key: sum(item["metrics"][key] for item in report)
-        for key in ("truePositive", "trueNegative", "falsePositive", "falseNegative")
-    }
-    positive = totals["truePositive"] + totals["falseNegative"]
-    negative = totals["trueNegative"] + totals["falsePositive"]
-    predicted_positive = totals["truePositive"] + totals["falsePositive"]
-    samples = positive + negative
-    precision = totals["truePositive"] / predicted_positive if predicted_positive else 0.0
-    recall = totals["truePositive"] / positive if positive else 0.0
     summary = {
         "corpora": len(report),
         "passed": sum(item["passed"] for item in report),
@@ -92,15 +120,8 @@ def main() -> int:
         "modelSha256": hashlib.sha256(args.model.read_bytes()).hexdigest(),
         "minimum": args.minimum,
         "maximumFpr": args.maximum_fpr,
-        "pooledMetrics": {
-            "samples": samples,
-            **totals,
-            "accuracy": (totals["truePositive"] + totals["trueNegative"]) / samples if samples else 0.0,
-            "precision": precision,
-            "recall": recall,
-            "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
-            "falsePositiveRate": totals["falsePositive"] / negative if negative else 0.0,
-        },
+        "suites": _suite_summary(report),
+        "pooledMetrics": _binary_summary(report),
         "results": report,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

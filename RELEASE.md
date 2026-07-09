@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.2` research preview
+Current release target: `v1.11.3` research preview
 
 ## Preflight
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.2` and `valence-pipeline:1.11.2` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.3` and `valence-pipeline:1.11.3` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -49,11 +49,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.2 -m "Valence v1.11.2"
-git push origin main v1.11.2
+git tag -a v1.11.3 -m "Valence v1.11.3"
+git push origin main v1.11.3
 ```
 
 ## Release Notes
+
+`v1.11.3` corrects the benchmark framing and exposes over-defense:
+
+- Splits prompt-injection reporting into direct attack, indirect/provenance, secret-exfiltration, and over-defense suites.
+- Adds the pinned NotInject exporter for benign trigger-word-heavy prompts.
+- Records that the bundled compact guard passes 5/15 strict corpus gates but has 38.64% false positives on NotInject.
+- Extends the transformer evaluator so external Hugging Face guard models can be tested by ID before adoption.
+- Keeps the release status at research preview because the current guard is not production-grade across indirect/provenance, secret-exfiltration, or over-defense suites.
 
 `v1.11.2` improves the bundled compact guard without overstating accuracy:
 

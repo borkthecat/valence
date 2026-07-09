@@ -25,7 +25,7 @@ Valence supplies the secure classifier client and benchmark contract. Model trai
 
 ## Prompt-Injection Matrix
 
-The v1.11.0 matrix evaluates 15 revision-pinned public corpora. Official test splits are preserved; train-only corpora receive a deterministic, class-stratified 80/20 split. Normalized test hashes are excluded from candidate training across every source.
+The v1.11.x matrix evaluates 15 revision-pinned public corpora. Official test splits are preserved; train-only corpora receive a deterministic, class-stratified 80/20 split. Normalized test hashes are excluded from candidate training across every source. Matrix reports group corpora into direct attack, indirect/provenance, and secret-exfiltration suites.
 
 | Dataset | Revision | Declared license |
 | --- | --- | --- |
@@ -48,6 +48,16 @@ The v1.11.0 matrix evaluates 15 revision-pinned public corpora. Official test sp
 These corpora differ in language, generation method, and labeling policy. Some treat roleplay as an attack while others use roleplay as benign material; several contain synthetic or translated examples. The matrix therefore reports every corpus separately and never uses a pooled score to override a failed dataset gate.
 
 Dataset files are downloaded only for local benchmarking and are not included in Valence releases. The checked-in report contains aggregate metrics, not source records. Review each dataset card and license before using downloaded data outside this benchmark.
+
+## NotInject
+
+- Owner: leolee99 / InjecGuard authors
+- Source: https://huggingface.co/datasets/leolee99/NotInject
+- Revision used by exporter: `847ae76cf8fea5ed325429e569ae8cfef022d2e0`
+- Scale: 339 benign prompts across `NotInject_one`, `NotInject_two`, and `NotInject_three`
+- Use: over-defense evaluation for benign prompts containing injection-like trigger words
+
+`pipeline/benchmarks/export_notinject.py` exports all records as benign JSONL cases with suite `over_defense`. Valence uses this as an evaluation set, not as bundled training data.
 
 ## Excluded Defaults
 

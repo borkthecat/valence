@@ -2,6 +2,15 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.3
+
+- Split prompt-injection evaluation into explicit suites for direct attacks, indirect/provenance attacks, secret exfiltration, and over-defense instead of treating a pooled score as a single accuracy claim.
+- Added suite rollups to both the local JSON guard matrix runner and transformer guard evaluator.
+- Added a pinned NotInject exporter for benign trigger-word-heavy over-defense evaluation.
+- Validated that the bundled compact guard still passes 5/15 strict corpus gates, with direct attacks at 95.23% F1, indirect/provenance at 81.95% F1, and secret-exfiltration at 75.76% F1.
+- Measured the bundled guard on NotInject: 208 true negatives and 131 false positives, a 38.64% benign false-positive rate. This confirms the trigger-word over-defense gap remains open.
+- Extended the transformer evaluator so Hugging Face guard models can be benchmarked by model ID with explicit `--trust-remote-code`. A cold `leolee99/PIGuard` run on the pinned NotInject export did not validate as a drop-in replacement in this environment.
+
 ## 1.11.2
 
 - Replaced the default prompt-injection guard with a policy-aware multilingual compact model trained on 74,963 non-test records from 15 pinned public corpora and calibrated on 8,495 train-only holdout records.

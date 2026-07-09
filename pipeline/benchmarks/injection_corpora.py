@@ -6,6 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+SUPPORTED_POLICIES = frozenset({"direct", "indirect", "secret"})
+SUITES_BY_POLICY = {
+    "direct": "direct_attack",
+    "indirect": "indirect_provenance",
+    "secret": "secret_exfiltration",
+}
+
 
 @dataclass(frozen=True)
 class CorpusSpec:
@@ -80,9 +87,16 @@ def fingerprint(text: str) -> bytes:
 
 
 def policy_text(text: str, policy: str) -> str:
-    if policy not in {"direct", "indirect", "secret"}:
+    if policy not in SUPPORTED_POLICIES:
         raise ValueError(f"unsupported guard policy: {policy}")
     return f"[VALENCE_CONTEXT={policy}] {text}"
+
+
+def suite_for_policy(policy: str) -> str:
+    try:
+        return SUITES_BY_POLICY[policy]
+    except KeyError as error:
+        raise ValueError(f"unsupported guard policy: {policy}") from error
 
 
 def _extract(dataset: Any, extractor: Callable[[dict[str, Any]], Iterable[tuple[str, bool]]]) -> list[tuple[str, bool]]:

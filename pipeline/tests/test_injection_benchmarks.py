@@ -7,8 +7,8 @@ from pathlib import Path
 BENCHMARKS = Path(__file__).resolve().parents[1] / "benchmarks"
 sys.path.insert(0, str(BENCHMARKS))
 
-from injection_corpora import SPECS, _deterministic_split, fingerprint, policy_text
-from run_injection_matrix import _result
+from injection_corpora import SPECS, _deterministic_split, fingerprint, policy_text, suite_for_policy
+from run_injection_matrix import _binary_summary, _result
 
 
 def test_registry_has_fifteen_unique_pinned_corpora() -> None:
@@ -40,9 +40,25 @@ def test_matrix_parser_ignores_npm_prefix() -> None:
 
 def test_policy_context_is_explicit_and_validated() -> None:
     assert policy_text("hello", "indirect") == "[VALENCE_CONTEXT=indirect] hello"
+    assert suite_for_policy("direct") == "direct_attack"
+    assert suite_for_policy("indirect") == "indirect_provenance"
+    assert suite_for_policy("secret") == "secret_exfiltration"
     try:
         policy_text("hello", "unknown")
     except ValueError as error:
         assert "unsupported guard policy" in str(error)
     else:
         raise AssertionError("unknown policy was accepted")
+
+
+def test_binary_summary_aggregates_suite_counts() -> None:
+    summary = _binary_summary([
+        {"metrics": {"truePositive": 7, "trueNegative": 8, "falsePositive": 1, "falseNegative": 4}},
+        {"metrics": {"truePositive": 5, "trueNegative": 10, "falsePositive": 0, "falseNegative": 0}},
+    ])
+    assert summary["samples"] == 35
+    assert summary["truePositive"] == 12
+    assert summary["trueNegative"] == 18
+    assert summary["falsePositive"] == 1
+    assert summary["falseNegative"] == 4
+    assert summary["recall"] == 0.75

@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from injection_corpora import fingerprint, load_corpora
+from injection_corpora import fingerprint, load_corpora, suite_for_policy
 
 
 def main() -> int:
@@ -32,6 +32,7 @@ def main() -> int:
             "revision": corpus.spec.revision,
             "license": corpus.spec.license,
             "policy": corpus.spec.policy,
+            "suite": suite_for_policy(corpus.spec.policy),
             "trainingRecords": sum(fingerprint(text) not in test_hashes for text, _ in corpus.training),
             "testRecords": len(corpus.test),
             "testPositive": sum(label for _, label in corpus.test),

@@ -1,0 +1,41 @@
+{
+  "benchmark": "prompt-injection-over-defense",
+  "dataset": "leolee99/NotInject",
+  "revision": "847ae76cf8fea5ed325429e569ae8cfef022d2e0",
+  "suite": "over_defense",
+  "detector": "valence-heuristic-plus-local-guard",
+  "metrics": {
+    "samples": 339,
+    "truePositive": 0,
+    "trueNegative": 208,
+    "falsePositive": 131,
+    "falseNegative": 0,
+    "accuracy": 0.6135693215339233,
+    "precision": 0,
+    "recall": 0,
+    "f1": 0,
+    "falsePositiveRate": 0.3864306784660767
+  },
+  "accuracy95ConfidenceInterval": {
+    "lower": 0.5607381751417355,
+    "upper": 0.6638554322500443
+  },
+  "errorsByCategory": {
+    "Multilingual": {
+      "falsePositive": 54,
+      "falseNegative": 0
+    },
+    "Common Queries": {
+      "falsePositive": 28,
+      "falseNegative": 0
+    },
+    "Technique Queries": {
+      "falsePositive": 39,
+      "falseNegative": 0
+    },
+    "Virtual Creation": {
+      "falsePositive": 10,
+      "falseNegative": 0
+    }
+  }
+}

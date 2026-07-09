@@ -60,7 +60,7 @@ The WamboSec confusion matrix is 343 true positives, 231 true negatives, zero fa
 
 ### Fifteen-corpus matrix
 
-v1.11.2 uses 15 revision-pinned corpora and 21,485 test records. A corpus passes only when accuracy, precision, recall, and F1 are each at least 95% and false-positive rate is no more than 5%.
+v1.11.3 uses 15 revision-pinned corpora and 21,485 test records. A corpus passes only when accuracy, precision, recall, and F1 are each at least 95% and false-positive rate is no more than 5%. Results are also grouped into suites because direct prompt attacks, indirect/provenance attacks, and secret-exfiltration attacks are not the same benchmark problem.
 
 | Corpus | Cases | Accuracy | Precision | Recall | F1 | FPR | Gate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
@@ -82,6 +82,26 @@ v1.11.2 uses 15 revision-pinned corpora and 21,485 test records. A corpus passes
 
 The bundled model passes 5/15 strict gates. Pooled accuracy is 95.82%, precision is 95.28%, recall is 92.22%, F1 is 93.73%, and FPR is 2.34%; these pooled values are descriptive only and cannot override failed corpora. The improvement comes from replacing the old WamboSec/deepset-only English artifact with a 15-corpus multilingual compact model trained on 74,963 records and calibrated on 8,495 train-only holdout records.
 
+Suite rollup from the checked-in v1.11.3 report:
+
+| Suite | Corpora | Passed | Accuracy | Precision | Recall | F1 | FPR |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Direct attack | 10 | 5 | 96.92% | 95.14% | 95.32% | 95.23% | 2.32% |
+| Indirect / provenance | 3 | 0 | 84.07% | 98.91% | 69.96% | 81.95% | 0.82% |
+| Secret exfiltration | 2 | 0 | 69.62% | 83.33% | 69.44% | 75.76% | 30.00% |
+
+This changes the diagnosis. The direct-attack suite is near the strict target, while indirect/provenance and secret-exfiltration are not. More generic direct-attack examples are therefore unlikely to fix the whole system.
+
+### Over-defense
+
+Valence now includes a pinned exporter for [NotInject](https://huggingface.co/datasets/leolee99/NotInject), a benign trigger-word-heavy benchmark introduced by the InjecGuard/PIGuard work. NotInject measures whether a guard blocks harmless prompts merely because they contain words such as "ignore" or other injection-like triggers.
+
+On the pinned 339-case NotInject export, the bundled compact guard produced 208 true negatives and 131 false positives: 61.36% accuracy and 38.64% benign false-positive rate. Heuristic-only detection produced zero false positives on the same set, so the over-defense issue is in the compact model, not the regex layer. The checked-in artifact is `gateway/benchmarks/results/v1.11.3-notinject.json`.
+
+A scalar confidence threshold is not a correct fix. Raising the model minimum score to 0.75 reduces NotInject false positives to 1.77%, but drops matrix recall from 92.22% to 53.08%. At 0.84, NotInject false positives reach 0%, but matrix recall drops to 30.42%. The real fix is over-defense-aware training/calibration or a stronger validated guard model.
+
+The transformer evaluator can benchmark external guard models directly. A cold local run of `leolee99/PIGuard` with `--trust-remote-code` did not validate as a drop-in replacement in this environment: it marked 261 of 339 NotInject prompts as injection. That result is recorded as a failed local validation, not a rejection of the paper's method.
+
 A local policy-aware transformer experiment using `jhu-clsp/mmBERT-base`, train-only validation calibration, and separate `direct`, `indirect`, and `secret` policy thresholds reached 9/15 strict gates. That is useful evidence that policy separation improves the architecture, but it is not enough to claim production-grade 95% coverage. Additional train-only synthetic augmentation and two public off-the-shelf prompt-injection classifiers did not beat the 9/15 result on this matrix, so the release remains a research preview until a stronger independently validated guard reaches the target.
 
 The corpora do not share one perfect definition of injection. Some label roleplay as malicious while others deliberately include roleplay as benign, several are synthetic or translated derivatives, and small sets have wide confidence intervals. Valence records those disagreements instead of tuning per-dataset rules against observed test labels.
@@ -92,11 +112,14 @@ Valence ships the 4.97 MB JSON guard as the local default and also supports boun
 python -m pip install -r requirements-benchmark.txt
 python pipeline/benchmarks/prepare_injection_matrix.py --output .benchmark-data/injection-matrix
 python pipeline/benchmarks/run_injection_matrix.py --matrix .benchmark-data/injection-matrix/matrix.json --model gateway/models/prompt-injection-guard.json --output .benchmark-data/injection-matrix/report.json --repetitions 3 --timeout-seconds 120
+python pipeline/benchmarks/export_notinject.py --output .benchmark-data/notinject.jsonl --matrix-output .benchmark-data/notinject-matrix.json
+npm --prefix gateway run benchmark:injection -- ../.benchmark-data/notinject.jsonl models/prompt-injection-guard.json
 python pipeline/benchmarks/train_guard_model.py --output .benchmark-data/candidate-guard.json
 python -m pip install -r requirements-transformer.txt
 python pipeline/benchmarks/train_transformer_guard.py --output .benchmark-data/mmbert-policy-guard
 python pipeline/benchmarks/calibrate_transformer_guard.py --model .benchmark-data/mmbert-policy-guard
 python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/injection-matrix/matrix.json --model .benchmark-data/mmbert-policy-guard --output .benchmark-data/injection-matrix/mmbert-policy-report.json
+python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/notinject-matrix.json --model leolee99/PIGuard --output .benchmark-data/pigguard-notinject-report.json --trust-remote-code
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/wambosec-test.jsonl models/prompt-injection-guard.json 0.95 0.95
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/prompt-injection-guard.json 0.84 0.78
 ```
