@@ -179,15 +179,19 @@ The fixed heuristic risk score is useful for explainable triage but not accurate
 | Top-50 FER before model penalty | 4.00% |
 | Top-50 FER after model penalty | 0.00% |
 
-This is a real improvement over the heuristic, but it is still not a 95% fraud benchmark. `pipeline/benchmarks/train_emscad_transformer_fraud.py` provides the stronger transformer training path, but the first full local DeBERTa-v3-small run did not beat TF-IDF: 98.66% accuracy, 87.88% precision, 83.82% recall, 85.80% F1, and 0.59% false-positive rate.
+This is a real improvement over the heuristic, but it is still not a 95% fraud benchmark. `pipeline/benchmarks/train_emscad_transformer_fraud.py` provides the stronger transformer training path. The first full local DeBERTa-v3-small run did not beat TF-IDF: 98.66% accuracy, 87.88% precision, 83.82% recall, 85.80% F1, and 0.59% false-positive rate.
+
+For v1.11.8, the trainer was updated with structural metadata markers and class-weighted transformer loss. The weighted DeBERTa result improved over v1.11.7 but still did not beat the original TF-IDF baseline: 98.83% accuracy, 89.22% precision, 86.13% recall, 87.65% F1, and 0.53% false-positive rate. Adding the same metadata markers to TF-IDF increased precision but reduced recall: 98.88% accuracy, 92.36% precision, 83.82% recall, 87.88% F1, and 0.35% false-positive rate.
+
+Precision-recall frontier checks show why this is not a threshold-only problem. On the held-out split, forcing recall to at least 95% drops the best observed precision to about 46-54% across TF-IDF/risk-score blends. A defensible 95% fraud claim now requires better labelled signal or a different model strategy, not just retuning the current classifiers.
 
 ```bash
 cd pipeline
 python ranking_evaluator.py /path/to/held-out.jsonl --min-top1 0.90 --min-ndcg 0.95
 python benchmarks/export_emscad.py --input /path/to/fake_job_postings.csv --output ../.benchmark-data/emscad.jsonl
 python fraud_evaluator.py ../.benchmark-data/emscad.jsonl --threshold 0.5 --top-k 50 --risk-penalty 0.8
-python benchmarks/train_emscad_fraud_model.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.6-emscad-trained-fraud.json --top-k 50 --risk-penalty 0.8
-python benchmarks/train_emscad_transformer_fraud.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.7-emscad-deberta-fraud.json --base-model microsoft/deberta-v3-small --epochs 3
+python benchmarks/train_emscad_fraud_model.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.8-emscad-tfidf-metadata-fraud.json --top-k 50 --risk-penalty 0.8
+python benchmarks/train_emscad_transformer_fraud.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.8-emscad-deberta-weighted-fraud.json --base-model microsoft/deberta-v3-small --epochs 3
 python benchmarks/build_ranking_judge_tasks.py --jobs /path/to/jobs.jsonl --candidates /path/to/candidates.jsonl --output ../.benchmark-data/ranking-judge-tasks.jsonl --max-jobs 100 --candidates-per-job 5
 python benchmarks/build_ranking_audit_queue.py --input ../.benchmark-data/ranking-pair-scores.jsonl --output ../.benchmark-data/ranking-human-audit.jsonl --limit 200
 ```

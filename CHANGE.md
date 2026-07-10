@@ -2,6 +2,15 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.8
+
+- Added EMSCAD structural metadata markers to the TF-IDF and transformer fraud text streams, including logo, screener-question, remote-work, salary, and department signals.
+- Replaced the transformer trainer's default classification loss with explicit class-weighted cross-entropy using the training split's legitimate-to-fraud ratio.
+- Changed validation-threshold tie-breaking to prefer the lower threshold when scores are equal, avoiding accidental precision-only bias.
+- Ran the full weighted DeBERTa-v3-small EMSCAD experiment: 98.83% accuracy, 89.22% precision, 86.13% recall, 87.65% F1, and 0.53% false-positive rate.
+- Ran the metadata TF-IDF EMSCAD experiment: 98.88% accuracy, 92.36% precision, 83.82% recall, 87.88% F1, and 0.35% false-positive rate.
+- Confirmed the current precision-recall frontier does not support a 95% fraud claim: forcing at least 95% recall drops best observed precision to roughly 46-54% on the held-out split.
+
 ## 1.11.7
 
 - Added a transformer EMSCAD fraud-training path for DeBERTa-style sequence classifiers with stratified train/validation/test splits, threshold calibration, class-balanced sampling, and optional model artifact export.

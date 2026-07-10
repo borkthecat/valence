@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from torch import nn
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
@@ -26,6 +27,7 @@ class TransformerFraudReport:
     validation_records: int
     test_records: int
     threshold: float
+    positive_class_weight: float
     true_positive: int
     true_negative: int
     false_positive: int
@@ -51,6 +53,24 @@ class FraudDataset(Dataset):
 
 def label_of(row: dict[str, str]) -> int:
     return int(float(row.get("fraudulent") or "0"))
+
+
+def _flag(row: dict[str, str], key: str, present: str, absent: str) -> str:
+    return present if str(row.get(key) or "0").strip() == "1" else absent
+
+
+def enriched_row_text(row: dict[str, str]) -> str:
+    metadata = [
+        _flag(row, "has_company_logo", "HAS_LOGO", "MISSING_LOGO"),
+        _flag(row, "has_questions", "HAS_SCREENING_QUESTIONS", "NO_SCREENING_QUESTIONS"),
+        _flag(row, "telecommuting", "REMOTE_ALLOWED", "ONSITE_OR_UNSPECIFIED"),
+    ]
+    salary = " ".join((row.get("salary_range") or "").split()) or "MISSING_SALARY"
+    department = " ".join((row.get("department") or "").split()) or "MISSING_DEPARTMENT"
+    return "\n".join((
+        f"metadata: {' | '.join(metadata)} | salary: {salary} | department: {department}",
+        row_text(row),
+    ))
 
 
 def split_rows(
@@ -80,7 +100,7 @@ def best_threshold(scores: list[float], labels: list[int]) -> float:
             zero_division=0,
         )
         score = min(float(precision), float(recall), float(f1))
-        if score > best[0] or (score == best[0] and threshold > best[1]):
+        if score > best[0] or (score == best[0] and threshold < best[1]):
             best = (score, threshold)
     return best[1]
 
@@ -96,7 +116,15 @@ def _load_tokenizer(model_name: str) -> Any:
         return AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
 
-def _report(base_model: str, train: list[dict[str, str]], validation: list[dict[str, str]], test: list[dict[str, str]], threshold: float, scores: list[float]) -> TransformerFraudReport:
+def _report(
+    base_model: str,
+    train: list[dict[str, str]],
+    validation: list[dict[str, str]],
+    test: list[dict[str, str]],
+    threshold: float,
+    positive_class_weight: float,
+    scores: list[float],
+) -> TransformerFraudReport:
     labels = [label_of(row) for row in test]
     predictions = [score >= threshold for score in scores]
     tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()
@@ -106,6 +134,7 @@ def _report(base_model: str, train: list[dict[str, str]], validation: list[dict[
         "baseModel": base_model,
         "records": len(train) + len(validation) + len(test),
         "threshold": threshold,
+        "positiveClassWeight": positive_class_weight,
     }
     return TransformerFraudReport(
         base_model=base_model,
@@ -115,6 +144,7 @@ def _report(base_model: str, train: list[dict[str, str]], validation: list[dict[
         validation_records=len(validation),
         test_records=len(test),
         threshold=threshold,
+        positive_class_weight=positive_class_weight,
         true_positive=int(tp),
         true_negative=int(tn),
         false_positive=int(fp),
@@ -143,10 +173,15 @@ def train(args: argparse.Namespace) -> TransformerFraudReport:
     tokenizer = _load_tokenizer(args.base_model)
     model = AutoModelForSequenceClassification.from_pretrained(args.base_model, num_labels=2)
     model.to(device)
+    negative_train = sum(label_of(row) == 0 for row in train_rows)
+    positive_train = sum(label_of(row) == 1 for row in train_rows)
+    positive_class_weight = args.fraud_loss_weight or (negative_train / max(1, positive_train))
+    class_weights = torch.tensor([1.0, positive_class_weight], dtype=torch.float32, device=device)
+    loss_function = nn.CrossEntropyLoss(weight=class_weights)
 
     def collate(batch: list[dict[str, str]]) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
         encoded = tokenizer(
-            [row_text(row) for row in batch],
+            [enriched_row_text(row) for row in batch],
             padding=True,
             truncation=True,
             max_length=args.max_length,
@@ -169,7 +204,8 @@ def train(args: argparse.Namespace) -> TransformerFraudReport:
             batch = {key: value.to(device) for key, value in batch.items()}
             labels = labels.to(device)
             optimizer.zero_grad(set_to_none=True)
-            loss = model(**batch, labels=labels).loss
+            logits = model(**batch).logits
+            loss = loss_function(logits, labels)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
@@ -182,7 +218,7 @@ def train(args: argparse.Namespace) -> TransformerFraudReport:
         args.model_output.mkdir(parents=True, exist_ok=True)
         model.save_pretrained(args.model_output, safe_serialization=True)
         tokenizer.save_pretrained(args.model_output)
-    return _report(args.base_model, train_rows, validation_rows, test_rows, threshold, test_scores)
+    return _report(args.base_model, train_rows, validation_rows, test_rows, threshold, positive_class_weight, test_scores)
 
 
 def _scores(model: Any, loader: DataLoader, device: torch.device) -> list[float]:
@@ -206,6 +242,7 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--max-length", type=int, default=384)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
+    parser.add_argument("--fraud-loss-weight", type=float)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--seed", type=int, default=1500)
     parser.add_argument("--cpu", action="store_true")

@@ -53,6 +53,7 @@ Current implementation support:
 - `pipeline/benchmarks/build_ranking_audit_queue.py` now prioritizes high-discrepancy candidate/job pairs for human review instead of spreading labelling effort randomly.
 - v1.11.6 records a real held-out EMSCAD result: 98.88% accuracy and 88.24% F1. This clears the cold-start blocker, but it does not clear the 95% fraud-quality target.
 - v1.11.7 records a full local DeBERTa-v3-small EMSCAD result: 98.66% accuracy and 85.80% F1. It did not improve the baseline, so the next fraud gains need better labelled features, calibration, or model strategy.
+- v1.11.8 adds metadata markers and weighted transformer loss. Weighted DeBERTa improves to 87.65% F1, and metadata TF-IDF reaches 92.36% precision but only 83.82% recall. The current held-out precision-recall frontier shows at least 95% recall costs too much precision, so the 95% fraud target is blocked on stronger labels/features/modeling, not another threshold tweak.
 
 ## Priority 3: Indirect Injection Needs Schema, Not Just More Data
 

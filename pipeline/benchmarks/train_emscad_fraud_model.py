@@ -60,8 +60,21 @@ def _text(row: dict[str, str], key: str) -> str:
     return " ".join((row.get(key) or "").split())
 
 
+def _flag(row: dict[str, str], key: str, present: str, absent: str) -> str:
+    return present if str(row.get(key) or "0").strip() == "1" else absent
+
+
 def row_text(row: dict[str, str]) -> str:
-    parts = []
+    salary = _text(row, "salary_range") or "MISSING_SALARY"
+    parts = [
+        "metadata: "
+        + " | ".join((
+            _flag(row, "has_company_logo", "HAS_LOGO", "MISSING_LOGO"),
+            _flag(row, "has_questions", "HAS_SCREENING_QUESTIONS", "NO_SCREENING_QUESTIONS"),
+            _flag(row, "telecommuting", "REMOTE_ALLOWED", "ONSITE_OR_UNSPECIFIED"),
+            f"salary: {salary}",
+        )),
+    ]
     for key in STRUCTURED_FIELDS:
         value = _text(row, key)
         if value:
@@ -106,7 +119,7 @@ def _best_threshold(scores: list[float], labels: list[int]) -> float:
             zero_division=0,
         )
         score = float(f1)
-        if score > best_score or (math.isclose(score, best_score) and threshold > best_threshold):
+        if score > best_score or (math.isclose(score, best_score) and threshold < best_threshold):
             best_score = score
             best_threshold = threshold
     return best_threshold

@@ -14,6 +14,7 @@ from benchmarks.generate_provenance_pairs import generate_records
 from benchmarks.build_ranking_judge_tasks import build_tasks
 from benchmarks.train_emscad_fraud_model import evaluate as evaluate_trained_fraud_model
 from benchmarks.train_emscad_fraud_model import load_rows, row_text
+from benchmarks.train_emscad_transformer_fraud import enriched_row_text
 from benchmarks.train_emscad_transformer_fraud import label_of, split_rows
 from benchmarks.train_transformer_guard import _provenance_rows, _special_tokens
 from fraud_evaluator import evaluate, load_jsonl
@@ -62,6 +63,8 @@ def test_trained_emscad_baseline_uses_text_fields() -> None:
 
     assert "company_profile:" in text
     assert "requirements:" in text
+    assert "metadata:" in text
+    assert any(marker in text for marker in ("HAS_LOGO", "MISSING_LOGO"))
     assert report.records == 16
     assert report.test_records >= 1
     assert 0.0 <= report.threshold <= 1.0
@@ -141,3 +144,16 @@ def test_transformer_emscad_split_preserves_fraud_labels() -> None:
     assert {label_of(row) for row in train} == {0, 1}
     assert {label_of(row) for row in validation} == {0, 1}
     assert {label_of(row) for row in test} == {0, 1}
+
+
+def test_transformer_emscad_text_includes_structured_metadata() -> None:
+    source = Path(__file__).resolve().parent / "fixtures" / "emscad_sample.csv"
+    rows = load_rows(source)
+
+    text = enriched_row_text(rows[0])
+
+    assert "metadata:" in text
+    assert "salary:" in text
+    assert any(marker in text for marker in ("HAS_LOGO", "MISSING_LOGO"))
+    assert any(marker in text for marker in ("HAS_SCREENING_QUESTIONS", "NO_SCREENING_QUESTIONS"))
+    assert any(marker in text for marker in ("REMOTE_ALLOWED", "ONSITE_OR_UNSPECIFIED"))

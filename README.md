@@ -447,7 +447,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES
 
 ## Releases
 
-The current release target is `v1.11.7` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
+The current release target is `v1.11.8` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
 
 ## Authorship
 

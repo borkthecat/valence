@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.7` research preview
+Current release target: `v1.11.8` research preview
 
 ## Preflight
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.7` and `valence-pipeline:1.11.7` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.8` and `valence-pipeline:1.11.8` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -49,11 +49,20 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.7 -m "Valence v1.11.7"
-git push origin main v1.11.7
+git tag -a v1.11.8 -m "Valence v1.11.8"
+git push origin main v1.11.8
 ```
 
 ## Release Notes
+
+`v1.11.8` tests the fraud-improvement hypothesis and records the blocker:
+
+- Adds structural EMSCAD metadata markers to TF-IDF and transformer fraud model inputs.
+- Uses explicit class-weighted cross-entropy for the transformer fraud trainer.
+- Changes threshold tie-breaking to avoid precision-only bias when validation scores tie.
+- Records weighted DeBERTa-v3-small at 98.83% accuracy, 89.22% precision, 86.13% recall, and 87.65% F1.
+- Records metadata TF-IDF at 98.88% accuracy, 92.36% precision, 83.82% recall, and 87.88% F1.
+- Keeps the release status at research preview because the current precision-recall frontier cannot reach 95% recall without reducing precision to roughly 46-54%.
 
 `v1.11.7` turns the cold-start baselines into executable improvement loops:
 
