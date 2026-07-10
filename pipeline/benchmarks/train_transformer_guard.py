@@ -174,6 +174,40 @@ def _rows(cache: Path, cap: int, synthetic_per_policy_class: int = 2_500) -> lis
     return sorted(rows, key=lambda row: fingerprint(row[0]))
 
 
+def _provenance_rows(path: Path) -> list[tuple[str, bool, str]]:
+    rows: list[tuple[str, bool, str]] = []
+    with path.open("r", encoding="utf-8") as source:
+        for line_number, line in enumerate(source, 1):
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            if not isinstance(record, dict):
+                raise ValueError(f"provenance line {line_number} must be an object")
+            text = record.get("text")
+            label = record.get("label")
+            if not isinstance(text, str) or not isinstance(label, bool):
+                raise ValueError(f"provenance line {line_number} needs text and boolean label")
+            provenance = record.get("provenance") if isinstance(record.get("provenance"), dict) else {}
+            context = provenance.get("context") if isinstance(provenance, dict) else None
+            rows.append((text, label, f"provenance:{context or 'unknown'}"))
+    if not rows:
+        raise ValueError("provenance input is empty")
+    return rows
+
+
+def _special_tokens(path: Path | None) -> list[str]:
+    if path is None:
+        return []
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    tokens = payload.get("additional_special_tokens") if isinstance(payload, dict) else None
+    if not isinstance(tokens, list):
+        raise ValueError("special-token manifest needs additional_special_tokens")
+    selected = [token for token in tokens if isinstance(token, str) and token]
+    if not selected:
+        raise ValueError("special-token manifest is empty")
+    return sorted(set(selected))
+
+
 def _split(rows: list[tuple[str, bool, str]]) -> tuple[list[tuple[str, bool, str]], list[tuple[str, bool, str]]]:
     training = [row for row in rows if fingerprint(row[0])[-1] >= 26]
     validation = [row for row in rows if fingerprint(row[0])[-1] < 26]
@@ -236,6 +270,8 @@ def main() -> int:
     parser.add_argument("--max-length", type=int, default=256)
     parser.add_argument("--max-per-class-per-corpus", type=int, default=5_000)
     parser.add_argument("--synthetic-per-policy-class", type=int, default=2_500)
+    parser.add_argument("--provenance-jsonl", type=Path)
+    parser.add_argument("--special-tokens", type=Path)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--seed", type=int, default=20260709)
     args = parser.parse_args()
@@ -246,6 +282,9 @@ def main() -> int:
     torch.cuda.manual_seed_all(args.seed)
     torch.use_deterministic_algorithms(True, warn_only=True)
     rows = _rows(args.cache, args.max_per_class_per_corpus, args.synthetic_per_policy_class)
+    provenance_records = _provenance_rows(args.provenance_jsonl) if args.provenance_jsonl else []
+    if provenance_records:
+        rows = sorted([*rows, *provenance_records], key=lambda row: fingerprint(row[0]))
     training, validation = _split(rows)
     print(json.dumps({"trainingRecords": len(training), "validationRecords": len(validation)}), flush=True)
     local_base = Path(args.base_model).exists()
@@ -257,6 +296,10 @@ def main() -> int:
         num_labels=2,
         dtype=torch.float32,
     )
+    special_tokens = _special_tokens(args.special_tokens)
+    special_tokens_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tokens}) if special_tokens else 0
+    if special_tokens_added:
+        model.resize_token_embeddings(len(tokenizer))
     model.gradient_checkpointing_enable()
     device = torch.device("cuda")
     model.to(device)
@@ -339,7 +382,9 @@ def main() -> int:
                 "baseRevision": None if local_base else args.base_revision,
                 "trainingRecords": len(training),
                 "validationRecords": len(validation),
+                "provenanceRecords": len(provenance_records),
                 "trainingCorpora": 15,
+                "specialTokensAdded": special_tokens_added,
                 "syntheticPerPolicyClass": args.synthetic_per_policy_class,
                 "maxLength": args.max_length,
                 "epoch": epoch + 1,

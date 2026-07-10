@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.6` research preview
+Current release target: `v1.11.7` research preview
 
 ## Preflight
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.6` and `valence-pipeline:1.11.6` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.7` and `valence-pipeline:1.11.7` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -49,11 +49,20 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.6 -m "Valence v1.11.6"
-git push origin main v1.11.6
+git tag -a v1.11.7 -m "Valence v1.11.7"
+git push origin main v1.11.7
 ```
 
 ## Release Notes
+
+`v1.11.7` turns the cold-start baselines into executable improvement loops:
+
+- Adds a DeBERTa-style EMSCAD transformer fraud trainer with stratified splits, class-balanced sampling, threshold calibration, and optional model export.
+- Records the first full DeBERTa-v3-small EMSCAD run: 98.66% accuracy, 87.88% precision, 83.82% recall, and 85.80% F1. This does not beat the TF-IDF baseline.
+- Adds a high-discrepancy ranking audit queue so candidate/job human labelling targets the rows most likely to improve the ranker.
+- Wires provenance-generated JSONL and special-token registration into transformer guard training, including embedding resizing before fine-tuning.
+- Adds tests for provenance-token ingestion, ranking audit prioritization, and transformer EMSCAD split integrity.
+- Keeps the release status at research preview because the 95% fraud, ranking, and provenance guard claims still require completed repeated runs.
 
 `v1.11.6` closes the immediate cold-start data blockers:
 

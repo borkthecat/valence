@@ -1,0 +1,19 @@
+{
+  "accuracy": 0.9865771812080537,
+  "base_model": "microsoft/deberta-v3-small",
+  "f1": 0.8579881656804734,
+  "false_negative": 28,
+  "false_positive": 20,
+  "false_positive_rate": 0.0058771672054069935,
+  "fraudulent": 866,
+  "model_sha256": "ce8281992ab63c2700fcc048fc0eafeda985f07a6532f855df1a77c13f4f6127",
+  "precision": 0.8787878787878788,
+  "recall": 0.838150289017341,
+  "records": 17880,
+  "test_records": 3576,
+  "threshold": 0.9997,
+  "train_records": 12516,
+  "true_negative": 3383,
+  "true_positive": 145,
+  "validation_records": 1788
+}

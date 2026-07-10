@@ -49,7 +49,10 @@ Current implementation support:
 - `pipeline/benchmarks/export_emscad.py` converts EMSCAD CSV rows into Valence rich-profile JSONL with fraud labels and bounded risk scores.
 - `pipeline/fraud_evaluator.py` measures binary fraud metrics and Fraud Exposure Rate before and after risk-adjusted reranking.
 - `pipeline/benchmarks/train_emscad_fraud_model.py` now trains a deterministic TF-IDF logistic baseline on a local full EMSCAD CSV.
+- `pipeline/benchmarks/train_emscad_transformer_fraud.py` now provides the stronger DeBERTa-style fraud-training path needed to chase 95% recall/F1 honestly.
+- `pipeline/benchmarks/build_ranking_audit_queue.py` now prioritizes high-discrepancy candidate/job pairs for human review instead of spreading labelling effort randomly.
 - v1.11.6 records a real held-out EMSCAD result: 98.88% accuracy and 88.24% F1. This clears the cold-start blocker, but it does not clear the 95% fraud-quality target.
+- v1.11.7 records a full local DeBERTa-v3-small EMSCAD result: 98.66% accuracy and 85.80% F1. It did not improve the baseline, so the next fraud gains need better labelled features, calibration, or model strategy.
 
 ## Priority 3: Indirect Injection Needs Schema, Not Just More Data
 
@@ -58,7 +61,7 @@ Indirect injection is weak because untrusted text is currently represented as pr
 Required next work:
 
 1. Carry provenance as structured fields in benchmark records.
-2. Train/evaluate guards with provenance metadata preserved.
+2. Train/evaluate guards with provenance metadata preserved. The transformer trainer now accepts provenance JSONL and registers provenance special tokens, but the full training run still needs to be executed and compared.
 3. Add fixtures where the same text is benign in a user request but hostile in tool output.
 4. Measure tagged versus untagged performance to prove the schema helps.
 
@@ -74,4 +77,4 @@ Required next work:
 
 ## Current Score
 
-Valence is approximately 78/100 as an open-source research preview. It is architecturally serious and reproducible, but it is not yet enterprise-grade because the guard model is not validated across provenance-aware indirect injection, secret exfiltration, and benign trigger-word over-defense, and the profile-ranking pipeline still lacks real candidate/job labels.
+Valence is approximately 84/100 as an open-source research preview. It is architecturally serious and reproducible, but it is not yet enterprise-grade because the guard model is not validated across provenance-aware indirect injection, secret exfiltration, and benign trigger-word over-defense, and the profile-ranking pipeline still lacks real candidate/job labels.

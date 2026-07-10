@@ -2,6 +2,15 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.7
+
+- Added a transformer EMSCAD fraud-training path for DeBERTa-style sequence classifiers with stratified train/validation/test splits, threshold calibration, class-balanced sampling, and optional model artifact export.
+- Ran the full local DeBERTa-v3-small EMSCAD experiment and recorded the aggregate result: 98.66% accuracy, 87.88% precision, 83.82% recall, 85.80% F1, and 0.59% false-positive rate.
+- Added a high-discrepancy ranking audit queue so human labelling can focus on candidate/job pairs where the ranker and judge disagree most.
+- Extended transformer guard training to consume provenance-generated JSONL and register provenance special tokens before resizing model embeddings.
+- Added pytest coverage for provenance-token ingestion, ranking audit prioritization, and transformer EMSCAD split integrity.
+- Kept the accuracy claim unchanged: the DeBERTa run did not beat the v1.11.6 TF-IDF fraud baseline, so Valence still has no 95% EMSCAD fraud claim.
+
 ## 1.11.6
 
 - Downloaded and verified a full public EMSCAD CSV locally: 17,880 records, 866 fraudulent, 17,014 legitimate, and the expected text/risk columns.

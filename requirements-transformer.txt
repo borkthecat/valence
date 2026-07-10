@@ -1,3 +1,4 @@
 -r requirements-benchmark.txt
 torch==2.11.0
 transformers==4.57.6
+sentencepiece>=0.2.0,<0.3.0

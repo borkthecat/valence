@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
+BENCHMARKS = Path(__file__).resolve().parents[1] / "benchmarks"
+if str(BENCHMARKS) not in sys.path:
+    sys.path.insert(0, str(BENCHMARKS))
+
+from benchmarks.build_ranking_audit_queue import audit_rows
 from benchmarks.export_emscad import export
 from benchmarks.generate_provenance_pairs import generate_records
 from benchmarks.build_ranking_judge_tasks import build_tasks
 from benchmarks.train_emscad_fraud_model import evaluate as evaluate_trained_fraud_model
 from benchmarks.train_emscad_fraud_model import load_rows, row_text
+from benchmarks.train_emscad_transformer_fraud import label_of, split_rows
+from benchmarks.train_transformer_guard import _provenance_rows, _special_tokens
 from fraud_evaluator import evaluate, load_jsonl
 
 
@@ -86,3 +94,50 @@ def test_ranking_judge_task_builder_creates_pairwise_prompts() -> None:
     assert len(tasks) == 4
     assert all("score" in task["expected_response_schema"] for task in tasks)
     assert all("Return only JSON" in task["prompt"] for task in tasks)
+
+
+def test_transformer_guard_reads_provenance_tokens(tmp_path: Path) -> None:
+    records = tmp_path / "provenance.jsonl"
+    records.write_text(
+        json.dumps({
+            "text": "<user_session>Explain indexing.</user_session>",
+            "label": False,
+            "provenance": {"context": "user_literal_test"},
+        }) + "\n",
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "special-tokens.json"
+    manifest.write_text(
+        json.dumps({"additional_special_tokens": ["<user_session>", "</user_session>", "<user_session>"]}),
+        encoding="utf-8",
+    )
+
+    rows = _provenance_rows(records)
+
+    assert rows == [("<user_session>Explain indexing.</user_session>", False, "provenance:user_literal_test")]
+    assert _special_tokens(manifest) == ["</user_session>", "<user_session>"]
+
+
+def test_ranking_audit_queue_prioritizes_largest_disagreements() -> None:
+    rows = [
+        {"job_id": "j1", "candidate_id": "c1", "ranker_score": 4.7, "judge_score": 4.4},
+        {"job_id": "j1", "candidate_id": "c2", "ranker_score": 4.9, "judge_score": 1.0},
+        {"job_id": "j2", "candidate_id": "c3", "ranker_score": 0.5, "judge_score": 4.0},
+    ]
+
+    selected = audit_rows(rows, limit=2)
+
+    assert [row["candidate_id"] for row in selected] == ["c2", "c3"]
+    assert selected[0]["discrepancy"] == 3.9000000000000004
+
+
+def test_transformer_emscad_split_preserves_fraud_labels() -> None:
+    source = Path(__file__).resolve().parent / "fixtures" / "emscad_sample.csv"
+    rows = load_rows(source) * 8
+
+    train, validation, test = split_rows(rows, seed=1500)
+
+    assert len(train) + len(validation) + len(test) == len(rows)
+    assert {label_of(row) for row in train} == {0, 1}
+    assert {label_of(row) for row in validation} == {0, 1}
+    assert {label_of(row) for row in test} == {0, 1}
