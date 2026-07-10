@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.5` research preview
+Current release target: `v1.11.6` research preview
 
 ## Preflight
 
@@ -38,7 +38,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.11.5` and `valence-pipeline:1.11.5` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.11.6` and `valence-pipeline:1.11.6` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -49,11 +49,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.11.5 -m "Valence v1.11.5"
-git push origin main v1.11.5
+git tag -a v1.11.6 -m "Valence v1.11.6"
+git push origin main v1.11.6
 ```
 
 ## Release Notes
+
+`v1.11.6` closes the immediate cold-start data blockers:
+
+- Verifies the full EMSCAD CSV locally at 17,880 records with 866 fraudulent labels and the expected text fields.
+- Adds a deterministic TF-IDF logistic fraud baseline and checks in aggregate held-out metrics: 98.88% accuracy, 89.82% precision, 86.71% recall, and 88.24% F1.
+- Adds a candidate/job ranking judge-task builder so LLM-assisted pseudo-labeling can produce reviewable pairwise labels instead of ad hoc manual scoring.
+- Emits a special-token manifest from the provenance contrastive generator for downstream guard fine-tuning.
+- Keeps the release status at research preview because the fraud F1/recall are not yet at 95%, and the ranking labels still need independent review.
 
 `v1.11.5` adds the first production-oriented evaluation layer for provenance and job-profile fraud:
 

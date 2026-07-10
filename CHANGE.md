@@ -2,6 +2,14 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.11.6
+
+- Downloaded and verified a full public EMSCAD CSV locally: 17,880 records, 866 fraudulent, 17,014 legitimate, and the expected text/risk columns.
+- Added a deterministic EMSCAD TF-IDF logistic fraud baseline with train/validation/test split, validation-threshold calibration, held-out fraud metrics, and Fraud Exposure Rate reporting.
+- Recorded the full EMSCAD trained baseline result: 98.88% accuracy, 89.82% precision, 86.71% recall, 88.24% F1, 0.50% false-positive rate, and top-50 model-adjusted FER reduced from 4.00% to 0.00%.
+- Added LLM-judge task generation for candidate/job ranking pseudo-label bootstrapping.
+- Extended provenance-pair generation with a special-token manifest for downstream guard fine-tuning.
+
 ## 1.11.5
 
 - Added provenance-aware contrastive prompt-injection data generation so the same payload can be evaluated as direct user text, untrusted retrieved/source text, or quoted article evidence.

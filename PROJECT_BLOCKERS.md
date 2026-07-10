@@ -48,7 +48,8 @@ Current implementation support:
 
 - `pipeline/benchmarks/export_emscad.py` converts EMSCAD CSV rows into Valence rich-profile JSONL with fraud labels and bounded risk scores.
 - `pipeline/fraud_evaluator.py` measures binary fraud metrics and Fraud Exposure Rate before and after risk-adjusted reranking.
-- The checked-in EMSCAD fixture is only a smoke sample; the full public CSV is still required for a release-grade result.
+- `pipeline/benchmarks/train_emscad_fraud_model.py` now trains a deterministic TF-IDF logistic baseline on a local full EMSCAD CSV.
+- v1.11.6 records a real held-out EMSCAD result: 98.88% accuracy and 88.24% F1. This clears the cold-start blocker, but it does not clear the 95% fraud-quality target.
 
 ## Priority 3: Indirect Injection Needs Schema, Not Just More Data
 

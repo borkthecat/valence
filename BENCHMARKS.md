@@ -126,7 +126,7 @@ python pipeline/benchmarks/train_transformer_guard.py --output .benchmark-data/m
 python pipeline/benchmarks/calibrate_transformer_guard.py --model .benchmark-data/mmbert-policy-guard
 python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/injection-matrix/matrix.json --model .benchmark-data/mmbert-policy-guard --output .benchmark-data/injection-matrix/mmbert-policy-report.json
 python pipeline/benchmarks/evaluate_transformer_guard.py --matrix .benchmark-data/notinject-matrix.json --model leolee99/PIGuard --output .benchmark-data/pigguard-notinject-report.json --trust-remote-code --no-policy-prefix --max-length 2048
-python pipeline/benchmarks/generate_provenance_pairs.py --input gateway/benchmarks/fixtures/wambosec-test.jsonl --output .benchmark-data/provenance-pairs.jsonl --matrix-output .benchmark-data/provenance-pairs-matrix.json --limit 100
+python pipeline/benchmarks/generate_provenance_pairs.py --input gateway/benchmarks/fixtures/wambosec-test.jsonl --output .benchmark-data/provenance-pairs.jsonl --matrix-output .benchmark-data/provenance-pairs-matrix.json --special-tokens-output .benchmark-data/provenance-special-tokens.json --limit 100
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/wambosec-test.jsonl models/prompt-injection-guard.json 0.95 0.95
 npm --prefix gateway run benchmark:injection -- benchmarks/fixtures/deepset-test.jsonl models/prompt-injection-guard.json 0.84 0.78
 ```
@@ -163,11 +163,30 @@ EMSCAD is the first candidate/job profile safety benchmark because it contains r
 
 The repository includes a four-row EMSCAD-shaped smoke fixture to test the mapping and metrics. It does not include the full public dataset, so the fixture result is not an accuracy claim.
 
+For v1.11.6, the full public EMSCAD CSV was downloaded locally from a public GitHub raw mirror after the initially suggested mirror returned 404. The schema verified at 17,880 rows, 866 fraudulent labels, 17,014 legitimate labels, and the expected `company_profile`, `description`, `requirements`, `benefits`, and `fraudulent` columns.
+
+The fixed heuristic risk score is useful for explainable triage but not accurate enough: on all 17,880 records at threshold 0.5 it produced 56.93% recall, 24.79% precision, and 34.54% F1. The deterministic trained TF-IDF logistic baseline in `pipeline/benchmarks/train_emscad_fraud_model.py` is stronger on the held-out 20% test split:
+
+| Metric | Result |
+| --- | ---: |
+| Test records | 3,576 |
+| Accuracy | 98.88% |
+| Precision | 89.82% |
+| Recall | 86.71% |
+| F1 | 88.24% |
+| False-positive rate | 0.50% |
+| Top-50 FER before model penalty | 4.00% |
+| Top-50 FER after model penalty | 0.00% |
+
+This is a real improvement over the heuristic, but it is still not a 95% fraud benchmark. Production use needs a stronger model, external validation, and calibration by job market/domain.
+
 ```bash
 cd pipeline
 python ranking_evaluator.py /path/to/held-out.jsonl --min-top1 0.90 --min-ndcg 0.95
 python benchmarks/export_emscad.py --input /path/to/fake_job_postings.csv --output ../.benchmark-data/emscad.jsonl
 python fraud_evaluator.py ../.benchmark-data/emscad.jsonl --threshold 0.5 --top-k 50 --risk-penalty 0.8
+python benchmarks/train_emscad_fraud_model.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.6-emscad-trained-fraud.json --top-k 50 --risk-penalty 0.8
+python benchmarks/build_ranking_judge_tasks.py --jobs /path/to/jobs.jsonl --candidates /path/to/candidates.jsonl --output ../.benchmark-data/ranking-judge-tasks.jsonl --max-jobs 100 --candidates-per-job 5
 ```
 
 ## Latency

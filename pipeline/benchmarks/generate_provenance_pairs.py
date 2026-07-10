@@ -103,6 +103,7 @@ def main() -> int:
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--matrix-output", type=Path)
+    parser.add_argument("--special-tokens-output", type=Path)
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
     if args.limit is not None and args.limit <= 0:
@@ -127,11 +128,19 @@ def main() -> int:
             "testNegative": len(records) - positives,
             "fixture": str(args.output),
         }], indent=2), encoding="utf-8")
+    if args.special_tokens_output is not None:
+        args.special_tokens_output.parent.mkdir(parents=True, exist_ok=True)
+        tokens = sorted({f"<{context['tag']}>" for context in CONTEXTS} | {f"</{context['tag']}>" for context in CONTEXTS})
+        args.special_tokens_output.write_text(json.dumps({
+            "additional_special_tokens": tokens,
+            "routingFields": ["policy", "provenance.context", "expectedAction"],
+        }, indent=2), encoding="utf-8")
     print(json.dumps({
         "records": len(records),
         "payloads": len(records) // len(CONTEXTS),
         "output": str(args.output),
         "matrixOutput": None if args.matrix_output is None else str(args.matrix_output),
+        "specialTokensOutput": None if args.special_tokens_output is None else str(args.special_tokens_output),
     }))
     return 0
 

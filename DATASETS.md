@@ -69,6 +69,8 @@ Dataset files are downloaded only for local benchmarking and are not included in
 
 `pipeline/benchmarks/export_emscad.py` maps EMSCAD rows into Valence rich-profile records with `fraudulent`, `risk_score`, and `source_relevance_score` fields. `pipeline/fraud_evaluator.py` measures fraud precision, recall, F1, false-positive rate, and Fraud Exposure Rate before and after risk-adjusted reranking. The full CSV is not bundled; only a small EMSCAD-shaped fixture is checked in for CI smoke coverage.
 
+`pipeline/benchmarks/train_emscad_fraud_model.py` trains a deterministic TF-IDF logistic baseline against a local EMSCAD CSV. v1.11.6 used a local public raw mirror only to reproduce aggregate metrics; the raw CSV is ignored by git and not redistributed by this project.
+
 ## Excluded Defaults
 
 Amazon Berkeley Objects is useful for multi-view product research but is CC BY-NC 4.0. AI4Privacy's current dataset license restricts commercial use and redistribution. Neither dataset is bundled, trained on, or presented as an enterprise-safe default.
