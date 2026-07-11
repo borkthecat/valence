@@ -2,6 +2,15 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.12.0
+
+- Added risk-calibrated provenance guard validation using the final V6 selective-routing benchmark artifact: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, and 2.29% aggregate false-positive rate.
+- Added an operating-standard assertion script so the release gate checks aggregate accuracy, precision, recall, F1, aggregate false-positive rate, and maximum per-source false-positive rate from structured benchmark reports.
+- Added enforce/review routing decisions for source-specific guard behavior so `hse_llm` and `cgoosen_combined` remain review-only while their held-out recall is below 50%.
+- Added privacy-reduced shadow review tooling to capture real events, deduplicate them, redact common PII, and merge only explicit human labels.
+- Added EMSCAD external verification feature plumbing, including email/domain mismatch checks, posting URL mismatch checks, liveness probes, and provider-cache boundaries for future WHOIS, registry, and reputation adapters.
+- Kept the release status at research preview because the review-only guard sources still need a real shadow run and EMSCAD still needs live external verification signals before production fraud-detection claims are justified.
+
 ## 1.11.8
 
 - Added EMSCAD structural metadata markers to the TF-IDF and transformer fraud text streams, including logo, screener-question, remote-work, salary, and department signals.
