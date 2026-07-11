@@ -94,6 +94,12 @@ This changes the diagnosis. The direct-attack suite is near the strict target, w
 
 ### Over-defense
 
+### Risk-calibrated provenance guard
+
+The full V6 provenance model is evaluated with selective source experts only where they improve held-out false-positive behavior. The v1.13.2 enterprise-balanced matrix passes a declared operating profile: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% aggregate FPR, and 4.62% maximum per-source FPR. The profile is checked by `pipeline/remediation/assert_operating_standard.py` against `gateway/benchmarks/enterprise-operating-standard.json`.
+
+`cgoosen_combined` and `hse_llm` meet the low-FPR constraint but have 14.77% and 25.00% recall respectively, so they are review-only, not automatic block routes. `pipeline/remediation/shadow_review_loop.py` creates a PII-reduced queue from real shadow events and merges explicit human labels for the next expert-data audit. These two sources are not evidence for production detection coverage until that shadow evaluation completes.
+
 Valence now includes a pinned exporter for [NotInject](https://huggingface.co/datasets/leolee99/NotInject), a benign trigger-word-heavy benchmark introduced by the InjecGuard/PIGuard work. NotInject measures whether a guard blocks harmless prompts merely because they contain words such as "ignore" or other injection-like triggers.
 
 On the pinned 339-case NotInject export, the bundled compact guard produced 208 true negatives and 131 false positives: 61.36% accuracy and 38.64% benign false-positive rate. Heuristic-only detection produced zero false positives on the same set, so the over-defense issue is in the compact model, not the regex layer. The checked-in artifact is `gateway/benchmarks/results/v1.11.3-notinject.json`.
@@ -185,15 +191,28 @@ For v1.11.8, the trainer was updated with structural metadata markers and class-
 
 Precision-recall frontier checks show why this is not a threshold-only problem. On the held-out split, forcing recall to at least 95% drops the best observed precision to about 46-54% across TF-IDF/risk-score blends. A defensible 95% fraud claim now requires better labelled signal or a different model strategy, not just retuning the current classifiers.
 
+The next fraud experiment should add external verification markers before training. `pipeline/benchmarks/external_verification_features.py` extracts company-domain, contact-email-domain, posting-URL, mismatch, liveness, and similarity markers from enriched job CSVs. Liveness checks are optional because they touch the network; when enabled, they deduplicate domains and URLs, use bounded concurrency with retry/backoff, and persist TTL-cached results. Transient network failures remain `unknown` and do not add fraud risk. The no-liveness mode is deterministic and suitable for CI or offline feature review. The fraud trainers automatically consume `verification_evidence_markers` and `verification_risk_score` when those columns exist.
+
+`pipeline/benchmarks/external_provider_cache.py` is the required SQLite cache/rate-limit boundary for optional WHOIS, company-registry, and URL-reputation adapters. Providers must return verified evidence or `unknown`; absent credentials, timeouts, and provider errors must not become fraud evidence. `pipeline/benchmarks/evaluate_fraud_cascade.py` evaluates a recall-first sieve, structural verifier, and sparse-signal late fusion, and emits a label-free human fraud audit queue ordered by model disagreement.
+
+`pipeline/benchmarks/codex_fraud_engine.py` adds train-only stateful domain-history and structural-clone evidence. Its blocklist requires at least three fraud observations and no legitimate observations; clone matches are continuous evidence by default, not an unconditional fraud label. The engine must be trained only on the training partition before evaluating a held-out partition.
+
+For source-specific guard remediation, `pipeline/remediation/audit_expert_data.py` is the required fail-closed intake step for curated `hse_llm` and `cgoosen_combined` data. It accepts JSONL records with `source`, boolean `label`, and `text`; removes metadata artifacts, rejects duplicates and cross-label collisions, requires balanced class counts, and checks for label-correlated length imbalance before expert training.
+
 ```bash
 cd pipeline
 python ranking_evaluator.py /path/to/held-out.jsonl --min-top1 0.90 --min-ndcg 0.95
 python benchmarks/export_emscad.py --input /path/to/fake_job_postings.csv --output ../.benchmark-data/emscad.jsonl
 python fraud_evaluator.py ../.benchmark-data/emscad.jsonl --threshold 0.5 --top-k 50 --risk-penalty 0.8
+python benchmarks/external_verification_features.py --input ../.benchmark-data/emscad.csv --output ../.benchmark-data/emscad.external.csv
+python benchmarks/external_verification_features.py --input ../.benchmark-data/emscad.csv --output ../.benchmark-data/emscad.external.live.csv --check-liveness --timeout 2 --max-workers 4 --retries 2 --max-probes 250 --cache-path ../.benchmark-data/verification-liveness-cache.json
+python benchmarks/train_emscad_fraud_model.py --input ../.benchmark-data/emscad.external.csv --output ../gateway/benchmarks/results/v1.11.9-emscad-tfidf-external-fraud.json --top-k 50 --risk-penalty 0.8
 python benchmarks/train_emscad_fraud_model.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.8-emscad-tfidf-metadata-fraud.json --top-k 50 --risk-penalty 0.8
 python benchmarks/train_emscad_transformer_fraud.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.8-emscad-deberta-weighted-fraud.json --base-model microsoft/deberta-v3-small --epochs 3
 python benchmarks/build_ranking_judge_tasks.py --jobs /path/to/jobs.jsonl --candidates /path/to/candidates.jsonl --output ../.benchmark-data/ranking-judge-tasks.jsonl --max-jobs 100 --candidates-per-job 5
-python benchmarks/build_ranking_audit_queue.py --input ../.benchmark-data/ranking-pair-scores.jsonl --output ../.benchmark-data/ranking-human-audit.jsonl --limit 200
+python benchmarks/build_ranking_audit_queue.py --input ../.benchmark-data/ranking-pair-scores.jsonl --output ../.benchmark-data/ranking-human-audit.jsonl --strategy stratified --disagreement-count 100 --top-count 50 --bottom-count 50
+python benchmarks/train_transformer_guard.py --output ../.benchmark-data/mmbert-provenance-guard-smoke --provenance-jsonl ../.benchmark-data/provenance-pairs.jsonl --special-tokens ../.benchmark-data/provenance-special-tokens.json --limit-records 1000 --epochs 1 --stop-after-updates 5
+python benchmarks/train_transformer_guard.py --output ../.benchmark-data/mmbert-provenance-guard --provenance-jsonl ../.benchmark-data/provenance-pairs.jsonl --special-tokens ../.benchmark-data/provenance-special-tokens.json --checkpoint-every-updates 250
 ```
 
 ## Latency

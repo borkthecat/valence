@@ -119,40 +119,35 @@ def _deterministic_split(rows: list[tuple[str, bool]]) -> tuple[list[tuple[str, 
     return training, test
 
 
-def load_corpora(cache_dir: Path) -> tuple[Corpus, ...]:
+def _load_spec(cache_dir: Path, spec: CorpusSpec) -> Corpus:
     from datasets import load_dataset
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    corpora: list[Corpus] = []
+    if spec.name == "jcanode":
+        base = f"https://huggingface.co/datasets/{spec.dataset}/resolve/{spec.revision}"
+        loaded = load_dataset("arrow", data_files={"train": f"{base}/train/data-00000-of-00001.arrow", "validation": f"{base}/validation/data-00000-of-00001.arrow", "test": f"{base}/test/data-00000-of-00001.arrow"}, cache_dir=str(cache_dir))
+    else:
+        kwargs = {"path": spec.dataset, "revision": spec.revision, "cache_dir": str(cache_dir), "download_mode": "reuse_cache_if_exists"}
+        if spec.config is not None:
+            kwargs["name"] = spec.config
+        loaded = load_dataset(**kwargs)
+    if spec.test_split is None:
+        training, test = _deterministic_split(_extract(loaded["train"], spec.extractor))
+    else:
+        training = []
+        for split in loaded:
+            if split != spec.test_split and split != "test":
+                training.extend(_extract(loaded[split], spec.extractor))
+        test = _extract(loaded[spec.test_split], spec.extractor)
+    return Corpus(spec, tuple(training), tuple(test))
+
+
+def load_corpus(cache_dir: Path, name: str) -> Corpus:
     for spec in SPECS:
-        if spec.name == "jcanode":
-            base = f"https://huggingface.co/datasets/{spec.dataset}/resolve/{spec.revision}"
-            loaded = load_dataset(
-                "arrow",
-                data_files={
-                    "train": f"{base}/train/data-00000-of-00001.arrow",
-                    "validation": f"{base}/validation/data-00000-of-00001.arrow",
-                    "test": f"{base}/test/data-00000-of-00001.arrow",
-                },
-                cache_dir=str(cache_dir),
-            )
-        else:
-            kwargs = {
-                "path": spec.dataset,
-                "revision": spec.revision,
-                "cache_dir": str(cache_dir),
-                "download_mode": "reuse_cache_if_exists",
-            }
-            if spec.config is not None:
-                kwargs["name"] = spec.config
-            loaded = load_dataset(**kwargs)
-        if spec.test_split is None:
-            training, test = _deterministic_split(_extract(loaded["train"], spec.extractor))
-        else:
-            training = []
-            for split in loaded:
-                if split != spec.test_split and split != "test":
-                    training.extend(_extract(loaded[split], spec.extractor))
-            test = _extract(loaded[spec.test_split], spec.extractor)
-        corpora.append(Corpus(spec, tuple(training), tuple(test)))
-    return tuple(corpora)
+        if spec.name == name:
+            return _load_spec(cache_dir, spec)
+    raise ValueError(f"unknown corpus: {name}")
+
+
+def load_corpora(cache_dir: Path) -> tuple[Corpus, ...]:
+    return tuple(_load_spec(cache_dir, spec) for spec in SPECS)

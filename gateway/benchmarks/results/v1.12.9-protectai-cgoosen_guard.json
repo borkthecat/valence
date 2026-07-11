@@ -1,0 +1,19 @@
+{
+  "model": "protectai/deberta-v3-base-prompt-injection-v2",
+  "source": "cgoosen_guard",
+  "threshold": 0.9749999999999999,
+  "calibrationGateSatisfied": false,
+  "metrics": {
+    "samples": 4691,
+    "truePositive": 252,
+    "trueNegative": 2655,
+    "falsePositive": 1782,
+    "falseNegative": 2,
+    "accuracy": 0.6196972926881262,
+    "precision": 0.12389380530973451,
+    "recall": 0.9921259842519685,
+    "f1": 0.2202797202797203,
+    "falsePositiveRate": 0.40162271805273836
+  },
+  "passed": false
+}

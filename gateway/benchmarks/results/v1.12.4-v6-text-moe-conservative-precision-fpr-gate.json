@@ -1,0 +1,24 @@
+{
+  "corpora": 15,
+  "failures": [
+    {
+      "falsePositiveRate": 0.020734730673878748,
+      "name": "cgoosen_guard",
+      "precision": 0.7286135693215339
+    },
+    {
+      "falsePositiveRate": 0.018378130025269928,
+      "name": "jcanode",
+      "precision": 0.9301919720767888
+    },
+    {
+      "falsePositiveRate": 0.05,
+      "name": "hse_llm",
+      "precision": 0.8666666666666667
+    }
+  ],
+  "maximumFpr": 0.05,
+  "minimumPrecision": 0.95,
+  "modelRef": ".benchmark-data\\mmbert-provenance-guard-v6-full",
+  "passed": false
+}

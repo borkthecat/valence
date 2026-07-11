@@ -1,0 +1,34 @@
+{
+  "corpora": 15,
+  "failures": [
+    {
+      "falsePositiveRate": 0.012170385395537525,
+      "name": "cgoosen_guard",
+      "precision": 0.8229508196721311
+    },
+    {
+      "falsePositiveRate": 0.036756260050539856,
+      "name": "jcanode",
+      "precision": 0.8694942903752039
+    },
+    {
+      "falsePositiveRate": 0.6,
+      "name": "cgoosen_combined",
+      "precision": 0.9318181818181818
+    },
+    {
+      "falsePositiveRate": 0.07277428888067972,
+      "name": "smooth_3",
+      "precision": 0.9329247531494722
+    },
+    {
+      "falsePositiveRate": 0.2,
+      "name": "hse_llm",
+      "precision": 0.6923076923076923
+    }
+  ],
+  "maximumFpr": 0.05,
+  "minimumPrecision": 0.95,
+  "modelRef": ".benchmark-data\\mmbert-provenance-guard-v6-full",
+  "passed": false
+}

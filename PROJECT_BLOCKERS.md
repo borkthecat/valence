@@ -8,6 +8,8 @@ Valence should take candidate/job profiles as the first real domain. That matche
 
 ## Priority 1: Guard Model Provenance Gap
 
+The completed V6 provenance run and selective expert routing now pass the risk-calibrated operating profile: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, and 2.29% aggregate false-positive rate on the pinned 15-corpus held-out matrix. `hse_llm` and `cgoosen_combined` remain review-only because their low-recall expert routes are not safe automatic blockers. `pipeline/remediation/shadow_review_loop.py` captures those review events with basic PII redaction and joins only explicit human decisions into retraining records. A production shadow run and reviewer decisions are still required; benchmark records cannot substitute for either.
+
 The compact bundled guard is not enterprise-grade yet. It passes 5/15 strict prompt-injection corpus gates, but the suite rollup shows the real distribution:
 
 | Suite | F1 | Primary failure |
@@ -39,9 +41,9 @@ Use EMSCAD as the first external dataset because it provides 17,880 real job pos
 
 Required next work:
 
-1. Add an EMSCAD importer that converts job postings into Valence rich-profile records.
-2. Define a fraud/risk label contract separate from Stage 4 ranking relevance.
-3. Measure precision, recall, F1, and false-positive rate against EMSCAD before adding private labels.
+1. Add external verification features to enriched job rows: company domain, contact email domain, posting URL, mismatch flags, optional DNS/HTTP liveness, and domain similarity.
+2. Train the fraud baseline on those enriched rows and compare the precision-recall frontier against the text-only EMSCAD ceiling.
+3. Convert the ranking audit queue into a human-labelled 200-item evaluation set, not a judge-only pseudo-label set.
 4. Build a separate ranking dataset only after the fraud baseline is reproducible.
 
 Current implementation support:
@@ -50,10 +52,12 @@ Current implementation support:
 - `pipeline/fraud_evaluator.py` measures binary fraud metrics and Fraud Exposure Rate before and after risk-adjusted reranking.
 - `pipeline/benchmarks/train_emscad_fraud_model.py` now trains a deterministic TF-IDF logistic baseline on a local full EMSCAD CSV.
 - `pipeline/benchmarks/train_emscad_transformer_fraud.py` now provides the stronger DeBERTa-style fraud-training path needed to chase 95% recall/F1 honestly.
-- `pipeline/benchmarks/build_ranking_audit_queue.py` now prioritizes high-discrepancy candidate/job pairs for human review instead of spreading labelling effort randomly.
+- `pipeline/benchmarks/external_verification_features.py` now builds deterministic external-verification markers and optional live DNS/HTTP checks for enriched job CSVs.
+- `pipeline/benchmarks/build_ranking_audit_queue.py` now supports a stratified human review queue: 100 ranker/judge disagreements, 50 top-ranked cases, and 50 bottom-ranked cases.
 - v1.11.6 records a real held-out EMSCAD result: 98.88% accuracy and 88.24% F1. This clears the cold-start blocker, but it does not clear the 95% fraud-quality target.
 - v1.11.7 records a full local DeBERTa-v3-small EMSCAD result: 98.66% accuracy and 85.80% F1. It did not improve the baseline, so the next fraud gains need better labelled features, calibration, or model strategy.
 - v1.11.8 adds metadata markers and weighted transformer loss. Weighted DeBERTa improves to 87.65% F1, and metadata TF-IDF reaches 92.36% precision but only 83.82% recall. The current held-out precision-recall frontier shows at least 95% recall costs too much precision, so the 95% fraud target is blocked on stronger labels/features/modeling, not another threshold tweak.
+- The external verification pipeline is implemented and bounded: domain/email and posting-URL mismatch, DNS/HTTP liveness, persistent cache, and rate-limited provider-cache boundaries. EMSCAD itself has insufficient current company-domain and registry evidence to validate these as production fraud signals. Deploying the adapters requires a current job-feed source, approved provider credentials where applicable, and independently reviewed fraud labels.
 
 ## Priority 3: Indirect Injection Needs Schema, Not Just More Data
 
@@ -62,7 +66,7 @@ Indirect injection is weak because untrusted text is currently represented as pr
 Required next work:
 
 1. Carry provenance as structured fields in benchmark records.
-2. Train/evaluate guards with provenance metadata preserved. The transformer trainer now accepts provenance JSONL and registers provenance special tokens, but the full training run still needs to be executed and compared.
+2. Train/evaluate guards with provenance metadata preserved. The transformer trainer now accepts provenance JSONL, registers provenance special tokens, verifies that those tokens remain atomic, and saves periodic checkpoints, but the full training run still needs to be executed and compared.
 3. Add fixtures where the same text is benign in a user request but hostile in tool output.
 4. Measure tagged versus untagged performance to prove the schema helps.
 

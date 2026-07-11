@@ -66,6 +66,8 @@ def _flag(row: dict[str, str], key: str, present: str, absent: str) -> str:
 
 def row_text(row: dict[str, str]) -> str:
     salary = _text(row, "salary_range") or "MISSING_SALARY"
+    verification_markers = _text(row, "verification_evidence_markers")
+    verification_risk = _text(row, "verification_risk_score")
     parts = [
         "metadata: "
         + " | ".join((
@@ -73,6 +75,8 @@ def row_text(row: dict[str, str]) -> str:
             _flag(row, "has_questions", "HAS_SCREENING_QUESTIONS", "NO_SCREENING_QUESTIONS"),
             _flag(row, "telecommuting", "REMOTE_ALLOWED", "ONSITE_OR_UNSPECIFIED"),
             f"salary: {salary}",
+            f"verification: {verification_markers}" if verification_markers else "NO_EXTERNAL_VERIFICATION",
+            f"verification_risk: {verification_risk}" if verification_risk else "NO_VERIFICATION_RISK",
         )),
     ]
     for key in STRUCTURED_FIELDS:

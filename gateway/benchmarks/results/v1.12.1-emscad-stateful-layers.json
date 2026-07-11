@@ -1,0 +1,15 @@
+{
+  "cloneAlerts": 0,
+  "domainBlocklistSize": 0,
+  "metrics": {
+    "f1": 0.0,
+    "falseNegative": 173,
+    "falsePositive": 0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "trueNegative": 3403,
+    "truePositive": 0
+  },
+  "records": 17880,
+  "testRecords": 3576
+}

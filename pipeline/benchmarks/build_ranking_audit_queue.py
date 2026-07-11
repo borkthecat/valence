@@ -32,6 +32,20 @@ def _stable_id(row: dict[str, Any]) -> str:
     return "|".join(str(row.get(key, "")) for key in ("job_id", "candidate_id", "task_id"))
 
 
+def _dedupe(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    selected = []
+    seen = set()
+    for row in rows:
+        stable_id = _stable_id(row)
+        if stable_id in seen:
+            continue
+        selected.append(row)
+        seen.add(stable_id)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
 def audit_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     if limit <= 0:
         raise ValueError("limit must be positive")
@@ -44,13 +58,54 @@ def audit_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     return enriched[:limit]
 
 
+def stratified_audit_rows(
+    rows: list[dict[str, Any]],
+    *,
+    disagreement_count: int = 100,
+    top_count: int = 50,
+    bottom_count: int = 50,
+) -> list[dict[str, Any]]:
+    if min(disagreement_count, top_count, bottom_count) < 0:
+        raise ValueError("stratum counts must be non-negative")
+    if disagreement_count + top_count + bottom_count <= 0:
+        raise ValueError("at least one stratum count must be positive")
+    enriched = []
+    for row in rows:
+        ranker = _score(row, "ranker_score")
+        judge = _score(row, "judge_score")
+        enriched.append({**row, "discrepancy": abs(ranker - judge)})
+    disagreement = sorted(enriched, key=lambda row: (-float(row["discrepancy"]), _stable_id(row)))
+    top = sorted(enriched, key=lambda row: (-_score(row, "ranker_score"), _stable_id(row)))
+    bottom = sorted(enriched, key=lambda row: (_score(row, "ranker_score"), _stable_id(row)))
+    return _dedupe([
+        *_dedupe(disagreement, disagreement_count),
+        *_dedupe(top, top_count),
+        *_dedupe(bottom, bottom_count),
+        *disagreement,
+    ], disagreement_count + top_count + bottom_count)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build high-discrepancy ranking cases for human audit")
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=200)
+    parser.add_argument("--strategy", choices=("discrepancy", "stratified"), default="discrepancy")
+    parser.add_argument("--disagreement-count", type=int, default=100)
+    parser.add_argument("--top-count", type=int, default=50)
+    parser.add_argument("--bottom-count", type=int, default=50)
     args = parser.parse_args()
-    selected = audit_rows(load_jsonl(args.input), args.limit)
+    rows = load_jsonl(args.input)
+    selected = (
+        stratified_audit_rows(
+            rows,
+            disagreement_count=args.disagreement_count,
+            top_count=args.top_count,
+            bottom_count=args.bottom_count,
+        )
+        if args.strategy == "stratified"
+        else audit_rows(rows, args.limit)
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8", newline="\n") as target:
         for row in selected:

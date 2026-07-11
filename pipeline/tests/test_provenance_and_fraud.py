@@ -9,6 +9,8 @@ if str(BENCHMARKS) not in sys.path:
     sys.path.insert(0, str(BENCHMARKS))
 
 from benchmarks.build_ranking_audit_queue import audit_rows
+from benchmarks.build_ranking_audit_queue import stratified_audit_rows
+from benchmarks.external_verification_features import LivenessChecker, extract_features
 from benchmarks.export_emscad import export
 from benchmarks.generate_provenance_pairs import generate_records
 from benchmarks.build_ranking_judge_tasks import build_tasks
@@ -17,6 +19,14 @@ from benchmarks.train_emscad_fraud_model import load_rows, row_text
 from benchmarks.train_emscad_transformer_fraud import enriched_row_text
 from benchmarks.train_emscad_transformer_fraud import label_of, split_rows
 from benchmarks.train_transformer_guard import _provenance_rows, _special_tokens
+from benchmarks.evaluate_fraud_cascade import structural_signature
+from benchmarks.external_provider_cache import ExternalProviderCache
+from benchmarks.train_transformer_guard import supervised_contrastive_loss
+from benchmarks.codex_fraud_engine import CodexFraudEngine
+from remediation.moe_guard import route_source
+from remediation.audit_expert_data import audit, sanitize_text
+from remediation.harvest_shadow_negatives import redact_pii
+from remediation.shadow_review_loop import capture, merge_labels
 from fraud_evaluator import evaluate, load_jsonl
 
 
@@ -64,6 +74,7 @@ def test_trained_emscad_baseline_uses_text_fields() -> None:
     assert "company_profile:" in text
     assert "requirements:" in text
     assert "metadata:" in text
+    assert "NO_EXTERNAL_VERIFICATION" in text
     assert any(marker in text for marker in ("HAS_LOGO", "MISSING_LOGO"))
     assert report.records == 16
     assert report.test_records >= 1
@@ -132,6 +143,126 @@ def test_ranking_audit_queue_prioritizes_largest_disagreements() -> None:
 
     assert [row["candidate_id"] for row in selected] == ["c2", "c3"]
     assert selected[0]["discrepancy"] == 3.9000000000000004
+
+
+def test_stratified_ranking_audit_queue_includes_edges() -> None:
+    rows = [
+        {"job_id": "j1", "candidate_id": "c1", "ranker_score": 5.0, "judge_score": 5.0},
+        {"job_id": "j1", "candidate_id": "c2", "ranker_score": 4.9, "judge_score": 1.0},
+        {"job_id": "j1", "candidate_id": "c3", "ranker_score": 0.1, "judge_score": 0.2},
+        {"job_id": "j2", "candidate_id": "c4", "ranker_score": 2.0, "judge_score": 4.8},
+    ]
+
+    selected = stratified_audit_rows(rows, disagreement_count=1, top_count=1, bottom_count=1)
+
+    assert {row["candidate_id"] for row in selected} == {"c1", "c2", "c3"}
+
+
+def test_external_verification_features_flag_domain_mismatch() -> None:
+    row = {
+        "job_id": "42",
+        "company_url": "https://example.com/careers",
+        "posting_url": "https://example-hiring.net/jobs/42",
+        "description": "Contact recruiter@example-hiring.net or apply at https://example-hiring.net/jobs/42",
+    }
+
+    features = extract_features(row, record_id="42")
+
+    assert features.email_domain_mismatch is True
+    assert features.posting_domain_mismatch is True
+    assert "EMAIL_DOMAIN_MISMATCH" in features.evidence_markers
+    assert features.verification_risk_score > 0
+
+
+def test_structural_signature_removes_contacts_and_numbers() -> None:
+    signature = structural_signature({"description": "Apply at https://bad.example/42 or fraud@example.com. Pay 9000."})
+
+    assert "<CONTACT>" in signature
+    assert "9000" not in signature
+
+
+def test_external_provider_cache_reuses_result(tmp_path: Path) -> None:
+    cache = ExternalProviderCache(tmp_path / "providers.sqlite", minimum_interval_seconds=0)
+    calls = 0
+
+    def fetch() -> dict[str, str]:
+        nonlocal calls
+        calls += 1
+        return {"status": "verified", "age_days": "100"}
+
+    assert cache.lookup("whois", "example.com", ttl_seconds=60, fetch=fetch)["status"] == "verified"
+    assert cache.lookup("whois", "example.com", ttl_seconds=60, fetch=fetch)["age_days"] == "100"
+    assert calls == 1
+
+
+def test_supervised_contrastive_loss_is_finite() -> None:
+    import torch
+
+    loss = supervised_contrastive_loss(torch.tensor([[1.0, 0.0], [0.8, 0.2], [0.0, 1.0], [0.1, 0.9]]), torch.tensor([0, 0, 1, 1]))
+    assert torch.isfinite(loss)
+
+
+def test_codex_fraud_engine_uses_train_only_domain_and_clone_evidence() -> None:
+    engine = CodexFraudEngine(min_fraud_support=2)
+    engine.train_stateful_layers([
+        {"label": True, "posting_domain": "fraud.example"},
+        {"label": True, "posting_domain": "fraud.example"},
+        {"label": False, "posting_domain": "clean.example", "description": "Role duties include build reliable software services"},
+    ])
+
+    blocked = engine.evaluate_pipeline({"posting_domain": "fraud.example"}, tfidf_probability=0.1, verifier_probability=0.1)
+    clone = engine.evaluate_pipeline({"posting_domain": "other.example", "description": "Role duties include build reliable software services"}, tfidf_probability=0.8, verifier_probability=0.7)
+
+    assert blocked.intercepted is True
+    assert "CLONE_DOMAIN_MISMATCH" in clone.evidence
+    assert 0 < clone.fraud_score < 1
+
+
+def test_moe_router_requires_trusted_source_metadata() -> None:
+    registry = {"experts": {"hse_llm": {}}}
+    assert route_source("hse_llm", registry) == "expert"
+    assert route_source(None, registry) == "global"
+
+
+def test_expert_data_audit_strips_metadata_and_rejects_cross_label_duplicates() -> None:
+    assert sanitize_text("Author: analyst\n<valence_source>Benign policy text with sufficient detail.</valence_source>") == "Benign policy text with sufficient detail."
+    _, report = audit([
+        {"source": "hse_llm", "label": False, "text": "A sufficiently detailed benign secret-policy document for review."},
+        {"source": "hse_llm", "label": True, "text": "A sufficiently detailed benign secret-policy document for review."},
+    ], minimum_per_label=1)
+    assert report["passed"] is False
+    assert any("cross-label collision" in error for error in report["errors"])
+
+
+def test_shadow_harvest_redacts_basic_pii() -> None:
+    assert redact_pii("Contact jane@example.com or +1 (555) 123-4567") == "Contact [REDACTED_EMAIL] or [REDACTED_PHONE]"
+
+
+def test_shadow_review_loop_requires_explicit_human_labels() -> None:
+    queue = capture([
+        {"source_id": "hse_llm", "content": "Contact jane@example.com about policy", "score": 0.9},
+        {"source": "wambosec", "text": "not a review source", "score": 0.9},
+    ])
+    assert len(queue) == 1
+    assert "jane@example.com" not in queue[0]["text"]
+    labelled = merge_labels(queue, [{"record_id": queue[0]["record_id"], "label": False}])
+    assert labelled == [{"record_id": queue[0]["record_id"], "source": "hse_llm", "label": False, "text": "Contact [REDACTED_EMAIL] about policy", "origin": "shadow_human_review"}]
+
+
+def test_liveness_checker_caches_unknown_results_without_repeating_probe(tmp_path: Path, monkeypatch) -> None:
+    calls: list[str] = []
+
+    def unknown_probe(domain: str, timeout: float) -> None:
+        calls.append(domain)
+        return None
+
+    monkeypatch.setattr("benchmarks.external_verification_features._domain_live", unknown_probe)
+    cache_path = tmp_path / "liveness-cache.json"
+    checker = LivenessChecker(timeout=1, retries=0, cache_path=cache_path, cache_ttl_seconds=60)
+    checker.prefetch({"example.com"}, set())
+    assert checker.domain_live("example.com") is None
+    assert calls == ["example.com"]
+    assert cache_path.exists()
 
 
 def test_transformer_emscad_split_preserves_fraud_labels() -> None:

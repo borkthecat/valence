@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import math
 import random
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -208,6 +210,49 @@ def _special_tokens(path: Path | None) -> list[str]:
     return sorted(set(selected))
 
 
+def _validate_special_token_integration(tokenizer: Any, tokens: list[str]) -> None:
+    for token in tokens:
+        token_id = tokenizer.convert_tokens_to_ids(token)
+        unknown_id = getattr(tokenizer, "unk_token_id", None)
+        if token_id is None or token_id == unknown_id:
+            raise ValueError(f"special token was not registered: {token}")
+        pieces = tokenizer.tokenize(token, add_special_tokens=False)
+        if pieces != [token]:
+            raise ValueError(f"special token is split by tokenizer: {token} -> {pieces}")
+
+
+def supervised_contrastive_loss(embeddings: torch.Tensor, labels: torch.Tensor, temperature: float = 0.1) -> torch.Tensor:
+    """Pull same-label examples together while separating the other class."""
+    if embeddings.shape[0] < 2:
+        return embeddings.new_zeros(())
+    normalized = F.normalize(embeddings, dim=1)
+    logits = normalized @ normalized.T / temperature
+    logits = logits - logits.max(dim=1, keepdim=True).values.detach()
+    identity = torch.eye(len(labels), dtype=torch.bool, device=labels.device)
+    positive_mask = labels[:, None].eq(labels[None, :]) & ~identity
+    denominator_mask = ~identity
+    log_probability = logits - torch.logsumexp(logits.masked_fill(~denominator_mask, float("-inf")), dim=1, keepdim=True)
+    positive_counts = positive_mask.sum(dim=1)
+    valid = positive_counts > 0
+    if not valid.any():
+        return embeddings.new_zeros(())
+    return -(log_probability[valid] * positive_mask[valid]).sum(dim=1).div(positive_counts[valid]).mean()
+
+
+def save_model_safely(model: Any, tokenizer: Any, output: Path, *, device: torch.device, resume_training: bool) -> None:
+    """Serialize CPU shards to avoid a GPU/host-memory peak during checkpoints."""
+    print(json.dumps({"checkpoint": str(output), "serialization": "cpu-sharded-safetensors"}), flush=True)
+    model.to("cpu")
+    torch.cuda.empty_cache()
+    gc.collect()
+    output.mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(output, safe_serialization=True, max_shard_size="512MB")
+    tokenizer.save_pretrained(output)
+    if resume_training:
+        model.to(device)
+        torch.cuda.empty_cache()
+
+
 def _split(rows: list[tuple[str, bool, str]]) -> tuple[list[tuple[str, bool, str]], list[tuple[str, bool, str]]]:
     training = [row for row in rows if fingerprint(row[0])[-1] >= 26]
     validation = [row for row in rows if fingerprint(row[0])[-1] < 26]
@@ -272,9 +317,21 @@ def main() -> int:
     parser.add_argument("--synthetic-per-policy-class", type=int, default=2_500)
     parser.add_argument("--provenance-jsonl", type=Path)
     parser.add_argument("--special-tokens", type=Path)
+    parser.add_argument("--limit-records", type=int, help="Bound rows for a small training sanity check")
+    parser.add_argument("--checkpoint-every-updates", type=int, default=250)
+    parser.add_argument("--stop-after-updates", type=int, help="Stop early after N optimizer updates for smoke testing")
     parser.add_argument("--learning-rate", type=float, default=2e-5)
+    parser.add_argument("--contrastive-weight", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=20260709)
     args = parser.parse_args()
+    if args.limit_records is not None and args.limit_records <= 0:
+        raise ValueError("--limit-records must be positive")
+    if args.checkpoint_every_updates <= 0:
+        raise ValueError("--checkpoint-every-updates must be positive")
+    if args.stop_after_updates is not None and args.stop_after_updates <= 0:
+        raise ValueError("--stop-after-updates must be positive")
+    if args.contrastive_weight < 0:
+        raise ValueError("--contrastive-weight must be non-negative")
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is required for transformer guard training")
     random.seed(args.seed)
@@ -285,6 +342,8 @@ def main() -> int:
     provenance_records = _provenance_rows(args.provenance_jsonl) if args.provenance_jsonl else []
     if provenance_records:
         rows = sorted([*rows, *provenance_records], key=lambda row: fingerprint(row[0]))
+    if args.limit_records:
+        rows = rows[: args.limit_records]
     training, validation = _split(rows)
     print(json.dumps({"trainingRecords": len(training), "validationRecords": len(validation)}), flush=True)
     local_base = Path(args.base_model).exists()
@@ -300,6 +359,7 @@ def main() -> int:
     special_tokens_added = tokenizer.add_special_tokens({"additional_special_tokens": special_tokens}) if special_tokens else 0
     if special_tokens_added:
         model.resize_token_embeddings(len(tokenizer))
+        _validate_special_token_integration(tokenizer, special_tokens)
     model.gradient_checkpointing_enable()
     device = torch.device("cuda")
     model.to(device)
@@ -352,7 +412,12 @@ def main() -> int:
             batch = {key: value.to(device, non_blocking=True) for key, value in batch.items()}
             labels = labels.to(device, non_blocking=True)
             with torch.autocast(device_type="cuda", dtype=torch.float16):
-                loss = model(**batch, labels=labels).loss / args.gradient_accumulation
+                outputs = model(**batch, labels=labels, output_hidden_states=args.contrastive_weight > 0)
+                loss = outputs.loss
+                if args.contrastive_weight:
+                    embeddings = outputs.hidden_states[-1][:, 0, :]
+                    loss = loss + args.contrastive_weight * supervised_contrastive_loss(embeddings, labels)
+                loss = loss / args.gradient_accumulation
             scaler.scale(loss).backward()
             if step % args.gradient_accumulation == 0 or step == len(training_loader):
                 scaler.unscale_(optimizer)
@@ -364,6 +429,26 @@ def main() -> int:
                 update += 1
                 if update % 50 == 0:
                     print(json.dumps({"epoch": epoch + 1, "update": update, "updates": updates, "loss": loss.detach().item() * args.gradient_accumulation}), flush=True)
+                if update % args.checkpoint_every_updates == 0:
+                    checkpoint = args.output / "checkpoint-last"
+                    save_model_safely(model, tokenizer, checkpoint, device=device, resume_training=True)
+                    (checkpoint / "training-state.json").write_text(json.dumps({
+                        "epoch": epoch + 1,
+                        "update": update,
+                        "updates": updates,
+                        "trainingRecords": len(training),
+                        "validationRecords": len(validation),
+                    }, indent=2), encoding="utf-8")
+                if args.stop_after_updates is not None and update >= args.stop_after_updates:
+                    checkpoint = args.output / "checkpoint-early-stop"
+                    save_model_safely(model, tokenizer, checkpoint, device=device, resume_training=False)
+                    (checkpoint / "training-state.json").write_text(json.dumps({
+                        "epoch": epoch + 1,
+                        "update": update,
+                        "updates": updates,
+                        "stoppedEarly": True,
+                    }, indent=2), encoding="utf-8")
+                    return 0
         report = _evaluate(model, validation_loader, device)
         source_scores = [
             min(metrics[key] for key in ("accuracy", "precision", "recall", "f1"))
@@ -375,8 +460,7 @@ def main() -> int:
         print(json.dumps(report), flush=True)
         if score > best_score:
             best_score = score
-            model.save_pretrained(args.output, safe_serialization=True)
-            tokenizer.save_pretrained(args.output)
+            save_model_safely(model, tokenizer, args.output, device=device, resume_training=True)
             (args.output / "training.json").write_text(json.dumps({
                 "baseModel": args.base_model,
                 "baseRevision": None if local_base else args.base_revision,
@@ -387,6 +471,7 @@ def main() -> int:
                 "specialTokensAdded": special_tokens_added,
                 "syntheticPerPolicyClass": args.synthetic_per_policy_class,
                 "maxLength": args.max_length,
+                "contrastiveWeight": args.contrastive_weight,
                 "epoch": epoch + 1,
                 "selectionScore": score,
                 "validation": report,

@@ -1,0 +1,12 @@
+{
+  "name": "risk-calibrated-guard-v1",
+  "global": {
+    "minAccuracy": 0.96,
+    "minPrecision": 0.95,
+    "minRecall": 0.93,
+    "minF1": 0.94,
+    "maxFalsePositiveRate": 0.03
+  },
+  "maxSourceFalsePositiveRate": 0.05,
+  "minimumEnforceRecall": 0.5
+}

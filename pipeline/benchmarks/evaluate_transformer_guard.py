@@ -107,6 +107,7 @@ def main() -> int:
     parser.add_argument("--minimum", type=float, default=0.95)
     parser.add_argument("--maximum-fpr", type=float, default=0.05)
     parser.add_argument("--calibration", type=Path)
+    parser.add_argument("--corpus-calibration", type=Path, help="per-corpus threshold manifest from calibrate_per_corpus_thresholds.py")
     parser.add_argument("--trust-remote-code", action="store_true")
     parser.add_argument("--positive-label-pattern")
     parser.add_argument("--no-policy-prefix", action="store_true")
@@ -125,6 +126,9 @@ def main() -> int:
     thresholds = {"direct": 0.5, "indirect": 0.5, "secret": 0.5}
     if calibration_path is not None and calibration_path.exists():
         thresholds.update(json.loads(calibration_path.read_text(encoding="utf-8"))["thresholds"])
+    corpus_thresholds: dict[str, float] = {}
+    if args.corpus_calibration is not None:
+        corpus_thresholds = {str(key): float(value) for key, value in json.loads(args.corpus_calibration.read_text(encoding="utf-8"))["thresholds"].items()}
     results: list[dict[str, Any]] = []
     totals: list[tuple[bool, bool]] = []
     for corpus in matrix:
@@ -145,7 +149,8 @@ def main() -> int:
             batch = {key: value.to(device) for key, value in batch.items()}
             with torch.inference_mode(), torch.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
                 probabilities = torch.softmax(model(**batch).logits.float(), dim=-1)[:, positive_index].cpu().tolist()
-                predictions.extend(value >= thresholds[corpus["policy"]] for value in probabilities)
+                threshold = corpus_thresholds.get(corpus["name"], thresholds[corpus["policy"]])
+                predictions.extend(value >= threshold for value in probabilities)
         labels = [bool(row["label"]) for row in rows]
         metrics = _metrics(labels, predictions)
         passed = (
@@ -172,6 +177,7 @@ def main() -> int:
         "minimum": args.minimum,
         "maximumFpr": args.maximum_fpr,
         "thresholds": thresholds,
+        "corpusThresholds": corpus_thresholds,
         "suites": _suite_summary(results),
         "pooledMetrics": _metrics([label for label, _ in totals], [prediction for _, prediction in totals]),
         "results": results,

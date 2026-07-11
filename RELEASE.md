@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.11.8` research preview
+Current release target: `v1.13.2` risk-calibrated research preview
 
 ## Preflight
 
@@ -31,6 +31,14 @@ python pipeline/benchmarks/run_injection_matrix.py --matrix .benchmark-data/inje
 
 The release must not be described as 95% production-accurate unless the matrix report reaches the documented gates. The current compact bundled guard remains below that bar.
 
+Risk-calibrated guard preflight:
+
+```bash
+python pipeline/remediation/assert_operating_standard.py --report gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json --profile gateway/benchmarks/enterprise-operating-standard.json --output gateway/benchmarks/results/v1.13.2-enterprise-operating-standard.json
+```
+
+The profile requires 96% accuracy, 95% precision, 93% recall, 94% F1, 3% aggregate FPR, and 5% maximum source FPR. Sources below the configured 50% recall are review-only. Before promotion, run the review sources in shadow mode and merge explicit human decisions; do not use model predictions as labels.
+
 Optional local image check:
 
 ```bash
@@ -54,6 +62,13 @@ git push origin main v1.11.8
 ```
 
 ## Release Notes
+
+`v1.13.2` makes the provenance guard operationally risk-calibrated:
+
+- Records the V6 selective expert routing matrix at 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, and 2.29% aggregate FPR.
+- Adds an enforce/review routing decision so `hse_llm` and `cgoosen_combined` cannot automatically block while their held-out recall remains below 50%.
+- Adds a privacy-reduced shadow capture and explicit human-label merger for those review sources.
+- Keeps the status at research preview pending a real shadow run and independently reviewed production labels.
 
 `v1.11.8` tests the fraud-improvement hypothesis and records the blocker:
 

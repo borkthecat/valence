@@ -1,0 +1,19 @@
+{
+  "model": "protectai/deberta-v3-base-prompt-injection-v2",
+  "source": "jcanode",
+  "threshold": 0.9899999999999999,
+  "calibrationGateSatisfied": false,
+  "metrics": {
+    "samples": 5425,
+    "truePositive": 984,
+    "trueNegative": 1920,
+    "falsePositive": 2433,
+    "falseNegative": 88,
+    "accuracy": 0.5352995391705069,
+    "precision": 0.28797190517998245,
+    "recall": 0.917910447761194,
+    "f1": 0.4384049899754957,
+    "falsePositiveRate": 0.5589248793935218
+  },
+  "passed": false
+}
