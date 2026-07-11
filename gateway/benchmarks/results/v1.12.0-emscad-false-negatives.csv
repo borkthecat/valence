@@ -1,0 +1,25 @@
+row_index,job_id,score,threshold,title,location,employment_type,required_experience,required_education,industry,function,department,company_profile_empty,description_empty,requirements_empty,benefits_empty,salary_range_empty,telecommuting,has_company_logo,has_questions
+5166,5167,0.25651840186852753,0.6256,Final Expense Agent,"US, , ",,,,Insurance,,,True,False,False,True,True,0,0,1
+17700,17701,0.40764831181081507,0.6256,customer service,"US, FL, 32008",Full-time,Entry level,Unspecified,Accounting,Customer Service,admin,True,False,False,False,False,0,0,0
+8722,8723,0.08128795945661708,0.6256, Hiring for Business Intelligence and Analytics Project Manager,"US, WA, Bellevue",Full-time,Mid-Senior level,,Information Technology and Services,Information Technology,,True,False,True,True,False,0,0,0
+6374,6375,0.0844061029320639,0.6256,Urgent position for SQL BI Tester,"US, WA, Redmond",Contract,Mid-Senior level,Bachelor's Degree,Information Technology and Services,Information Technology,,True,False,False,True,False,0,1,1
+5894,5895,0.5366696180465277,0.6256,Field Service Tech Capital Equipment    1970,"US, NY, New York City",Full-time,,,,,,True,False,False,True,True,0,0,0
+17768,17769,0.5885581632554151,0.6256,No Scams--Legitimate Work From Home Jobs,"US, NY, New York",Part-time,Not Applicable,,,Sales,,True,False,False,False,True,0,0,0
+16862,16863,0.6187057350309332,0.6256,Document Control Specialist,"US, NC, Holly Springs, NC",,,,,,biotech,False,False,False,True,True,0,1,0
+6992,6993,0.6193039078250338,0.6256, SENIOR CORPORATE RECCRUITER,"US, TX, Houston",Full-time,,,Oil & Energy,Human Resources,Human Resources,True,False,False,True,True,0,0,0
+15581,15582,0.2412428139291169,0.6256,Test Automation Engineer,"US, OH, Groveport",Contract,,,Information Technology and Services,Information Technology,,True,False,False,True,True,0,0,0
+17684,17685,0.5284133252115416,0.6256,"Engineering Senior Supervisor, Livonia, MI","US, MI, Livonia",,,,,,,True,False,False,False,True,0,0,0
+17570,17571,0.44120670575978266,0.6256,work from home,"US, FL, tampa",,,,,,,True,False,False,False,True,0,1,0
+17741,17742,0.3129495868300537,0.6256,Intern Project Developer,"US, , ",Other,Internship,High School or equivalent,Entertainment,Business Development,,True,False,False,False,True,0,1,0
+17729,17730,0.16554614736190823,0.6256,Intern Development Assistant,"US, CA, Los Angeles",Other,Internship,High School or equivalent,Entertainment,Business Development,Programming,True,False,False,True,True,0,1,1
+3463,3464,0.094919069261616,0.6256,Business Development Manager,"US, CA, San Francisco",Full-time,,High School or equivalent,Wholesale,Sales,Sales,True,False,False,True,True,0,0,1
+8027,8028,0.5380684185990589,0.6256,Well Test Operator,"US, TX, Houston",Full-time,,,Oil & Energy,Other,Maintenance,True,False,False,True,True,0,0,0
+2927,2928,0.24293214059833929,0.6256,"LEAN Program Manager, Carol Stream, IL","US, IL, Carol Stream",,,,,,,True,False,False,False,True,0,0,0
+17667,17668,0.09425511225138809,0.6256,Quant Analyst ,"GB, LND, London",Full-time,Associate,Doctorate,Banking,Engineering,,True,False,False,False,False,0,0,1
+6879,6880,0.5397687234200329,0.6256,Structural Designer,"US, TX, Houston",,,,,,Engineering,True,False,False,True,True,0,0,1
+17549,17550,0.4856895428189875,0.6256,Sales manager,"IN, , ",Full-time,Mid-Senior level,Unspecified,Accounting,Accounting/Auditing,Sales and Marketing ,True,False,False,False,False,0,0,1
+10849,10850,0.20934465073193417,0.6256,Hiring for Senior SAP Solution Engineer,"US, WA, Bellevue",Full-time,Mid-Senior level,,Information Technology and Services,Information Technology,,True,False,True,True,False,0,0,0
+6985,6986,0.5607989686887541,0.6256,Oil/Gas Technical Manager,"US, TX, Houston",Full-time,,,Oil & Energy,Engineering,,True,False,False,True,True,0,0,0
+4967,4968,0.604395622015605,0.6256,Military Benefits Advocate,"US, IL, ",Contract,Associate,Certification,Military,Project Management,,False,False,False,False,False,1,1,1
+3711,3712,0.16001847575463432,0.6256,software development life cycle,"US, GA, Atlanta",Contract,Mid-Senior level,Bachelor's Degree,Information Technology and Services,Information Technology,,True,False,False,True,False,0,1,1
+17812,17813,0.21307421291158787,0.6256,Hiring for SAP Supply Chain Manager,"US, WA, Bellevue",Full-time,Mid-Senior level,,Information Technology and Services,Information Technology,,True,False,True,True,False,0,0,0

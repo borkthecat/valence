@@ -16,6 +16,7 @@ import { createErrorHandler, installProcessGuards, scrubSensitiveTraces, } from 
 import { createReverseProxy } from './proxy/reverseProxy';
 import { createGatewayMetrics } from './observability/metrics';
 import { createAuditLog } from './observability/auditLog';
+import { createShadowReviewLog, parseShadowReviewSources } from './observability/shadowReviewLog';
 import { ingestRouter } from './routes/ingest';
 import { disconnectProducer } from './services/kafkaProducer';
 import { HttpClassifierClient, HttpGuardModelClient, LocalGuardModelClient } from './services/modelClients';
@@ -75,6 +76,8 @@ export function buildApp(logger: Logger): Express {
     ]);
     const metrics = createGatewayMetrics();
     const audit = createAuditLog(environment.AUDIT_LOG_PATH);
+    const shadowReview = createShadowReviewLog(environment.SHADOW_REVIEW_LOG_PATH);
+    const shadowReviewSources = parseShadowReviewSources(environment.SHADOW_REVIEW_SOURCES);
     const apiKeyAuth = createGatewayAuth(environment.GATEWAY_API_KEY, {
         tenantContext: {
             tenantId: 'api-key',
@@ -143,6 +146,7 @@ export function buildApp(logger: Logger): Express {
         scanner,
         shield,
         guardUserPolicy: environment.GUARD_USER_POLICY,
+        shadowReviewSources,
         sink: {
             onPromptBlocked: (event) => {
                 metrics.injectionsBlockedTotal.inc();
@@ -185,6 +189,15 @@ export function buildApp(logger: Logger): Express {
                     request_id: event.requestId,
                     phase: event.phase,
                 });
+            },
+            onShadowReviewEvent: (event) => {
+                shadowReview?.record(event);
+                logger.info({
+                    requestId: event.requestId,
+                    sourceId: event.sourceId,
+                    policy: event.policy,
+                    score: event.score,
+                }, 'shadow review event captured');
             },
         },
     });

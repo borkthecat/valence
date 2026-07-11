@@ -1,0 +1,20 @@
+{
+  "accuracy": 0.9885346756152126,
+  "f1": 0.8790560471976401,
+  "false_negative": 24,
+  "false_positive": 17,
+  "false_positive_rate": 0.004995592124595945,
+  "fraudulent": 866,
+  "model_adjusted_fer_at_k": 0.0,
+  "model_sha256": "b6704e919a0b90878d0a5560c318be4d13f4880a81f500714de21126ec424105",
+  "precision": 0.8975903614457831,
+  "recall": 0.861271676300578,
+  "records": 17880,
+  "test_records": 3576,
+  "threshold": 0.6256,
+  "train_records": 12516,
+  "true_negative": 3386,
+  "true_positive": 149,
+  "unmitigated_fer_at_k": 0.04,
+  "validation_records": 1788
+}

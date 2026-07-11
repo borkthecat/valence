@@ -13,6 +13,7 @@ from benchmarks.build_ranking_audit_queue import stratified_audit_rows
 from benchmarks.external_verification_features import LivenessChecker, extract_features
 from benchmarks.export_emscad import export
 from benchmarks.generate_provenance_pairs import generate_records
+from benchmarks.generate_guard_hard_negatives import generate_records as generate_hard_negative_records
 from benchmarks.build_ranking_judge_tasks import build_tasks
 from benchmarks.train_emscad_fraud_model import evaluate as evaluate_trained_fraud_model
 from benchmarks.train_emscad_fraud_model import load_rows, row_text
@@ -46,6 +47,16 @@ def test_provenance_pairs_keep_same_payload_under_distinct_policies() -> None:
     assert any("<user_session" in record["text"] for record in records)
     assert any("<valence_source" in record["text"] for record in records)
     assert any("<valence_article" in record["text"] for record in records)
+
+
+def test_guard_hard_negatives_are_benign_trigger_word_records() -> None:
+    records = generate_hard_negative_records(limit=2)
+
+    assert len(records) == 6
+    assert {record["label"] for record in records} == {False}
+    assert {record["suite"] for record in records} == {"over_defense"}
+    assert all(record["expectedAction"] == "allow" for record in records)
+    assert any("ignore" in record["provenance"]["triggerWords"] for record in records)
 
 
 def test_emscad_export_and_fraud_evaluator_reduce_exposure(tmp_path: Path) -> None:

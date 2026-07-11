@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { GuardModelDetector, InjectionShield, type GuardModelClient } from '../src/core/filters/injectionShield';
 import { routeForProvenance } from '../src/core/filters/provenanceRouting';
 import { decideGuardRoute } from '../src/core/filters/expertRouting';
+import { parseShadowReviewSources, redactShadowReviewText } from '../src/observability/shadowReviewLog';
 
 async function run(): Promise<void> {
     const article = routeForProvenance({ boundary: 'compiled_article' });
@@ -38,6 +39,11 @@ async function run(): Promise<void> {
 
     assert.equal((await shield.evaluate('quoted trigger', article)).blocked, false);
     assert.equal((await shield.evaluate('untrusted trigger', source)).blocked, true);
+    assert.deepEqual([...parseShadowReviewSources('hse_llm, cgoosen_combined')], ['hse_llm', 'cgoosen_combined']);
+    assert.equal(
+        redactShadowReviewText('Contact jane@example.com or +1 (555) 123-4567'),
+        'Contact [REDACTED_EMAIL] or [REDACTED_PHONE]',
+    );
 
     process.stdout.write('provenance-routing.smoke: OK\n');
 }

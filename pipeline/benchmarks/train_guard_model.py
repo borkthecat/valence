@@ -99,7 +99,45 @@ def _calibrate_thresholds(
     return thresholds
 
 
-def _training_rows(cache: Path, max_per_class: int) -> tuple[list[tuple[str, bool, str]], list[tuple[str, bool, str]], int, int]:
+def _extra_rows(paths: list[Path]) -> list[tuple[str, bool, str]]:
+    rows: list[tuple[str, bool, str]] = []
+    for path in paths:
+        with path.open("r", encoding="utf-8") as source:
+            for line_number, line in enumerate(source, 1):
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                if not isinstance(record, dict):
+                    raise ValueError(f"{path}:{line_number} must contain an object")
+                text = record.get("text")
+                label = record.get("label")
+                policy = record.get("policy", "direct")
+                if not isinstance(text, str) or not isinstance(label, bool) or policy not in POLICIES:
+                    raise ValueError(f"{path}:{line_number} needs text, boolean label, and valid policy")
+                rows.append((policy_text(text, str(policy)), label, str(policy)))
+    return rows
+
+
+def _dedupe_training_rows(rows: list[tuple[str, bool, str]]) -> tuple[list[tuple[str, bool, str]], int]:
+    candidates: dict[bytes, list[tuple[str, bool, str]]] = {}
+    for row in rows:
+        candidates.setdefault(fingerprint(row[0]), []).append(row)
+    selected = []
+    conflicts = 0
+    for duplicates in candidates.values():
+        if len({row[1] for row in duplicates}) != 1:
+            conflicts += 1
+            continue
+        selected.append(duplicates[0])
+    return sorted(selected, key=lambda row: fingerprint(row[0])), conflicts
+
+
+def _training_rows(
+    cache: Path,
+    max_per_class: int,
+    extra_jsonl: list[Path],
+    extra_calibration_jsonl: list[Path],
+) -> tuple[list[tuple[str, bool, str]], list[tuple[str, bool, str]], int, int, int, int]:
     corpora = load_corpora(cache)
     test_hashes = {fingerprint(text) for corpus in corpora for text, _ in corpus.test}
     candidates: dict[bytes, list[tuple[str, bool, str]]] = {}
@@ -130,9 +168,21 @@ def _training_rows(cache: Path, max_per_class: int) -> tuple[list[tuple[str, boo
             calibration.append(row)
         else:
             training.append(row)
+    base_training_records = len(training)
+    public_duplicates = sampled - base_training_records - len(calibration) - conflicts
+    extra_training = _extra_rows(extra_jsonl)
+    extra_calibration = _extra_rows(extra_calibration_jsonl)
+    if {fingerprint(text) for text, _, _ in [*extra_training, *extra_calibration]} & test_hashes:
+        raise ValueError("extra training/test leakage detected")
+    training, extra_conflicts = _dedupe_training_rows([*training, *extra_training])
+    conflicts += extra_conflicts
     if {fingerprint(text) for text, _, _ in training} & test_hashes:
         raise ValueError("training/test leakage detected")
-    return training, calibration, sampled - len(training) - len(calibration) - conflicts, conflicts
+    calibration, extra_calibration_conflicts = _dedupe_training_rows([*calibration, *extra_calibration])
+    conflicts += extra_calibration_conflicts
+    if {fingerprint(text) for text, _, _ in calibration} & test_hashes:
+        raise ValueError("calibration/test leakage detected")
+    return training, calibration, public_duplicates, conflicts, len(extra_training), len(extra_calibration)
 
 
 def main() -> int:
@@ -142,12 +192,19 @@ def main() -> int:
     parser.add_argument("--max-features", type=int, default=150_000)
     parser.add_argument("--max-per-class-per-corpus", type=int, default=10_000)
     parser.add_argument("--class-weight", choices=("balanced", "none"), default="balanced")
+    parser.add_argument("--extra-jsonl", type=Path, action="append", default=[], help="Additional training-only JSONL records with text, label, and policy")
+    parser.add_argument("--extra-calibration-jsonl", type=Path, action="append", default=[], help="Additional calibration-only JSONL records with text, label, and policy")
     args = parser.parse_args()
     if not 10_000 <= args.max_features <= 150_000:
         raise ValueError("--max-features must be between 10000 and 150000")
     if not 100 <= args.max_per_class_per_corpus <= 25_000:
         raise ValueError("--max-per-class-per-corpus must be between 100 and 25000")
-    training, calibration, duplicates, conflicts = _training_rows(args.cache, args.max_per_class_per_corpus)
+    training, calibration, duplicates, conflicts, extra_records, extra_calibration_records = _training_rows(
+        args.cache,
+        args.max_per_class_per_corpus,
+        args.extra_jsonl,
+        args.extra_calibration_jsonl,
+    )
     vectorizer = TfidfVectorizer(
         analyzer=_features,
         lowercase=False,
@@ -192,6 +249,8 @@ def main() -> int:
     print(json.dumps({
         "trainingRecords": len(training),
         "calibrationRecords": len(calibration),
+        "extraTrainingRecords": extra_records,
+        "extraCalibrationRecords": extra_calibration_records,
         "policyThresholds": policy_thresholds,
         "duplicatesRemoved": duplicates,
         "conflictsRemoved": conflicts,
