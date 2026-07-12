@@ -96,7 +96,7 @@ This changes the diagnosis. The direct-attack suite is near the strict target, w
 
 ### Risk-calibrated provenance guard
 
-The full V6 provenance model is evaluated with selective source experts only where they improve held-out false-positive behavior. The current `v1.12.0` release target uses the final `v1.13.2` benchmark artifact as its risk-calibrated evidence matrix: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% aggregate FPR, and 4.62% maximum per-source FPR. The profile is checked by `pipeline/remediation/assert_operating_standard.py` against `gateway/benchmarks/enterprise-operating-standard.json`.
+The full V6 provenance model is evaluated with selective source experts only where they improve held-out false-positive behavior. The current `v1.13.0` release target retains the final `v1.13.2` benchmark artifact as its risk-calibrated evidence matrix: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% aggregate FPR, and 4.62% maximum per-source FPR. The profile is checked by `pipeline/remediation/assert_operating_standard.py` against `gateway/benchmarks/enterprise-operating-standard.json`.
 
 `cgoosen_combined` and `hse_llm` meet the low-FPR constraint but have 14.77% and 25.00% recall respectively, so they are review-only, not automatic block routes. `pipeline/remediation/shadow_review_loop.py` creates a PII-reduced queue from real shadow events and merges explicit human labels for the next expert-data audit. These two sources are not evidence for production detection coverage until that shadow evaluation completes.
 

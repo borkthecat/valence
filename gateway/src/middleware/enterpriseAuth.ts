@@ -3,8 +3,9 @@ import type { GetVerificationKey } from 'express-jwt';
 import jwksRsa from 'jwks-rsa';
 import { environment } from '../config/environment';
 import { createGatewayAuth } from './auth';
+import type { RequestHandler } from 'express';
 
-export function createEnterpriseIngestAuth() {
+export function createEnterpriseIngestAuth(): RequestHandler {
     if (environment.ENTERPRISE_INGEST_AUTH_MODE === 'api_key') {
         return createGatewayAuth(environment.GATEWAY_API_KEY, {
             tenantContext: {
@@ -15,7 +16,7 @@ export function createEnterpriseIngestAuth() {
     }
     const jwksUri = environment.JWKS_URI;
     if (jwksUri === undefined) {
-        return (_req: unknown, res: { status: (code: number) => { json: (body: unknown) => void } }) => {
+        return (_req, res): void => {
             res.status(503).json({ error: 'JWKS_NOT_CONFIGURED' });
         };
     }

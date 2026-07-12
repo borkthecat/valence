@@ -1,6 +1,6 @@
 # Release Process
 
-Current release target: `v1.12.0` risk-calibrated research preview
+Current release target: `v1.13.0` advisory-review architecture research preview
 
 ## Preflight
 
@@ -46,7 +46,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.12.0` and `valence-pipeline:1.12.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.13.0` and `valence-pipeline:1.13.0` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -57,13 +57,13 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.12.0 -m "Valence v1.12.0"
-git push origin main v1.12.0
+git tag -a v1.13.0 -m "Valence v1.13.0"
+git push origin main v1.13.0
 ```
 
 ## Release Notes
 
-`v1.12.0` makes the provenance guard operationally risk-calibrated. The final benchmark artifact remains named `v1.13.2` because the intermediate experimental matrix files from `v1.12.0` through `v1.13.2` are preserved as research evidence, not product release tags:
+`v1.13.0` adds the versioned advisory Talent Integrity review contract while preserving the risk-calibrated provenance guard. Benchmark artifacts named `v1.13.x` remain experimental evidence and are not product release tags:
 
 - Records the V6 selective expert routing matrix at 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, and 2.29% aggregate FPR.
 - Adds an enforce/review routing decision so `hse_llm` and `cgoosen_combined` cannot automatically block while their held-out recall remains below 50%.

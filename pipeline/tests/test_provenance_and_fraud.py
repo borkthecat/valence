@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 BENCHMARKS = Path(__file__).resolve().parents[1] / "benchmarks"
 if str(BENCHMARKS) not in sys.path:
     sys.path.insert(0, str(BENCHMARKS))
@@ -196,7 +198,7 @@ def test_external_provider_cache_reuses_result(tmp_path: Path) -> None:
 
 
 def test_supervised_contrastive_loss_is_finite() -> None:
-    import torch
+    torch = pytest.importorskip("torch", reason="transformer benchmark dependencies are optional")
 
     loss = supervised_contrastive_loss(torch.tensor([[1.0, 0.0], [0.8, 0.2], [0.0, 1.0], [0.1, 0.9]]), torch.tensor([0, 0, 1, 1]))
     assert torch.isfinite(loss)

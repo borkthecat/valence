@@ -2,6 +2,18 @@
 
 This project keeps a change record for released source modifications.
 
+## 1.13.0
+
+- Repositioned the reusable gateway and governance controls as Valence Core, with Talent Integrity as a reference application.
+- Added versioned `POST /v1/valence/stage5/review` advisory responses with separate model assessments and deterministic policy outcomes.
+- Added machine-readable reason codes, exact candidate-set reconciliation, deterministic human-review routing, review metrics, and `/verify` deprecation headers.
+- Made transformer dependencies optional during core test collection and fixed portable Express export types.
+- Added threat, deployment, fairness, governance, operations, migration, cost, and enterprise data-flow documentation.
+
+### Migration from 1.12.0
+
+New Talent Integrity integrations should call `/v1/valence/stage5/review`, consume `schema_version: "1.0"`, and treat `policy_outcome` as advisory. Existing `/verify` clients remain compatible but receive deprecation headers. No new environment variable is required. Operators should alert on review failures, incomplete pools, schema failures, and unusually high human-review rates.
+
 ## 1.12.0
 
 - Added risk-calibrated provenance guard validation using the final V6 selective-routing benchmark artifact: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, and 2.29% aggregate false-positive rate.

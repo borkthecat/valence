@@ -12,8 +12,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Final, Literal, Protocol
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from config import get_settings
@@ -131,6 +131,110 @@ class CognitiveVerdict(BaseModel):
     mitigation_logs: str
 
 
+ReasonCode = Literal[
+    "RISK_PROFILE_INCONSISTENCY",
+    "RISK_UNTRUSTED_PROVENANCE",
+    "UNCERTAINTY_MISSING_REQUIRED_EVIDENCE",
+    "POLICY_HARD_REQUIREMENT_FAILED",
+]
+
+
+class CandidateJudgment(BaseModel):
+    """Bounded semantic findings. This model never represents a final decision."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    candidate_id: str = Field(min_length=1, max_length=128)
+    eligibility: Literal["eligible", "ineligible", "unknown"]
+    evidence_consistency: float = Field(ge=0.0, le=1.0)
+    relevance_adjustment: float = Field(ge=-0.25, le=0.25)
+    risk_findings: list[ReasonCode] = Field(default_factory=list, max_length=16)
+    uncertainties: list[ReasonCode] = Field(default_factory=list, max_length=16)
+    explanation: str = Field(default="", max_length=2048)
+    recommended_action: Literal[
+        "shortlist", "hold_for_review", "exclude_by_policy", "insufficient_evidence"
+    ]
+
+
+class PolicyOutcome(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    shortlist_eligible: bool
+    human_review_required: bool
+    reason_codes: list[str]
+
+
+class CandidateReview(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    candidate_id: str
+    model_assessment: CandidateJudgment
+    policy_outcome: PolicyOutcome
+
+
+class StructuredReview(BaseModel):
+    """Review findings plus a deterministic, non-binding shortlist policy."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal["1.0"] = "1.0"
+    decision_mode: Literal["advisory_review"] = "advisory_review"
+    candidates: list[CandidateReview]
+    recommended_shortlist: list[str]
+    human_review_required: bool
+    mitigation_logs: str
+
+
+def apply_review_policy(
+    judgments: list[CandidateJudgment], pool_ids: list[str], mitigations: list[str]
+) -> StructuredReview:
+    """Pure policy boundary: model findings in, advisory outcomes out."""
+    judgment_ids = [item.candidate_id for item in judgments]
+    if len(judgment_ids) != len(set(judgment_ids)) or set(judgment_ids) != set(pool_ids):
+        raise ValueError("structured review must cover each pool candidate exactly once")
+
+    by_id = {item.candidate_id: item for item in judgments}
+    candidates: list[CandidateReview] = []
+    shortlist: list[str] = []
+    for candidate_id in pool_ids:
+        finding = by_id[candidate_id]
+        reasons = [*finding.risk_findings, *finding.uncertainties]
+        if finding.eligibility == "ineligible":
+            reasons.append("POLICY_HARD_REQUIREMENT_FAILED")
+        clean = (
+            finding.eligibility == "eligible"
+            and finding.recommended_action == "shortlist"
+            and not reasons
+        )
+        needs_review = (
+            finding.eligibility == "unknown"
+            or finding.recommended_action in ("hold_for_review", "insufficient_evidence")
+            or (
+                finding.recommended_action == "exclude_by_policy"
+                and finding.eligibility != "ineligible"
+            )
+            or bool(finding.risk_findings)
+            or bool(finding.uncertainties)
+        )
+        if clean:
+            shortlist.append(candidate_id)
+        candidates.append(CandidateReview(
+            candidate_id=candidate_id,
+            model_assessment=finding,
+            policy_outcome=PolicyOutcome(
+                shortlist_eligible=clean,
+                human_review_required=needs_review,
+                reason_codes=list(dict.fromkeys(reasons)),
+            ),
+        ))
+    return StructuredReview(
+        candidates=candidates,
+        recommended_shortlist=shortlist,
+        human_review_required=any(c.policy_outcome.human_review_required for c in candidates),
+        mitigation_logs="; ".join(mitigations) if mitigations else "none",
+    )
+
+
 class SmokeCheck(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -238,6 +342,31 @@ class AsyncHttpProxyClient:
     def _mock_response(self, body: bytes) -> ProxyResponse:
         payload = json.loads(body)
         pool = json.loads(payload["messages"][1]["content"])["candidate_pool"]
+        if "candidate_id, eligibility" in payload["messages"][0]["content"]:
+            content = json.dumps(
+                {
+                    "judgments": [
+                        {
+                            "candidate_id": candidate["id"],
+                            "eligibility": "eligible",
+                            "evidence_consistency": 0.9,
+                            "relevance_adjustment": 0.0,
+                            "risk_findings": [],
+                            "uncertainties": [],
+                            "explanation": "Mock evidence is internally consistent.",
+                            "recommended_action": "shortlist",
+                        }
+                        for candidate in pool
+                    ]
+                }
+            )
+            envelope = json.dumps(
+                {
+                    "choices": [{"message": {"role": "assistant", "content": content}}],
+                    "usage": {"total_tokens": self._rng.randint(80, 400)},
+                }
+            ).encode("utf-8")
+            return ProxyResponse(status=200, body=envelope)
         winner = pool[0]["id"]
         content = json.dumps(
             {
@@ -311,6 +440,13 @@ class MetricsSnapshot:
     active_spans: int
     suspicious_tenants: int
     latency_samples_ns: tuple[int, ...]
+    review_requests_total: int
+    review_failures_total: int
+    review_candidates_total: int
+    review_shortlisted_total: int
+    review_human_total: int
+    incomplete_pool_total: int
+    model_schema_failure_total: int
 
 
 class OTelMetrics:
@@ -325,6 +461,30 @@ class OTelMetrics:
         self._max_concurrent = 0
         self._latency_ns: list[int] = []
         self._suspicious: set[str] = set()
+        self._review_requests = 0
+        self._review_failures = 0
+        self._review_candidates = 0
+        self._review_shortlisted = 0
+        self._review_human = 0
+        self._incomplete_pool = 0
+        self._model_schema_failure = 0
+
+    def record_review(self, candidates: int) -> None:
+        self._review_requests += 1
+        self._review_candidates += candidates
+
+    def record_review_result(self, review: StructuredReview) -> None:
+        self._review_shortlisted += len(review.recommended_shortlist)
+        self._review_human += sum(
+            item.policy_outcome.human_review_required for item in review.candidates
+        )
+
+    def record_review_failure(self, reason: str) -> None:
+        self._review_failures += 1
+        if "cover each pool candidate" in reason:
+            self._incomplete_pool += 1
+        if "invalid structured review" in reason:
+            self._model_schema_failure += 1
 
     def span_open(self) -> None:
         self._batches_total += 1
@@ -361,6 +521,13 @@ class OTelMetrics:
             active_spans=self._active_spans,
             suspicious_tenants=len(self._suspicious),
             latency_samples_ns=tuple(self._latency_ns),
+            review_requests_total=self._review_requests,
+            review_failures_total=self._review_failures,
+            review_candidates_total=self._review_candidates,
+            review_shortlisted_total=self._review_shortlisted,
+            review_human_total=self._review_human,
+            incomplete_pool_total=self._incomplete_pool,
+            model_schema_failure_total=self._model_schema_failure,
         )
 
 
@@ -531,6 +698,108 @@ class CognitiveVerifier:
         finally:
             self._metrics.record_latency(time.perf_counter_ns() - ingress_ns)
             self._metrics.span_close()
+
+    async def review(
+        self, request: Stage5Request, proxy: ProxyClient
+    ) -> StructuredReview:
+        """Collect semantic findings and apply a deterministic shortlist policy.
+
+        The LLM cannot select a winner or issue a binding rejection. Any ambiguity,
+        risk finding, or exclusion recommendation is routed to human review.
+        """
+        self._metrics.span_open()
+        self._metrics.record_review(len(request.pool))
+        ingress_ns = time.perf_counter_ns()
+        trace = TraceContext.new(request.tenant_id)
+        try:
+            sanitized_pool, mitigations = self._sanitizer.sanitize_pool(request.pool)
+            payload = self._build_review_payload(request, sanitized_pool)
+            response = await proxy.complete(
+                json.dumps(payload).encode("utf-8"),
+                {**trace.headers(), "Content-Type": "application/json"},
+            )
+            if response.status != 200:
+                self._metrics.record_interception()
+                raise CognitivePipelineCompromisedError(
+                    request.tenant_id, f"review proxy status {response.status}"
+                )
+            review, tokens = self._reconcile_review(
+                response.body, [candidate.id for candidate in request.pool], mitigations,
+                request.tenant_id,
+            )
+            self._metrics.record_tokens(tokens)
+            self._metrics.record_verified()
+            self._metrics.record_review_result(review)
+            log_event(
+                "stage5-verifier", "advisory_review_complete", trace_id=trace.trace_id,
+                stage=5, metrics={
+                    "tenant_id": request.tenant_id,
+                    "candidate_count": len(review.candidates),
+                    "shortlisted_count": len(review.recommended_shortlist),
+                    "human_review_required": review.human_review_required,
+                },
+            )
+            return review
+        except (ProxyConnectionError, asyncio.TimeoutError, OSError) as exc:
+            self._metrics.record_interception()
+            self._metrics.record_drop(request.tenant_id)
+            self._metrics.record_review_failure("model_failure")
+            raise CognitivePipelineCompromisedError(
+                request.tenant_id, "review proxy connection dropped"
+            ) from exc
+        except CognitivePipelineCompromisedError as exc:
+            self._metrics.record_drop(request.tenant_id)
+            self._metrics.record_review_failure(exc.reason)
+            raise
+        finally:
+            self._metrics.record_latency(time.perf_counter_ns() - ingress_ns)
+            self._metrics.span_close()
+
+    @staticmethod
+    def _build_review_payload(
+        request: Stage5Request, sanitized_pool: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        instruction = (
+            "You are a bounded evidence reviewer, not a decision maker. Return JSON "
+            "with a judgments array containing exactly one item per candidate. Each "
+            "item must contain candidate_id, eligibility (eligible|ineligible|unknown), "
+            "evidence_consistency (0..1), relevance_adjustment (-0.25..0.25), "
+            "risk_findings and uncertainties using only the documented machine reason "
+            "codes, explanation, and recommended_action (shortlist|hold_for_review|"
+            "exclude_by_policy|insufficient_evidence). Do not select a winner or make "
+            "a final decision. An exclusion is only a non-binding finding for policy."
+        )
+        return {
+            "model": PROXY_MODEL,
+            "messages": [
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": json.dumps({
+                    "target_channel": request.target_channel,
+                    "candidate_pool": sanitized_pool,
+                })},
+            ],
+            "temperature": 0.0,
+        }
+
+    @staticmethod
+    def _reconcile_review(
+        body: bytes,
+        pool_ids: list[str],
+        mitigations: list[str],
+        tenant_id: str,
+    ) -> tuple[StructuredReview, int]:
+        try:
+            envelope = json.loads(body)
+            content = json.loads(envelope["choices"][0]["message"]["content"])
+            judgments = [CandidateJudgment.model_validate(item) for item in content["judgments"]]
+            tokens = int(envelope.get("usage", {}).get("total_tokens", 0))
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError, ValueError, ValidationError) as exc:
+            raise CognitivePipelineCompromisedError(tenant_id, "invalid structured review") from exc
+
+        try:
+            return apply_review_policy(judgments, pool_ids, mitigations), tokens
+        except ValueError as exc:
+            raise CognitivePipelineCompromisedError(tenant_id, str(exc)) from exc
 
     @staticmethod
     def _build_proxy_payload(
@@ -1086,11 +1355,44 @@ async def dashboard() -> str:
 
 
 @app.post("/v1/valence/stage5/verify", response_model=CognitiveVerdict)
-async def verify_endpoint(request: Stage5Request) -> CognitiveVerdict:
+async def verify_endpoint(request: Stage5Request, response: Response) -> CognitiveVerdict:
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = '</docs/TALENT_INTEGRITY.md>; rel="deprecation"'
     try:
         return await _RUNTIME_VERIFIER.verify(request, _RUNTIME_PROXY)
     except CognitivePipelineCompromisedError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/v1/valence/stage5/review", response_model=StructuredReview)
+async def review_endpoint(request: Stage5Request) -> StructuredReview:
+    try:
+        return await _RUNTIME_VERIFIER.review(request, _RUNTIME_PROXY)
+    except CognitivePipelineCompromisedError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/metrics", response_class=PlainTextResponse, include_in_schema=False)
+async def stage5_metrics_endpoint() -> str:
+    snapshot = _RUNTIME_METRICS.snapshot()
+    samples = snapshot.latency_samples_ns
+    duration = (sum(samples) / len(samples) / 1_000_000_000) if samples else 0.0
+    human_rate = (
+        snapshot.review_human_total / snapshot.review_candidates_total
+        if snapshot.review_candidates_total else 0.0
+    )
+    values = {
+        "valence_stage5_review_requests_total": snapshot.review_requests_total,
+        "valence_stage5_review_failures_total": snapshot.review_failures_total,
+        "valence_stage5_candidates_total": snapshot.review_candidates_total,
+        "valence_stage5_candidates_shortlisted_total": snapshot.review_shortlisted_total,
+        "valence_stage5_candidates_human_review_total": snapshot.review_human_total,
+        "valence_stage5_incomplete_pool_total": snapshot.incomplete_pool_total,
+        "valence_stage5_model_schema_failure_total": snapshot.model_schema_failure_total,
+        "valence_stage5_review_duration_seconds": duration,
+        "valence_stage5_human_review_rate": human_rate,
+    }
+    return "\n".join(f"{name} {value}" for name, value in values.items()) + "\n"
 
 
 @app.post("/v1/valence/system/smoke", response_model=SmokeReport)

@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
 import observability
 import ranking_evaluator
 import stage3_hydrator as s3
@@ -36,6 +37,121 @@ def test_stage3_distribution() -> None:
             "colorway",
             "era_year",
         }
+
+
+def _judgment(candidate_id: str, **overrides: object) -> s5.CandidateJudgment:
+    value = {
+        "candidate_id": candidate_id,
+        "eligibility": "eligible",
+        "evidence_consistency": 0.95,
+        "relevance_adjustment": 0.05,
+        "risk_findings": [],
+        "uncertainties": [],
+        "explanation": "Evidence is consistent.",
+        "recommended_action": "shortlist",
+        **overrides,
+    }
+    return s5.CandidateJudgment.model_validate(value)
+
+
+@pytest.mark.parametrize(("overrides", "shortlisted", "human_review"), [
+    ({}, True, False),
+    ({"risk_findings": ["RISK_PROFILE_INCONSISTENCY"]}, False, True),
+    ({"uncertainties": ["UNCERTAINTY_MISSING_REQUIRED_EVIDENCE"]}, False, True),
+    ({"eligibility": "unknown", "recommended_action": "hold_for_review"}, False, True),
+    ({"eligibility": "eligible", "recommended_action": "exclude_by_policy"}, False, True),
+    ({"eligibility": "ineligible", "recommended_action": "exclude_by_policy"}, False, False),
+])
+def test_stage5_deterministic_policy_matrix(
+    overrides: dict[str, object], shortlisted: bool, human_review: bool
+) -> None:
+    review = s5.apply_review_policy([_judgment("candidate", **overrides)], ["candidate"], [])
+    assert ("candidate" in review.recommended_shortlist) is shortlisted
+    assert review.human_review_required is human_review
+    assert review.candidates[0].policy_outcome.shortlist_eligible is shortlisted
+
+
+@pytest.mark.parametrize("ids", [
+    ["a"], ["a", "a"], ["a", "invented"],
+])
+def test_stage5_policy_rejects_incomplete_duplicate_or_invented_ids(ids: list[str]) -> None:
+    with pytest.raises(ValueError, match="cover each pool candidate exactly once"):
+        s5.apply_review_policy([_judgment(value) for value in ids], ["a", "b"], [])
+
+
+def test_stage5_policy_maps_reordered_output_by_candidate_id() -> None:
+    review = s5.apply_review_policy(
+        [_judgment("b", eligibility="unknown", recommended_action="hold_for_review"), _judgment("a")],
+        ["a", "b"], [],
+    )
+    assert [item.candidate_id for item in review.candidates] == ["a", "b"]
+    assert review.recommended_shortlist == ["a"]
+
+
+@pytest.mark.parametrize("field,value", [
+    ("eligibility", "rejected"),
+    ("recommended_action", "advance"),
+    ("evidence_consistency", float("nan")),
+    ("evidence_consistency", float("inf")),
+    ("relevance_adjustment", 0.5),
+])
+def test_stage5_judgment_rejects_invalid_model_values(field: str, value: object) -> None:
+    with pytest.raises(s5.ValidationError):
+        _judgment("a", **{field: value})
+
+
+def test_stage5_reconcile_malformed_json_fails_closed() -> None:
+    with pytest.raises(s5.CognitivePipelineCompromisedError, match="invalid structured review"):
+        s5.CognitiveVerifier._reconcile_review(b"not-json", ["a"], [], "tenant-a")
+
+
+def test_stage5_request_rejects_empty_and_oversized_pools() -> None:
+    base = s5._known_good_request().model_dump()
+    with pytest.raises(s5.ValidationError):
+        s5.Stage5Request.model_validate({**base, "pool": []})
+    with pytest.raises(s5.ValidationError):
+        s5.Stage5Request.model_validate({**base, "pool": base["pool"] * 6})
+
+
+def test_stage5_review_propagates_trace_and_isolates_profile_injection() -> None:
+    request = s5._hostile_request()
+    captured: dict[str, object] = {}
+
+    class CapturingProxy:
+        async def complete(self, body: bytes, headers: dict[str, str]) -> s5.ProxyResponse:
+            captured["headers"] = headers
+            payload = json.loads(body)
+            pool = json.loads(payload["messages"][1]["content"])["candidate_pool"]
+            captured["pool"] = pool
+            judgments = [_judgment(candidate["id"]).model_dump() for candidate in pool]
+            envelope = {"choices": [{"message": {"content": json.dumps({"judgments": judgments})}}]}
+            return s5.ProxyResponse(200, json.dumps(envelope).encode())
+
+    review = asyncio.run(s5.CognitiveVerifier(s5.OTelMetrics(), s5.ContextualSanitizer()).review(
+        request, CapturingProxy()
+    ))
+    headers = captured["headers"]
+    assert isinstance(headers, dict)
+    assert headers["X-Tenant-ID"] == request.tenant_id
+    assert len(headers["X-Trace-ID"]) == 32
+    pool = captured["pool"]
+    assert isinstance(pool, list)
+    assert "[NEUTRALIZED]" in json.dumps(pool[0])
+    assert pool[1]["id"] == request.pool[1].id
+    assert {item.candidate_id for item in review.candidates} == {item.id for item in request.pool}
+
+
+def test_stage5_review_model_failure_fails_entire_pool() -> None:
+    class FailingProxy:
+        async def complete(self, body: bytes, headers: dict[str, str]) -> s5.ProxyResponse:
+            raise s5.ProxyConnectionError("timeout")
+
+    metrics = s5.OTelMetrics()
+    with pytest.raises(s5.CognitivePipelineCompromisedError, match="connection dropped"):
+        asyncio.run(s5.CognitiveVerifier(metrics, s5.ContextualSanitizer()).review(
+            s5._known_good_request(), FailingProxy()
+        ))
+    assert metrics.snapshot().review_failures_total == 1
 
 
 def test_stage3_profile_quality_gate() -> None:
