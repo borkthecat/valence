@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from review_operations import CreateReview, ReviewStore
+import hashlib
+import hmac
+import json
+from datetime import UTC, datetime
+
+from fastapi.testclient import TestClient
+
+from review_operations import CreateReview, ReviewStore, create_app
 
 
 def _task(tenant: str = "tenant-a") -> CreateReview:
@@ -32,3 +39,28 @@ def test_review_store_rejects_stale_versions(tmp_path) -> None:
         assert "version conflict" in str(error)
     else:
         raise AssertionError("stale update must fail")
+
+
+def test_review_service_requires_signed_gateway_identity(tmp_path) -> None:
+    key = "k" * 32
+    client = TestClient(create_app(ReviewStore(tmp_path / "reviews.db"), key))
+    payload = _task().model_dump(mode="json")
+    assert client.post("/v1/reviews", json=payload).status_code == 422
+    body = json.dumps(payload, separators=(",", ":")).encode()
+    timestamp = datetime.now(UTC).isoformat()
+    headers = {
+        "X-Valence-Actor": "reviewer-a",
+        "X-Valence-Tenant": "tenant-a",
+        "X-Valence-Scopes": "review:claim",
+        "X-Request-Id": "request-1",
+        "X-Trace-Id": "trace-1",
+        "X-Valence-Internal-Timestamp": timestamp,
+        "X-Valence-Internal-Signature": "forged",
+    }
+    assert client.post("/v1/reviews", content=body, headers=headers).status_code == 401
+    canonical = "\n".join((timestamp, "POST", "/v1/reviews", "tenant-a", "reviewer-a", "review:claim", "request-1", "trace-1", hashlib.sha256(body).hexdigest()))
+    headers["X-Valence-Internal-Signature"] = hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
+    headers["Idempotency-Key"] = "signed-key"
+    response = client.post("/v1/reviews", content=body, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["tenant_id"] == "tenant-a"

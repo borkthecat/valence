@@ -96,6 +96,9 @@ function assertClaimsShape(claims: JwtClaims): void {
     if (typeof tenant !== 'string' || tenant.length === 0 || tenant.length > MAX_TENANT_LENGTH) {
         throw new JwtError('tenant or subject is required', 'missing_tenant');
     }
+    if (typeof claims.sub !== 'string' || claims.sub.length === 0 || claims.sub.length > MAX_TENANT_LENGTH) {
+        throw new JwtError('subject is required', 'invalid_claims');
+    }
     if (claims.scope !== undefined && typeof claims.scope !== 'string') {
         throw new JwtError('scope must be a string', 'invalid_claims');
     }
@@ -227,7 +230,13 @@ export function createJwtAuth(config: JwtAuthConfig, eventSink?: JwtAuthEventSin
             res.status(401).json({ error: 'unauthorized' });
             return;
         }
-        req.valence = { tenantId, scopes };
+        const actorId = claims.sub;
+        if (actorId === undefined) {
+            eventSink?.onRejected({ reason: 'invalid', method: req.method, path: req.path });
+            res.status(401).json({ error: 'unauthorized' });
+            return;
+        }
+        req.valence = { tenantId, actorId, scopes };
         next();
     };
 }

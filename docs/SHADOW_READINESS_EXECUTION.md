@@ -6,7 +6,7 @@ organizational authority.
 
 | Workstream | Status | Deliverable / acceptance | Tests / evidence | Commit | Remaining risk |
 | --- | --- | --- | --- | --- | --- |
-| Trusted review identity | in progress | Gateway-derived, cryptographically verified actor and tenant context | Direct caller-forgery and tenant-isolation tests | — | Current local service is not public-safe |
+| Trusted review identity | complete | Gateway derives tenant and actor from verified authentication context, enforces route RBAC and rate limits, and signs gateway-to-review-service envelopes; review service rejects unsigned or stale direct requests | Gateway TypeScript typecheck; `test_review_service_requires_signed_gateway_identity`; existing tenant-isolation tests | pending commit | Local-mode shared-secret transport requires deployment-managed rotation and private networking |
 | Advisory-to-task persistence | not started | Idempotent review-task creation from `/review` | End-to-end review/task test | — | Persistence failure semantics undefined |
 | Shadow operations | not started | Durable shadow runs, replay, outcomes, export, report | Tenant/isolation/replay tests | — | No operational shadow evidence |
 | Annotation/adjudication application | not started | Blind dual review, disagreement, freeze, canonical export | Integration/browser tests | — | Requires human calibration for validation |

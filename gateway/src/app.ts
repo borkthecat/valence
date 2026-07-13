@@ -17,6 +17,7 @@ import { createReverseProxy } from './proxy/reverseProxy';
 import { createGatewayMetrics } from './observability/metrics';
 import { createAuditLog } from './observability/auditLog';
 import { ingestRouter } from './routes/ingest';
+import { createReviewOperationsRouter } from './routes/reviewOperations';
 import { disconnectProducer } from './services/kafkaProducer';
 import { HttpClassifierClient, HttpGuardModelClient, LocalGuardModelClient } from './services/modelClients';
 const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
@@ -78,6 +79,7 @@ export function buildApp(logger: Logger): Express {
     const apiKeyAuth = createGatewayAuth(environment.GATEWAY_API_KEY, {
         tenantContext: {
             tenantId: 'api-key',
+            actorId: 'api-key-service',
             scopes: [environment.JWT_REQUIRED_SCOPE ?? DEFAULT_PROXY_SCOPE],
         },
         onRejected: (context) => {
@@ -232,7 +234,7 @@ export function buildApp(logger: Logger): Express {
                 valence?: {
                     tenantId: string;
                 };
-            }).valence?.tenantId ??
+                }).valence?.tenantId ??
                 'unidentified';
             metrics.requestsTotal.inc({
                 tenant: tenantId,
@@ -243,6 +245,14 @@ export function buildApp(logger: Logger): Express {
         next();
     });
     app.use('/v1', express.json({ limit: JSON_BODY_LIMIT }));
+    if (environment.REVIEW_OPERATIONS_URL !== undefined && environment.REVIEW_OPERATIONS_INTERNAL_KEY !== undefined) {
+        app.use('/v1', createReviewOperationsRouter({
+            baseUrl: environment.REVIEW_OPERATIONS_URL,
+            internalKey: environment.REVIEW_OPERATIONS_INTERNAL_KEY,
+            logger,
+            ...(audit === null ? {} : { audit }),
+        }));
+    }
     app.post('/v1/*', proxy);
     app.use((_req: Request, res: Response) => {
         res.status(404).json({ error: 'NOT_FOUND' });
