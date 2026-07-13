@@ -7,7 +7,7 @@ import pino, { Logger } from 'pino';
 import pinoHttp from 'pino-http';
 import { environment } from './config/environment';
 import { RedisTokenVault, TokenVault, type TokenVaultBackend } from './core/crypto/tokenVault';
-import { EmbeddingClassifierDetector, HeuristicPiiDetector, NullClassifierClient, PiiScanner, } from './core/filters/piiScanner';
+import { EmbeddingClassifierDetector, HeuristicPiiDetector, NullClassifierClient, PiiScanner, parsePiiCategoryThresholds, } from './core/filters/piiScanner';
 import { GuardModelDetector, HeuristicInjectionDetector, InjectionShield, NullGuardModelClient, } from './core/filters/injectionShield';
 import { createGatewayAuth } from './middleware/auth';
 import { createJwtAuth } from './middleware/jwtAuth';
@@ -68,11 +68,14 @@ export function buildApp(logger: Logger): Express {
         : new NullGuardModelClient();
     const scanner = new PiiScanner(vault, [
         new HeuristicPiiDetector(),
-        new EmbeddingClassifierDetector(classifierClient),
+        new EmbeddingClassifierDetector(classifierClient, {
+            minimumScore: environment.PII_CLASSIFIER_MINIMUM_SCORE,
+            categoryMinimumScores: parsePiiCategoryThresholds(environment.PII_CLASSIFIER_LABEL_THRESHOLDS),
+        }),
     ]);
     const shield = new InjectionShield([
         new HeuristicInjectionDetector(),
-        new GuardModelDetector(guardClient),
+        new GuardModelDetector(guardClient, { enforcement: environment.GUARD_MODEL_ENFORCEMENT }),
     ]);
     const metrics = createGatewayMetrics();
     const audit = createAuditLog(environment.AUDIT_LOG_PATH);

@@ -192,13 +192,16 @@ export class GuardModelDetector implements InjectionDetector {
     public readonly name: string;
     private readonly client: GuardModelClient;
     private readonly minimumScore: number;
+    private readonly enforcement: 'advisory' | 'block';
     public constructor(client: GuardModelClient, options: {
         readonly name?: string;
         readonly minimumScore?: number;
+        readonly enforcement?: 'advisory' | 'block';
     } = {}) {
         this.client = client;
         this.name = options.name ?? 'guard-model';
         this.minimumScore = options.minimumScore ?? 0.5;
+        this.enforcement = options.enforcement ?? 'block';
     }
     public async detect(normalizedText: string, context: InjectionDetectionContext): Promise<readonly InjectionMatch[]> {
         const assessment = await this.client.assess(normalizedText, context);
@@ -210,8 +213,8 @@ export class GuardModelDetector implements InjectionDetector {
         return [
             {
                 ruleId: `guard-model:${label}`,
-                description: `Guard model classified prompt as "${label}" with score ${assessment.score.toFixed(4)}`,
-                weight: 1,
+                description: `Guard model classified prompt as "${label}" with score ${assessment.score.toFixed(4)} (${this.enforcement})`,
+                weight: this.enforcement === 'block' ? 1 : 0,
                 excerpt: excerptAround(normalizedText, 0),
                 detector: this.name,
             },

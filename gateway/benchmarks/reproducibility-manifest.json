@@ -1518,17 +1518,118 @@
         "purpose": "held_out_external_evaluation",
         "rows": 1000
       }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.3-emscad-group-holdout.json",
+      "artifact_bytes": 686,
+      "artifact_commit": "tracked-in-repository",
+      "artifact_sha256": "6e908f298aa17164b7d3fcf4bd0d49ab8ddbc33d054df44ab361f5850b682438",
+      "command": "python pipeline/benchmarks/train_emscad_fraud_model.py --input .benchmark-data/emscad.csv --output gateway/benchmarks/results/v1.13.3-emscad-group-holdout.json --split-strategy group --regularization-c 4 --top-k 50 --risk-penalty 0.8",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "groups": 4935,
+        "method": "stratified_group",
+        "seed": 1500,
+        "test": 3998,
+        "train": 12199,
+        "train_test_group_overlap": 0,
+        "validation": 1683
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.3-gretel-pii-full-taxonomy.json",
+      "artifact_bytes": 2236,
+      "artifact_commit": "tracked-in-repository",
+      "artifact_sha256": "afa598122d6b9cd15794409b101e7d5720d911ecd2772f6dd1adde572f73e427",
+      "command": "npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.3-gretel-pii-full-taxonomy.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/gretel-pii-1000.jsonl",
+          "sha256": "b98211a9a267ba1e95b99846355d958759ba5ea6cdb221dbba26892e80576bb0",
+          "source": "gretelai/gretel-pii-masking-en-v1"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "first_rows",
+        "purpose": "held_out_external_evaluation",
+        "rows": 1000
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json",
+      "artifact_bytes": 2403,
+      "artifact_commit": "tracked-in-repository",
+      "artifact_sha256": "413256004bec322bf03503124a412f225f9bf79cd9334c011a10bee8d4164775",
+      "command": "PII_CLASSIFIER_URL=http://127.0.0.1:8765/v1/classify PII_CLASSIFIER_MINIMUM_SCORE=0.7 PII_CLASSIFIER_LABEL_THRESHOLDS='{\"GENERIC_SECRET\":0.7,\"PERSON_NAME\":0.85,\"SSN\":0.85,\"EMAIL\":0.85,\"IP_ADDRESS\":0.85,\"PHONE\":0.7,\"CREDIT_CARD\":0.85,\"API_KEY\":0.85,\"PASSWORD\":0.85,\"ACCESS_TOKEN\":1.0}' npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/gretel-pii-1000.jsonl",
+          "sha256": "b98211a9a267ba1e95b99846355d958759ba5ea6cdb221dbba26892e80576bb0",
+          "source": "gretelai/gretel-pii-masking-en-v1"
+        },
+        {
+          "path": ".benchmark-data/gliner-multi-pii/gliner_config.json",
+          "sha256": "2088bee85f50849dea2ab4cf411ab5cf3aaaf7c8a45c23412035978b2bc02801",
+          "source": "urchade/gliner_multi_pii-v1 config"
+        },
+        {
+          "path": ".benchmark-data/gliner-multi-pii/pytorch_model.bin",
+          "sha256": "3003753fba99e40645cf088c7367a2c6211fc174897dc64f1f9c147c29d18d2d",
+          "source": "urchade/gliner_multi_pii-v1 weights"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "first_rows",
+        "purpose": "external_development_evaluation_with_posthoc_threshold_selection_not_release_test",
+        "rows": 1000
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.3-pii-release-gate.json",
+      "artifact_bytes": 3089,
+      "artifact_commit": "tracked-in-repository",
+      "artifact_sha256": "3f4f4c113245ae04180afd723d0317d1ce1ea23ce55581e98b4ecc802255506c",
+      "command": "python pipeline/pii_release_gate.py --input gateway/benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json --output gateway/benchmarks/results/v1.13.3-pii-release-gate.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": "gateway/benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json",
+          "sha256": "413256004bec322bf03503124a412f225f9bf79cd9334c011a10bee8d4164775",
+          "source": "production-path PII evaluation report"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "inherited_from_evaluation_report",
+        "rows": 1000
+      }
     }
   ],
   "results_directory": "gateway/benchmarks/results",
   "schema_version": "1.0",
   "summary": {
-    "artifacts": 41,
+    "artifacts": 45,
     "historical_archival": 34,
     "incomplete_release_artifacts": [],
     "missing_release_artifacts": [],
-    "release_evidence": 7,
-    "release_evidence_complete": 7,
+    "release_evidence": 11,
+    "release_evidence_complete": 11,
     "release_ready": true
   }
 }

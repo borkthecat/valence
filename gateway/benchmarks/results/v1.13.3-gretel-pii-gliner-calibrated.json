@@ -1,0 +1,92 @@
+{
+  "benchmark": "pii-span-detection",
+  "detector": "heuristic-static+embedding-classifier",
+  "classifierConfigured": true,
+  "records": 1000,
+  "allGroundTruthEntities": 4314,
+  "supportedGroundTruthEntities": 4314,
+  "labelCoverage": 1,
+  "exactSpanMetricsOnSupportedLabels": {
+    "truePositive": 2979,
+    "falsePositive": 974,
+    "falseNegative": 1335,
+    "precision": 0.7536048570705793,
+    "recall": 0.6905424200278164,
+    "f1": 0.7206967460989475
+  },
+  "perLabel": {
+    "GENERIC_SECRET": {
+      "truePositive": 1747,
+      "falsePositive": 551,
+      "falseNegative": 860,
+      "precision": 0.7602262837249782,
+      "recall": 0.6701189106252398,
+      "f1": 0.7123343527013251
+    },
+    "PERSON_NAME": {
+      "truePositive": 223,
+      "falsePositive": 360,
+      "falseNegative": 387,
+      "precision": 0.38250428816466553,
+      "recall": 0.3655737704918033,
+      "f1": 0.37384744341994974
+    },
+    "SSN": {
+      "truePositive": 326,
+      "falsePositive": 15,
+      "falseNegative": 35,
+      "precision": 0.9560117302052786,
+      "recall": 0.9030470914127424,
+      "f1": 0.9287749287749288
+    },
+    "EMAIL": {
+      "truePositive": 229,
+      "falsePositive": 6,
+      "falseNegative": 0,
+      "precision": 0.9744680851063829,
+      "recall": 1,
+      "f1": 0.9870689655172413
+    },
+    "IP_ADDRESS": {
+      "truePositive": 164,
+      "falsePositive": 11,
+      "falseNegative": 23,
+      "precision": 0.9371428571428572,
+      "recall": 0.8770053475935828,
+      "f1": 0.9060773480662982
+    },
+    "PHONE": {
+      "truePositive": 153,
+      "falsePositive": 10,
+      "falseNegative": 18,
+      "precision": 0.9386503067484663,
+      "recall": 0.8947368421052632,
+      "f1": 0.9161676646706587
+    },
+    "CREDIT_CARD": {
+      "truePositive": 118,
+      "falsePositive": 7,
+      "falseNegative": 9,
+      "precision": 0.944,
+      "recall": 0.9291338582677166,
+      "f1": 0.9365079365079364
+    },
+    "API_KEY": {
+      "truePositive": 14,
+      "falsePositive": 4,
+      "falseNegative": 1,
+      "precision": 0.7777777777777778,
+      "recall": 0.9333333333333333,
+      "f1": 0.8484848484848485
+    },
+    "PASSWORD": {
+      "truePositive": 5,
+      "falsePositive": 10,
+      "falseNegative": 2,
+      "precision": 0.3333333333333333,
+      "recall": 0.7142857142857143,
+      "f1": 0.4545454545454545
+    }
+  },
+  "unsupportedGroundTruthByLabel": {}
+}

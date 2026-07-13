@@ -95,10 +95,13 @@ All configuration is validated at boot with Zod. An invalid environment terminat
 | `SECRETS_FILE_PATH` | no | JSON file path | Loads gateway secrets from a local file instead of raw environment variables |
 | `PII_CLASSIFIER_URL` | no | https or loopback http | Trained span-classifier endpoint |
 | `PII_CLASSIFIER_API_KEY` | no | min 16 chars | Classifier bearer credential; supports secrets files |
+| `PII_CLASSIFIER_MINIMUM_SCORE` | no (default 0.5) | 0-1 | Default external-classifier score cutoff |
+| `PII_CLASSIFIER_LABEL_THRESHOLDS` | no (default `{}`) | JSON object | Optional category-specific score cutoffs |
 | `GUARD_MODEL_URL` | no | https or loopback http | Trained injection-model endpoint |
 | `GUARD_MODEL_API_KEY` | no | min 16 chars | Guard bearer credential; supports secrets files |
 | `GUARD_MODEL_PATH` | no | local JSON path | Bounded local guard model; mutually exclusive with URL |
 | `GUARD_MODEL_SHA256` | with model path | lowercase SHA-256 | Fails boot if local model bytes drift |
+| `GUARD_MODEL_ENFORCEMENT` | no (default advisory) | advisory or block | Model-only findings block only after explicit promotion |
 | `MODEL_SERVICE_TIMEOUT_MS` | no (default 3000) | 100-30000 | Per-model deadline |
 | `EVIDENCE_URL_VALIDATION` | no (default syntax) | syntax or live | Enables SSRF-resistant dead-link and MIME checks during ingest |
 | `NODE_ENV` | no (default production) | development, test, production | Log verbosity and hardening profile |

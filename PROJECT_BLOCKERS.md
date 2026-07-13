@@ -12,7 +12,7 @@ The completed V6 provenance run and selective expert routing now pass the risk-c
 
 The gateway now also has an opt-in shadow-review capture hook on the live reverse-proxy path. Set `SHADOW_REVIEW_LOG_PATH` to a JSONL destination and keep `SHADOW_REVIEW_SOURCES=hse_llm,cgoosen_combined` to collect redacted source-review events from requests that include `source_id` or `sourceId`. This is wired but disabled by default; a production or staging shadow run and reviewer decisions are still required. Benchmark records cannot substitute for either.
 
-The compact bundled guard is not enterprise-grade yet. It passes 5/15 strict prompt-injection corpus gates, but the suite rollup shows the real distribution:
+The compact bundled guard is not enterprise-grade yet and is advisory by default as of v1.13.3. Set `GUARD_MODEL_ENFORCEMENT=block` only for a separately validated model after `pipeline/shadow_readiness_gate.py` passes. Compact passes 5/15 strict prompt-injection corpus gates, but the suite rollup shows the real distribution:
 
 | Suite | F1 | Primary failure |
 | --- | ---: | --- |
@@ -28,6 +28,8 @@ Required next work:
 1. Fine-tune or replace the compact guard representation for benign trigger-word over-defense. v1.12.0 added 60 benign trigger-word hard negatives plus training/calibration ingestion, but the compact guard stayed flat on NotInject: 61.65% accuracy and 38.35% false-positive rate.
 2. Use the completed provenance-aware V6 transformer result as the frozen baseline and collect real review-only outcomes for the weak sources before further calibration. Do not retrain against held-out labels.
 3. Keep block and review thresholds separate; do not collapse results into a single pooled score.
+
+The PII engineering path is now complete for repository scope: the optional CUDA GLiNER service uses the production HTTP contract, category thresholds are validated at startup, all 4,314 Gretel entities are included in the denominator, and promotion fails closed. The calibrated result is 75.36% precision, 69.05% recall, and 72.07% F1. Remaining PII work requires stronger real span evidence, especially person-name boundaries, passwords, broad identifiers, and held-out locale suites; threshold tuning alone did not close the gap.
 
 Current implementation support:
 
@@ -60,7 +62,8 @@ Current implementation support:
 - v1.11.6 records a real held-out EMSCAD result: 98.88% accuracy and 88.24% F1. This clears the cold-start blocker, but it does not clear the 95% fraud-quality target.
 - v1.11.7 records a full local DeBERTa-v3-small EMSCAD result: 98.66% accuracy and 85.80% F1. It did not improve the baseline, so the next fraud gains need better labelled features, calibration, or model strategy.
 - v1.11.8 adds metadata markers and weighted transformer loss. Weighted DeBERTa improves to 87.65% F1, and metadata TF-IDF reaches 92.36% precision but only 83.82% recall. The current held-out precision-recall frontier shows at least 95% recall costs too much precision, so the 95% fraud target is blocked on stronger labels/features/modeling, not another threshold tweak.
-- v1.12.0 adds EMSCAD false-negative analysis and ensemble evaluation. The current full-CSV rerun shows 24 held-out false negatives concentrated in missing education/experience fields, full-time records, missing industry/function records, and IT-labeled fraud. A fresh DeBERTa-v3-small weighted run reached only 84.68% F1. The best low-FPR ensemble was effectively TF-IDF-only at 92.99% precision, 84.39% recall, 88.48% F1, and 0.32% false-positive rate; higher-recall blends raised false positives.
+- v1.12.0 adds EMSCAD false-negative analysis and ensemble evaluation. Its random split reached 92.99% precision, 84.39% recall, 88.48% F1, and 0.32% false-positive rate, but is retained as regression evidence only.
+- v1.13.3 adds a stricter holdout across 4,935 company/domain/template campaign groups. With zero train/test group overlap, the best bounded run reaches 62.56% precision, 82.47% recall, 71.15% F1, and 1.98% FPR. This is the current generalization baseline and confirms that text-only EMSCAD is not an automatic-blocking model.
 - The external verification pipeline is implemented and bounded: domain/email and posting-URL mismatch, DNS/HTTP liveness, persistent cache, and rate-limited provider-cache boundaries. EMSCAD itself has insufficient current company-domain and registry evidence to validate these as production fraud signals. Deploying the adapters requires a current job-feed source, approved provider credentials where applicable, and independently reviewed fraud labels.
 
 ## Priority 3: Indirect Injection Needs Schema, Not Just More Data
@@ -86,6 +89,6 @@ Required next work:
 
 ## Current Readiness
 
-The repository-required release work is complete: signed review/shadow operations, deterministic ATS adapters, metamorphic regression checks, policy rollback, local backup/restore drills, payload-free SLO/drift metrics, RDAP domain evidence, live Docker CI coverage, and complete reproduction specifications for all six current release-evidence artifacts. Run `python pipeline/valence_readiness.py` for the machine-readable status.
+The repository-required release controls are complete: signed review/shadow operations, deterministic ATS adapters, metamorphic regression checks, policy rollback, local backup/restore drills, payload-free SLO/drift metrics, RDAP domain evidence, live Docker CI coverage, production-path PII evaluation, explicit guard promotion policy, group-held-out fraud evaluation, and fail-closed PII/shadow gates. Run `python pipeline/valence_readiness.py` for the machine-readable status.
 
 Valence remains a research preview rather than an enterprise automatic-enforcement product. Human-labelled outcomes are deliberately the final evidence phase. Other remaining items are deployment facts the repository cannot manufacture: a permissioned current job feed for measured RDAP/domain evidence, managed persistence and secrets, production recovery/SLO measurements, image/OCR product scope, and legal approval. The last independent audit scores are historical pre-completion values and must not be reused as current scores.

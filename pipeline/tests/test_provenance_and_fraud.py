@@ -19,13 +19,14 @@ from benchmarks.generate_guard_hard_negatives import generate_records as generat
 from benchmarks.build_ranking_judge_tasks import build_tasks
 from benchmarks.train_emscad_fraud_model import evaluate as evaluate_trained_fraud_model
 from benchmarks.train_emscad_fraud_model import load_rows, row_text
+from benchmarks.train_emscad_fraud_model import _campaign_group, _split_rows
 from benchmarks.train_emscad_transformer_fraud import enriched_row_text
 from benchmarks.train_emscad_transformer_fraud import label_of, split_rows
 from benchmarks.train_transformer_guard import _provenance_rows, _special_tokens
 from benchmarks.evaluate_fraud_cascade import structural_signature
 from benchmarks.external_provider_cache import ExternalProviderCache
 from benchmarks.train_transformer_guard import supervised_contrastive_loss
-from benchmarks.codex_fraud_engine import CodexFraudEngine
+from benchmarks.stateful_fraud_engine import StatefulFraudEngine
 from remediation.moe_guard import route_source
 from remediation.audit_expert_data import audit, sanitize_text
 from remediation.harvest_shadow_negatives import redact_pii
@@ -92,6 +93,25 @@ def test_trained_emscad_baseline_uses_text_fields() -> None:
     assert report.records == 16
     assert report.test_records >= 1
     assert 0.0 <= report.threshold <= 1.0
+
+
+def test_emscad_group_split_has_no_campaign_overlap() -> None:
+    rows = []
+    for group in range(24):
+        for item in range(4):
+            rows.append({
+                "fraudulent": str(group % 2),
+                "company_profile": f"company profile {group}",
+                "description": f"posting {item}",
+            })
+    indexed = list(enumerate(rows))
+    train, validation, test = _split_rows(indexed, "group")
+    train_groups = {_campaign_group(row, index) for index, row in train}
+    validation_groups = {_campaign_group(row, index) for index, row in validation}
+    test_groups = {_campaign_group(row, index) for index, row in test}
+    assert train_groups.isdisjoint(validation_groups)
+    assert train_groups.isdisjoint(test_groups)
+    assert validation_groups.isdisjoint(test_groups)
 
 
 def test_fraud_dataset_rejects_missing_boolean_label(tmp_path: Path) -> None:
@@ -215,8 +235,8 @@ def test_supervised_contrastive_loss_is_finite() -> None:
     assert torch.isfinite(loss)
 
 
-def test_codex_fraud_engine_uses_train_only_domain_and_clone_evidence() -> None:
-    engine = CodexFraudEngine(min_fraud_support=2)
+def test_stateful_fraud_engine_uses_train_only_domain_and_clone_evidence() -> None:
+    engine = StatefulFraudEngine(min_fraud_support=2)
     engine.train_stateful_layers([
         {"label": True, "posting_domain": "fraud.example"},
         {"label": True, "posting_domain": "fraud.example"},

@@ -73,9 +73,16 @@ class ShadowStore:
   with self.db() as c:return c.execute("SELECT * FROM shadow_runs WHERE tenant=? AND status!='deleted' ORDER BY created",(t,)).fetchall()
  def report(self,t):
   rows=self._rows(t); total=len(rows)
-  compared=[row for row in rows if row["comparison"]]
-  matches=sum(bool(json.loads(row["comparison"]).get("match")) for row in compared)
-  return {"total_cases":total,"status_counts":{status:sum(row["status"]==status for row in rows) for status in ("completed","review_pending","outcome_pending","compared","failed","expired")},"review_precision":"unmeasured","review_recall":"unmeasured","comparison_agreement":"unmeasured" if not compared else matches/len(compared),"latency_p50":"unmeasured" if not rows else sorted(json.loads(row["payload"])["latency_ms"] for row in rows)[(total-1)//2]}
+  compared=[json.loads(row["comparison"]) for row in rows if row["comparison"]]
+  matches=sum(bool(item.get("match")) for item in compared)
+  classified=[item for item in compared if isinstance(item.get("predicted_review_required"),bool) and isinstance(item.get("actual_review_required"),bool)]
+  tp=sum(item["predicted_review_required"] and item["actual_review_required"] for item in classified)
+  fp=sum(item["predicted_review_required"] and not item["actual_review_required"] for item in classified)
+  fn=sum(not item["predicted_review_required"] and item["actual_review_required"] for item in classified)
+  latencies=sorted(json.loads(row["payload"])["latency_ms"] for row in rows)
+  percentile=lambda q:"unmeasured" if not latencies else latencies[min(len(latencies)-1,max(0,int((len(latencies)-1)*q)))]
+  p50,p95,p99=percentile(.5),percentile(.95),percentile(.99)
+  return {"total_cases":total,"compared_cases":len(compared),"classified_comparisons":len(classified),"status_counts":{status:sum(row["status"]==status for row in rows) for status in ("completed","review_pending","outcome_pending","compared","failed","expired")},"review_precision":"unmeasured" if not classified or tp+fp==0 else tp/(tp+fp),"review_recall":"unmeasured" if not classified or tp+fn==0 else tp/(tp+fn),"comparison_agreement":"unmeasured" if not compared else matches/len(compared),"latency_p50":p50,"latency_ms":{"p50":p50,"p95":p95,"p99":p99}}
 
 
 def create_router(store: ShadowStore, internal_key: str | None = None) -> APIRouter:

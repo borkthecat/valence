@@ -19,7 +19,7 @@ class EngineDecision:
     evidence: tuple[str, ...]
 
 
-class CodexFraudEngine:
+class StatefulFraudEngine:
     """Train-only domain history and clone evidence for a calibrated fraud scorer."""
 
     def __init__(self, *, strictness_exponent: float = 2.0, min_fraud_support: int = 3, clone_similarity: float = 0.95) -> None:
