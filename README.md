@@ -267,7 +267,7 @@ Image fields are evidence references, not raw image uploads. Valence validates H
 
 Valence ships a SHA-256-pinned 4.97 MB multilingual TF-IDF linear guard trained on 74,963 records from 15 pinned public corpora, with 8,495 train-only calibration records for separate `direct`, `indirect`, and `secret` thresholds. On the 21,485-record held-out matrix it passes 5/15 strict corpus gates; pooled accuracy is 95.82%, precision is 95.28%, recall is 92.22%, F1 is 93.73%, and FPR is 2.34%. These pooled values are useful operational evidence but do not make the model broadly 95% production-accurate, because ten corpora still miss one or more per-corpus gates. Stronger production PII and prompt-injection models connect through `PII_CLASSIFIER_URL` and `GUARD_MODEL_URL`. Guard services receive a policy value of `direct`, `indirect`, or `secret`; configured model findings are advisory by default and become blockers only with the explicit `GUARD_MODEL_ENFORCEMENT=block` promotion setting. Both clients enforce HTTPS except for loopback development, strict JSON response schemas, bounded response bodies, timeouts, redirect rejection, and optional secret-backed bearer authentication. Any configured model failure still stops the protected request under the default fail-closed posture.
 
-The optional Apache-2.0 GLiNER classifier service in `pipeline/pii_classifier_service.py` implements the gateway span contract without bundling its 1.16 GB model. Install `requirements-pii-classifier.txt`, run the service on a private endpoint, set `PII_CLASSIFIER_URL`, and set `PII_CLASSIFIER_DEVICE=cuda` on a CUDA host (the default is `cpu`). The calibrated production path reaches 75.36% precision, 69.05% recall, and 72.07% exact-span F1 over all 4,314 Gretel entities. `pipeline/pii_release_gate.py` therefore keeps promotion closed while preserving the measured improvement and 100% taxonomy accounting.
+The optional Apache-2.0 GLiNER classifier service in `pipeline/pii_classifier_service.py` implements the gateway span contract without bundling its 1.16 GB model. Install `requirements-pii-classifier.txt`, run the service on a private endpoint, set `PII_CLASSIFIER_URL`, and set `PII_CLASSIFIER_DEVICE=cuda` on a CUDA host (the default is `cpu`). Five-fold record-hash calibration now estimates 74.58% precision, 69.03% recall, and 71.70% out-of-fold exact-span F1 over all 4,314 Gretel entities. The heuristic path independently improves to 94.49% precision, 24.25% recall, and 38.59% F1. `pipeline/pii_release_gate.py` therefore keeps promotion closed while preserving 100% taxonomy accounting.
 
 ### Accuracy boundary
 
@@ -476,7 +476,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES
 
 ## Releases
 
-The current release target is `v1.13.3` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
+The current release target is `v1.13.4` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
 
 ## Authorship
 

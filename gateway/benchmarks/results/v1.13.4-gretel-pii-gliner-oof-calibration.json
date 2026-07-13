@@ -1,0 +1,149 @@
+{
+  "beta": 1.0,
+  "evidencePartition": "out-of-fold",
+  "foldReports": [
+    {
+      "fold": 0,
+      "metrics": {
+        "f1": 0.7040101845957989,
+        "falseNegative": 271,
+        "falsePositive": 194,
+        "precision": 0.7402945113788487,
+        "recall": 0.6711165048543689,
+        "truePositive": 553
+      },
+      "records": 194,
+      "thresholds": {
+        "ACCESS_TOKEN": 0.9695869088172913,
+        "API_KEY": 0.9829370379447937,
+        "CREDIT_CARD": 0.9,
+        "EMAIL": 0.95,
+        "GENERIC_SECRET": 0.6023611426353455,
+        "IP_ADDRESS": 0.9,
+        "PASSWORD": 0.8807077407836914,
+        "PERSON_NAME": 0.9483959674835205,
+        "PHONE": 0.33682721853256226,
+        "SSN": 0.8930819630622864
+      }
+    },
+    {
+      "fold": 1,
+      "metrics": {
+        "f1": 0.7117117117117117,
+        "falseNegative": 307,
+        "falsePositive": 205,
+        "precision": 0.7550776583034647,
+        "recall": 0.6730564430244942,
+        "truePositive": 632
+      },
+      "records": 223,
+      "thresholds": {
+        "ACCESS_TOKEN": 0.9915000796318054,
+        "API_KEY": 0.9829370379447937,
+        "CREDIT_CARD": 0.9,
+        "EMAIL": 0.95,
+        "GENERIC_SECRET": 0.625903308391571,
+        "IP_ADDRESS": 0.9,
+        "PASSWORD": 0.8807077407836914,
+        "PERSON_NAME": 0.972208559513092,
+        "PHONE": 0.75,
+        "SSN": 0.892778754234314
+      }
+    },
+    {
+      "fold": 2,
+      "metrics": {
+        "f1": 0.7220447284345048,
+        "falseNegative": 238,
+        "falsePositive": 197,
+        "precision": 0.7414698162729659,
+        "recall": 0.7036114570361146,
+        "truePositive": 565
+      },
+      "records": 187,
+      "thresholds": {
+        "ACCESS_TOKEN": 0.9915000796318054,
+        "API_KEY": 0.9829370379447937,
+        "CREDIT_CARD": 0.9,
+        "EMAIL": 0.95,
+        "GENERIC_SECRET": 0.506555438041687,
+        "IP_ADDRESS": 0.9,
+        "PASSWORD": 0.8807077407836914,
+        "PERSON_NAME": 0.9483959674835205,
+        "PHONE": 0.33682721853256226,
+        "SSN": 0.892778754234314
+      }
+    },
+    {
+      "fold": 3,
+      "metrics": {
+        "f1": 0.7089947089947091,
+        "falseNegative": 272,
+        "falsePositive": 223,
+        "precision": 0.7300242130750605,
+        "recall": 0.6891428571428572,
+        "truePositive": 603
+      },
+      "records": 197,
+      "thresholds": {
+        "ACCESS_TOKEN": 0.9915000796318054,
+        "API_KEY": 0.9829370379447937,
+        "CREDIT_CARD": 0.9,
+        "EMAIL": 0.95,
+        "GENERIC_SECRET": 0.506555438041687,
+        "IP_ADDRESS": 0.9,
+        "PASSWORD": 0.8807077407836914,
+        "PERSON_NAME": 0.9681471586227417,
+        "PHONE": 0.33682721853256226,
+        "SSN": 0.892778754234314
+      }
+    },
+    {
+      "fold": 4,
+      "metrics": {
+        "f1": 0.7378984651711924,
+        "falseNegative": 248,
+        "falsePositive": 196,
+        "precision": 0.761266747868453,
+        "recall": 0.715922107674685,
+        "truePositive": 625
+      },
+      "records": 199,
+      "thresholds": {
+        "ACCESS_TOKEN": 0.9915000796318054,
+        "API_KEY": 0.9890600442886353,
+        "CREDIT_CARD": 0.9,
+        "EMAIL": 0.95,
+        "GENERIC_SECRET": 0.6023611426353455,
+        "IP_ADDRESS": 0.9,
+        "PASSWORD": 0.9,
+        "PERSON_NAME": 0.9483959674835205,
+        "PHONE": 0.33682721853256226,
+        "SSN": 0.892778754234314
+      }
+    }
+  ],
+  "folds": 5,
+  "method": "deterministic-record-hash-k-fold-exact-span",
+  "outOfFoldMetrics": {
+    "f1": 0.7169856747321536,
+    "falseNegative": 1336,
+    "falsePositive": 1015,
+    "precision": 0.7458051590282995,
+    "recall": 0.6903106165971257,
+    "truePositive": 2978
+  },
+  "records": 1000,
+  "thresholds": {
+    "ACCESS_TOKEN": 0.9915000796318054,
+    "API_KEY": 0.9829370379447937,
+    "CREDIT_CARD": 0.9,
+    "EMAIL": 0.95,
+    "GENERIC_SECRET": 0.6023611426353455,
+    "IP_ADDRESS": 0.9,
+    "PASSWORD": 0.8807077407836914,
+    "PERSON_NAME": 0.9483959674835205,
+    "PHONE": 0.33682721853256226,
+    "SSN": 0.892778754234314
+  }
+}

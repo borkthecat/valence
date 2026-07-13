@@ -1,0 +1,28 @@
+{
+  "calibrationMetrics": {
+    "ndcgAt5": 0.600699700834413,
+    "records": 23,
+    "top1Accuracy": 0.391304347826087
+  },
+  "candidateJobReleaseGateEligible": false,
+  "combinations": 243,
+  "evidenceLevel": "public_benchmark",
+  "gridValues": [
+    0.5,
+    1.0,
+    1.5
+  ],
+  "heldOutMetrics": {
+    "ndcgAt5": 0.48202434203338923,
+    "records": 11,
+    "top1Accuracy": 0.36363636363636365
+  },
+  "partition": "deterministic-70-30-record-hash",
+  "weights": {
+    "channel": 0.5,
+    "era": 0.5,
+    "evidence": 0.5,
+    "other": 0.5,
+    "relevance": 0.5
+  }
+}

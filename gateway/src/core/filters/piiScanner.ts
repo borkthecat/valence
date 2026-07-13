@@ -118,6 +118,40 @@ function isValidIpv4(match: string): boolean {
         return Number(octet) <= 255 && (octet === '0' || !octet.startsWith('0'));
     });
 }
+function shannonEntropy(value: string): number {
+    const counts = new Map<string, number>();
+    for (const character of value) {
+        counts.set(character, (counts.get(character) ?? 0) + 1);
+    }
+    let entropy = 0;
+    for (const count of counts.values()) {
+        const probability = count / value.length;
+        entropy -= probability * Math.log2(probability);
+    }
+    return entropy;
+}
+function characterClasses(value: string): number {
+    return [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((pattern) => pattern.test(value)).length;
+}
+function isLikelyAssignedSecret(match: string): boolean {
+    const normalized = match.normalize('NFKC');
+    if (/^(?:password|changeme|welcome|example|placeholder|unknown|undefined|default)\d*[!?.]*$/i.test(normalized)) {
+        return false;
+    }
+    return normalized.length >= 10
+        && characterClasses(normalized) >= 2
+        && shannonEntropy(normalized) >= 3.0;
+}
+function isLikelyContextualIdentifier(match: string): boolean {
+    const normalized = match.normalize('NFKC');
+    if (/^(?:none|null|unknown|example|sample|test|default|n\/a)$/i.test(normalized)) {
+        return false;
+    }
+    const classes = characterClasses(normalized);
+    return normalized.length >= 6
+        && (classes >= 2 || /^\d{8,24}$/.test(normalized))
+        && shannonEntropy(normalized) >= 2.2;
+}
 const HEURISTIC_RULES: readonly HeuristicRule[] = [
     {
         id: 'email-rfc-lite',
@@ -149,7 +183,7 @@ const HEURISTIC_RULES: readonly HeuristicRule[] = [
     {
         id: 'ipv4',
         category: SurrogateCategory.IP_ADDRESS,
-        pattern: /(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])/g,
+        pattern: /(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?!\d|\.\d)/g,
         confidence: 0.9,
         validate: isValidIpv4,
     },
@@ -197,6 +231,7 @@ const HEURISTIC_RULES: readonly HeuristicRule[] = [
         pattern: /\bpassword\s*[:=]\s*["'(\[]?([^\s"',;)\]]{8,128})/gi,
         confidence: 0.9,
         captureGroup: 1,
+        validate: isLikelyAssignedSecret,
     },
     {
         id: 'contextual-password-example',
@@ -204,6 +239,15 @@ const HEURISTIC_RULES: readonly HeuristicRule[] = [
         pattern: /\bpasswords?\s+(?:like|such as)\s+["'(\[]?([^\s"',;)\]]{8,128})/gi,
         confidence: 0.85,
         captureGroup: 1,
+        validate: isLikelyAssignedSecret,
+    },
+    {
+        id: 'contextual-generic-identifier',
+        category: SurrogateCategory.GENERIC_SECRET,
+        pattern: /\b(?:account|customer|employee|device|member|patient|medical[ _-]?record|health[ _-]?plan|license[ _-]?plate|vehicle|tax|national|user)[ _-]?(?:id|number|identifier)\s*(?:[:=,]|\bis\b)?\s*["'(\[]?([A-Za-z0-9](?:[A-Za-z0-9._:/-]{4,61}[A-Za-z0-9])?)/gi,
+        confidence: 0.82,
+        captureGroup: 1,
+        validate: isLikelyContextualIdentifier,
     },
     {
         id: 'slack-token',
@@ -330,15 +374,18 @@ export class EmbeddingClassifierDetector implements PiiDetector {
     private readonly client: ClassifierClient;
     private readonly minimumScore: number;
     private readonly categoryMinimumScores: Readonly<Partial<Record<SurrogateCategory, number>>>;
+    private readonly alignPersonNameBoundaries: boolean;
     public constructor(client: ClassifierClient, options: {
         readonly name?: string;
         readonly minimumScore?: number;
         readonly categoryMinimumScores?: Readonly<Partial<Record<SurrogateCategory, number>>>;
+        readonly alignPersonNameBoundaries?: boolean;
     } = {}) {
         this.client = client;
         this.name = options.name ?? 'embedding-classifier';
         this.minimumScore = options.minimumScore ?? 0.5;
         this.categoryMinimumScores = options.categoryMinimumScores ?? {};
+        this.alignPersonNameBoundaries = options.alignPersonNameBoundaries ?? true;
     }
     public async detect(text: string): Promise<readonly PiiFinding[]> {
         const spans = await this.client.classify(text);
@@ -355,16 +402,28 @@ export class EmbeddingClassifierDetector implements PiiDetector {
                 span.start >= span.end) {
                 continue;
             }
+            const boundaries = category === SurrogateCategory.PERSON_NAME && this.alignPersonNameBoundaries
+                ? alignUnicodeWordBoundaries(text, span.start, span.end)
+                : { start: span.start, end: span.end };
             findings.push({
                 category,
-                start: span.start,
-                end: span.end,
+                start: boundaries.start,
+                end: boundaries.end,
                 confidence: Math.min(Math.max(span.score, 0), 1),
                 detector: this.name,
             });
         }
         return findings;
     }
+}
+
+function alignUnicodeWordBoundaries(text: string, initialStart: number, initialEnd: number): { start: number; end: number } {
+    const tokenCharacter = /[\p{L}\p{M}'\u2019-]/u;
+    let start = initialStart;
+    let end = initialEnd;
+    while (start > 0 && tokenCharacter.test(text[start - 1] ?? '')) start -= 1;
+    while (end < text.length && tokenCharacter.test(text[end] ?? '')) end += 1;
+    return end - start <= 128 ? { start, end } : { start: initialStart, end: initialEnd };
 }
 
 export function parsePiiCategoryThresholds(value: string): Readonly<Partial<Record<SurrogateCategory, number>>> {

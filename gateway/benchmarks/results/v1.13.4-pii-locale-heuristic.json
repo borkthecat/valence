@@ -1,0 +1,68 @@
+{
+  "benchmark": "pii-span-detection",
+  "detector": "heuristic-static",
+  "classifierConfigured": false,
+  "records": 240,
+  "allGroundTruthEntities": 240,
+  "supportedGroundTruthEntities": 240,
+  "labelCoverage": 1,
+  "exactSpanMetricsOnSupportedLabels": {
+    "truePositive": 132,
+    "falsePositive": 0,
+    "falseNegative": 108,
+    "precision": 1,
+    "recall": 0.55,
+    "f1": 0.7096774193548387
+  },
+  "perLabel": {
+    "PERSON_NAME": {
+      "truePositive": 0,
+      "falsePositive": 0,
+      "falseNegative": 30,
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    },
+    "EMAIL": {
+      "truePositive": 30,
+      "falsePositive": 0,
+      "falseNegative": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "PHONE": {
+      "truePositive": 12,
+      "falsePositive": 0,
+      "falseNegative": 18,
+      "precision": 1,
+      "recall": 0.4,
+      "f1": 0.5714285714285715
+    },
+    "GENERIC_SECRET": {
+      "truePositive": 30,
+      "falsePositive": 0,
+      "falseNegative": 60,
+      "precision": 1,
+      "recall": 0.3333333333333333,
+      "f1": 0.5
+    },
+    "PASSWORD": {
+      "truePositive": 30,
+      "falsePositive": 0,
+      "falseNegative": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "IP_ADDRESS": {
+      "truePositive": 30,
+      "falsePositive": 0,
+      "falseNegative": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    }
+  },
+  "unsupportedGroundTruthByLabel": {}
+}

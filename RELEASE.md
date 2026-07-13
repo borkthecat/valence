@@ -1,6 +1,14 @@
 # Release Process
 
-Current release target: `v1.13.3` release-evidence hardening research preview
+Current release target: `v1.13.4` calibrated evidence research preview
+
+## v1.13.4
+
+- Adds privacy-safe PII prediction caches, contextual entropy filters, person-name boundary alignment, and deterministic five-fold exact-span calibration. The out-of-fold Gretel result is 74.58% precision, 69.03% recall, and 71.70% F1; the release gate remains closed.
+- Adds a deterministic six-locale Faker suite for regression coverage. Its 100% precision, 55.00% recall, and 70.97% F1 are synthetic diagnostics, not release evidence.
+- Evaluates compact early-allow routing into frozen V6. The exploratory margin routes 40.77% of records and reaches 97.29% pooled accuracy, 96.55% precision, 95.39% recall, 95.97% F1, and 1.75% FPR, but `hse_llm` and `cgoosen_combined` still fail source gates and remain review-only.
+- Adds asymmetric EMSCAD training and structural markers. On a 4,942-group holdout with zero train/test overlap, the selected cost-32 point reaches 97.26% accuracy, 90.15% precision, 64.32% recall, 75.08% F1, and 0.48% FPR.
+- Adds dual-review silver-label adjudication and ranking weight-sweep tooling. The public ESCI sweep did not improve the baseline and cannot substitute for candidate/job human labels.
 
 ## v1.13.3
 
@@ -65,7 +73,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.13.3` and `valence-pipeline:1.13.3` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.13.4` and `valence-pipeline:1.13.4` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -76,8 +84,8 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.13.3 -m "Valence v1.13.3"
-git push origin main v1.13.3
+git tag -a v1.13.4 -m "Valence v1.13.4"
+git push origin main v1.13.4
 ```
 
 ## Release Notes

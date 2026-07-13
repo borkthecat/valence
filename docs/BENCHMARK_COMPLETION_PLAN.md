@@ -1,16 +1,16 @@
 # Benchmark completion plan
 
-This is the decisive path from the v1.13.3 research preview to measured shadow readiness. A pooled score never overrides a failed critical slice. Human-labelled and production-shadow evidence is intentionally last because the remaining repository-side controls and evaluators already exist.
+This is the decisive path from the v1.13.4 research preview to measured shadow readiness. A pooled score never overrides a failed critical slice. Human-labelled and production-shadow evidence is intentionally last because the remaining repository-side controls and evaluators already exist.
 
 ## Current decision table
 
 | Area | Current evidence | Research gate | Decision |
 | --- | --- | --- | --- |
-| PII exact span | Calibrated GLiNER + heuristics: 75.36% precision, 69.05% recall, 72.07% F1 across all 4,314 declared sensitive spans; 100% taxonomy accounting | precision/recall/F1 >=95%; entity recall targets by type | Keep advisory; person, generic identifier, and password spans remain below release gates |
+| PII exact span | Five-fold GLiNER + heuristic calibration: 74.58% precision, 69.03% recall, 71.70% F1 across all 4,314 declared spans; heuristic 94.49% precision and 24.25% recall | precision/recall/F1 >=95%; entity recall targets by type | Keep advisory; person and generic identifier spans remain below release gates |
 | NotInject Compact | 61.65% benign accuracy, 38.35% FPR | FPR <=5% | Do not use Compact as an autonomous blocker |
 | PIGuard reference | 88.50% benign accuracy, 11.50% FPR | FPR <=5% | Better baseline, still not a release candidate without Valence-policy fine-tuning |
-| V6 risk-calibrated guard | 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% FPR | direct recall/F1 >=95%; weak suites >=90% recall; benign FPR <=5% | Use for shadow/review routing; keep weak sources review-only |
-| EMSCAD fraud | Group holdout: 97.42% accuracy, 62.56% precision, 82.47% recall, 71.15% F1, 1.98% FPR; zero group overlap | review recall >=95%; auto-block precision >=98% and FPR <=0.1% | Triage only; random-split 88.48% F1 is not deployment evidence |
+| V6 cascade shadow candidate | 97.29% accuracy, 96.55% precision, 95.39% recall, 95.97% F1, 1.75% FPR pooled; two secret-policy slices fail | direct recall/F1 >=95%; weak suites >=90% recall; benign FPR <=5% | Use for shadow/review routing only; freeze a threshold on new labels before promotion |
+| EMSCAD fraud | Group holdout: 97.26% accuracy, 90.15% precision, 64.32% recall, 75.08% F1, 0.48% FPR; zero group overlap | review recall >=95%; auto-block precision >=98% and FPR <=0.1% | Precision-first triage only; random-split 88.48% F1 is not deployment evidence |
 | Talent ranking | Candidate-job accuracy unmeasured; ESCI evaluator baseline NDCG@5 0.562 | pilot NDCG@5 >=0.75, Recall@5 >=90%, pairwise >=80%, top-1 >=70% | No ranking quality claim until the human pilot is frozen |
 
 ## Work order

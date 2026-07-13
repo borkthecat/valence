@@ -125,6 +125,12 @@ async function run(): Promise<void> {
     }
     const detectors: PiiDetector[] = [new HeuristicPiiDetector()];
     const classifierUrl = process.env['PII_CLASSIFIER_URL'];
+    const predictionCacheOutput = process.env['PII_PREDICTION_CACHE_OUTPUT'];
+    const predictionCache: Array<{
+        record_id: string;
+        truth: Array<{ start: number; end: number; category: string }>;
+        predictions: Array<{ start: number; end: number; category: string; score: number }>;
+    }> = [];
     if (classifierUrl !== undefined) {
         const minimumScore = Number(process.env['PII_CLASSIFIER_MINIMUM_SCORE'] ?? '0.5');
         if (!(minimumScore >= 0 && minimumScore <= 1)) {
@@ -173,6 +179,21 @@ async function run(): Promise<void> {
             }
         }
         const predictions = new Set(findings.map(findingKey));
+        if (predictionCacheOutput !== undefined) {
+            predictionCache.push({
+                record_id: `record-${records}`,
+                truth: record.entities.flatMap((entity) => {
+                    const category = SUPPORTED_LABELS[entity.label.toUpperCase()];
+                    return category === undefined ? [] : [{ start: entity.start, end: entity.end, category }];
+                }),
+                predictions: findings.map((finding) => ({
+                    start: finding.start,
+                    end: finding.end,
+                    category: finding.category,
+                    score: finding.confidence,
+                })),
+            });
+        }
         for (const prediction of predictions) {
             const label = prediction.split(':', 3)[2] ?? '';
             if (!supportedCategories.has(label)) continue;
@@ -243,6 +264,13 @@ async function run(): Promise<void> {
     const serialized = `${JSON.stringify(report, null, 2)}\n`;
     if (output !== undefined) {
         await writeFile(resolve(output), serialized, 'utf8');
+    }
+    if (predictionCacheOutput !== undefined) {
+        await writeFile(
+            resolve(predictionCacheOutput),
+            `${predictionCache.map((record) => JSON.stringify(record)).join('\n')}\n`,
+            'utf8',
+        );
     }
     process.stdout.write(serialized);
 }

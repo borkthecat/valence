@@ -1,6 +1,10 @@
 # Release Readiness Audit — 2026-07-13
 
-Scope: review of `d39dd17` against `origin/main`, followed by a live Docker validation and the corrective commit `b2f50f2`. This is an evidence-based research-preview assessment, not a compliance certification.
+Scope: the original review of `d39dd17` plus the v1.13.4 calibration addendum. This is an evidence-based research-preview assessment, not a compliance certification.
+
+## v1.13.4 calibration addendum
+
+Repository-owned calibration work is complete: deterministic PII out-of-fold calibration, multilingual synthetic regression coverage, compact-to-V6 cascade measurement, asymmetric group-held-out EMSCAD training, and silver-ranking adjudication tooling. These changes improve measurement and the precision-first fraud frontier without changing the production classification. PII remains below exact-span gates; two guard sources remain review-only; the guard cascade margin is test-aware; EMSCAD recall is 64.32%; and candidate/job ranking still lacks independent human ground truth.
 
 ## Completion addendum
 
@@ -22,7 +26,7 @@ The review endpoint is exercised through HTTP under the mock provider. It is not
 | --- | --- | --- | --- |
 | Core gateway | Request-scoped restoration, tenant tests, fail-closed streaming, strict schemas, audit chain | Key rotation, vault revocation, outage/recovery evidence, multi-host SLOs | Strong gateway research preview; limited deployment after shadow operations evidence |
 | Injection guard | Per-corpus reporting, provenance routing, train-only calibration, negative benchmark honesty | Indirect/secret coverage, NotInject over-defense, public corpora do not represent production tool traffic | Useful review/telemetry guard, not autonomous enterprise blocker |
-| PII/tokenization | Scoped vault, streaming reconstruction, production HTTP classifier path, CUDA GLiNER service, full-taxonomy gate | Calibrated exact-span F1 72.07% across 100% of declared taxonomy; person/password/generic identifier performance and locale evidence remain weak | Secure transport mechanism; detector remains experimental |
+| PII/tokenization | Scoped vault, streaming reconstruction, production HTTP classifier path, CUDA GLiNER service, full-taxonomy gate | Out-of-fold exact-span F1 71.70% across 100% of declared taxonomy; person and generic identifier performance and real locale evidence remain weak | Secure transport mechanism; detector remains experimental |
 | Talent Integrity | Bounded review contract, dual-review/adjudication lifecycle, group-held-out EMSCAD baseline, ranking evaluator | No independently adjudicated candidate-job pilot or current verified fraud feed | Safe orchestration demonstration, not a validated ranker |
 
 More infrastructure, ranking fields, synthetic profiles, generic LLM size, or dashboards should be deferred. They would not repair missing labels, weak attack distribution coverage, or absent operational evidence. Raw multimodal processing should also wait for an OCR threat/cost model.
@@ -35,7 +39,7 @@ The repository does well at separating synthetic regression from external evalua
 - Public injection corpora have inconsistent definitions of roleplay, indirect injection, and secret exfiltration; pooled scores are therefore descriptive only.
 - Small sources (for example 60, 94, 98, and 115 cases) have wide uncertainty and cannot support tight per-source claims.
 - ESCI is product search, not candidate ranking; it only validates evaluator mechanics and a lexical baseline.
-- EMSCAD is dated binary job-posting fraud data. v1.13.3 removes company/domain/template group overlap and drops the honest F1 to 71.15%; a later-time current-feed holdout is still needed before deployment claims.
+- EMSCAD is dated binary job-posting fraud data. v1.13.4 preserves zero company/domain/template group overlap and improves the honest precision-first F1 to 75.08% at 90.15% precision, but recall is 64.32%; a later-time current-feed holdout is still needed before deployment claims.
 - Threshold calibration appears train/validation separated in the reviewed trainers, but each result needs a persisted split manifest and dataset checksum to prove the exact partition.
 - Result JSON retains aggregate metrics and model hashes but not raw inputs. Public source revisions are pinned; a reproducibility bundle should add input manifests, normalized-record hashes, split hashes, commands, dependency lock hashes, and run environment.
 
@@ -92,9 +96,9 @@ Every release dataset needs a card, license, collection period, provenance/check
 | Architecture | 82 | Clear security boundaries; talent schema is still legacy |
 | Security design | 84 | Strong scoped tokenization and fail-closed posture; operational controls incomplete |
 | Security-model effectiveness | 60 | Direct performance useful; indirect, secret, and benign FPR fail enterprise gates |
-| PII protection | 70 | Restoration design is strong and taxonomy accounting is complete; calibrated full-taxonomy F1 is 72.07%, still below promotion gates |
+| PII protection | 70 | Restoration design is strong and taxonomy accounting is complete; out-of-fold full-taxonomy F1 is 71.70%, still below promotion gates |
 | Ranking validity | 25 | No real candidate-job ground truth |
-| Fraud detection | 58 | Zero-overlap EMSCAD group F1 is 71.15%; current verified external evidence is still absent |
+| Fraud detection | 60 | Zero-overlap EMSCAD precision-first group F1 is 75.08%; current verified external evidence is still absent |
 | Testing/reproducibility | 88 | Broad tests, pinned public sources, release-evidence manifests, and live Docker CI; production datasets remain external |
 | Observability | 68 | Metrics/audit foundations, no real operational SLO/drift evidence |
 | Enterprise operability | 42 | Docker/Kafka/Redis topology exists; reviewer, recovery, and lifecycle controls absent |

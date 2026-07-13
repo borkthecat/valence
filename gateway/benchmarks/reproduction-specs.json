@@ -142,6 +142,40 @@
         }
       ],
       "split": {"method": "stratified_group", "seed": 1500, "groups": 4935, "train": 12199, "validation": 1683, "test": 3998, "train_test_group_overlap": 0}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json",
+      "command": "python pipeline/benchmarks/calibrate_pii_thresholds.py --input .benchmark-data/gretel-pii-v114-score-cache.jsonl --output gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json --folds 5",
+      "inputs": [
+        {
+          "path": ".benchmark-data/gretel-pii-v114-score-cache.jsonl",
+          "sha256": "7042ba556388e6a21a12a72b47a1e9a26010e983df1e7fd49833be5ca77c36fb",
+          "source": "privacy-safe GLiNER prediction cache for gretelai/gretel-pii-masking-en-v1"
+        }
+      ],
+      "split": {"method": "deterministic_record_hash_5_fold", "rows": 1000, "purpose": "out_of_fold_threshold_evaluation"}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.4-compact-v6-cascade-m050.json",
+      "command": "python pipeline/benchmarks/evaluate_guard_cascade.py --matrix .benchmark-data/injection-matrix-v113/matrix.json --compact-model gateway/models/prompt-injection-guard.json --secondary-model .benchmark-data/mmbert-provenance-guard-v6-full --output gateway/benchmarks/results/v1.13.4-compact-v6-cascade-m050.json --triage-margin -0.5",
+      "inputs": [
+        {"path": ".benchmark-data/injection-matrix-v113", "source": "normalized_held_out_matrix", "sha256": "309f694fb155d47da501b2da145d812822f9509599c7abd5146d6c932deaf33e"},
+        {"path": "gateway/models/prompt-injection-guard.json", "source": "compact_model", "sha256": "c9e6888213773172ff6127d1165146f02cb03d079d8011b6e20429e0d9bcec02"},
+        {"path": ".benchmark-data/mmbert-provenance-guard-v6-full", "source": "model_artifact", "sha256": "2941778eba3fa051fa564436e218b82aac748ea7102916cc5cbf5462c1a6b0c6"}
+      ],
+      "split": {"method": "source_pinned_held_out_fixtures", "corpora": 15, "purpose": "test_aware_exploratory_shadow_candidate_not_release_gate"}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c32-r50.json",
+      "command": "python pipeline/benchmarks/train_emscad_fraud_model.py --input .benchmark-data/emscad.external.live.csv --output gateway/benchmarks/results/v1.13.4-emscad-group-c32-r50.json --split-strategy group --regularization-c 0.25 --false-positive-cost 32 --minimum-recall 0.5 --top-k 50 --risk-penalty 0.8",
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.external.live.csv",
+          "sha256": "5aca6f19c3a47eb9eff23c8f806ebefa1f9ac48037815cd913fd35145a4ea0d0",
+          "source": "EMSCAD with bounded external-verification enrichment"
+        }
+      ],
+      "split": {"method": "stratified_group", "seed": 1500, "groups": 4942, "train": 13440, "validation": 1559, "test": 2881, "train_test_group_overlap": 0}
     }
   ]
 }

@@ -4,6 +4,14 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+## 1.13.4
+
+- Added context and entropy validation for password and identifier PII, conservative Unicode person-name boundary alignment, and privacy-safe prediction-cache export.
+- Added deterministic five-fold exact-span threshold calibration and a six-locale Faker regression suite without promoting synthetic data as release evidence.
+- Added compact-to-V6 guard cascade evaluation; the pooled shadow result improves while weak secret-policy corpora remain review-only.
+- Added EMSCAD structural markers, asymmetric false-positive cost training, and a zero-overlap group frontier reaching 90.15% precision at 64.32% recall.
+- Added dual-review ranking task generation, third-review adjudication, and deterministic held-out weight sweeps; all machine-judged labels remain silver and release-ineligible.
+
 ## 1.13.3
 
 - Made guard model findings advisory by default with explicit blocking promotion.

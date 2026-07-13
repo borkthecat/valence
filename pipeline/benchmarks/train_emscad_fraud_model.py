@@ -4,7 +4,7 @@ import argparse
 import csv
 import hashlib
 import json
-import math
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -36,6 +36,8 @@ class FraudModelReport:
     campaign_groups: int
     train_test_group_overlap: int
     regularization_c: float
+    false_positive_cost: float
+    minimum_recall: float
     records: int
     fraudulent: int
     train_records: int
@@ -72,6 +74,13 @@ def row_text(row: dict[str, str]) -> str:
     salary = _text(row, "salary_range") or "MISSING_SALARY"
     verification_markers = _text(row, "verification_evidence_markers")
     verification_risk = _text(row, "verification_risk_score")
+    combined_text = " ".join(_text(row, key) for key in TEXT_FIELDS)
+    word_count = len(combined_text.split())
+    link_count = len(re.findall(r"https?://|www\.", combined_text, flags=re.IGNORECASE))
+    email_count = len(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", combined_text))
+    urgency_count = len(re.findall(r"\b(?:urgent|immediately|limited time|start today|act now)\b", combined_text, flags=re.IGNORECASE))
+    finance_count = len(re.findall(r"\b(?:wire|crypto|bitcoin|processing fee|upfront|bank account|western union)\b", combined_text, flags=re.IGNORECASE))
+    profile_words = len(_text(row, "company_profile").split())
     parts = [
         "metadata: "
         + " | ".join((
@@ -81,6 +90,12 @@ def row_text(row: dict[str, str]) -> str:
             f"salary: {salary}",
             f"verification: {verification_markers}" if verification_markers else "NO_EXTERNAL_VERIFICATION",
             f"verification_risk: {verification_risk}" if verification_risk else "NO_VERIFICATION_RISK",
+            f"TEXT_LENGTH_{min(word_count // 100, 20)}",
+            f"LINK_COUNT_{min(link_count, 5)}",
+            f"EMAIL_COUNT_{min(email_count, 5)}",
+            f"URGENCY_COUNT_{min(urgency_count, 5)}",
+            f"FINANCE_RISK_COUNT_{min(finance_count, 5)}",
+            "SPARSE_COMPANY_PROFILE" if profile_words < 20 else "SUBSTANTIVE_COMPANY_PROFILE",
         )),
     ]
     for key in STRUCTURED_FIELDS:
@@ -166,9 +181,9 @@ def _split_rows(
     return train, validation, test
 
 
-def _best_threshold(scores: list[float], labels: list[int]) -> float:
+def _best_threshold(scores: list[float], labels: list[int], minimum_recall: float = 0.0) -> float:
     best_threshold = 0.5
-    best_score = -1.0
+    best_score: tuple[float, float, float] = (-1.0, -1.0, -1.0)
     for threshold in sorted({0.5, *(round(score, 4) for score in scores)}):
         predictions = [score >= threshold for score in scores]
         precision, recall, f1, _ = precision_recall_fscore_support(
@@ -177,8 +192,11 @@ def _best_threshold(scores: list[float], labels: list[int]) -> float:
             average="binary",
             zero_division=0,
         )
-        score = float(f1)
-        if score > best_score or (math.isclose(score, best_score) and threshold < best_threshold):
+        if minimum_recall > 0:
+            score = (float(precision), float(f1), -threshold) if recall >= minimum_recall else (-1.0, float(f1), -threshold)
+        else:
+            score = (float(f1), float(precision), -threshold)
+        if score > best_score:
             best_score = score
             best_threshold = threshold
     return best_threshold
@@ -190,6 +208,8 @@ def evaluate(
     risk_penalty: float,
     split_strategy: str = "random",
     regularization_c: float = 1.0,
+    false_positive_cost: float = 1.0,
+    minimum_recall: float = 0.0,
 ) -> FraudModelReport:
     indexed = list(enumerate(rows))
     labels = [_label(row) for _, row in indexed]
@@ -197,16 +217,23 @@ def evaluate(
     all_groups = {_campaign_group(row, index) for index, row in indexed}
     train_groups = {_campaign_group(row, index) for index, row in train}
     test_groups = {_campaign_group(row, index) for index, row in test}
+    train_labels = [_label(row) for _, row in train]
+    negative = train_labels.count(0)
+    positive = train_labels.count(1)
+    class_weight = {
+        0: false_positive_cost * len(train_labels) / (2 * negative),
+        1: len(train_labels) / (2 * positive),
+    }
     model = Pipeline([
         ("features", FeatureUnion([
             ("word", TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_features=100_000, sublinear_tf=True)),
             ("char", TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=2, max_features=80_000, sublinear_tf=True)),
         ])),
-        ("classifier", LogisticRegression(class_weight="balanced", C=regularization_c, max_iter=2000, n_jobs=1, random_state=1500)),
+        ("classifier", LogisticRegression(class_weight=class_weight, C=regularization_c, max_iter=2000, n_jobs=1, random_state=1500)),
     ])
-    model.fit([row_text(row) for _, row in train], [_label(row) for _, row in train])
+    model.fit([row_text(row) for _, row in train], train_labels)
     validation_scores = [float(score) for score in model.predict_proba([row_text(row) for _, row in validation])[:, 1]]
-    threshold = _best_threshold(validation_scores, [_label(row) for _, row in validation])
+    threshold = _best_threshold(validation_scores, [_label(row) for _, row in validation], minimum_recall)
     test_scores = [float(score) for score in model.predict_proba([row_text(row) for _, row in test])[:, 1]]
     test_labels = [_label(row) for _, row in test]
     predictions = [score >= threshold for score in test_scores]
@@ -239,6 +266,8 @@ def evaluate(
         "threshold": threshold,
         "split_strategy": split_strategy,
         "regularization_c": regularization_c,
+        "false_positive_cost": false_positive_cost,
+        "minimum_recall": minimum_recall,
         "features": int(model.named_steps["features"].transformer_list[0][1].idf_.shape[0])
         + int(model.named_steps["features"].transformer_list[1][1].idf_.shape[0]),
     }
@@ -247,6 +276,8 @@ def evaluate(
         campaign_groups=len(all_groups),
         train_test_group_overlap=len(train_groups & test_groups),
         regularization_c=regularization_c,
+        false_positive_cost=false_positive_cost,
+        minimum_recall=minimum_recall,
         records=len(rows),
         fraudulent=sum(labels),
         train_records=len(train),
@@ -276,12 +307,21 @@ def main() -> int:
     parser.add_argument("--risk-penalty", type=float, default=0.8)
     parser.add_argument("--split-strategy", choices=("random", "group"), default="random")
     parser.add_argument("--regularization-c", type=float, default=1.0)
+    parser.add_argument("--false-positive-cost", type=float, default=1.0)
+    parser.add_argument("--minimum-recall", type=float, default=0.0)
     args = parser.parse_args()
     if args.top_k <= 0:
         raise ValueError("--top-k must be positive")
     if args.regularization_c <= 0:
         raise ValueError("--regularization-c must be positive")
-    report = evaluate(load_rows(args.input), args.top_k, args.risk_penalty, args.split_strategy, args.regularization_c)
+    if args.false_positive_cost <= 0:
+        raise ValueError("--false-positive-cost must be positive")
+    if not 0 <= args.minimum_recall <= 1:
+        raise ValueError("--minimum-recall must be between 0 and 1")
+    report = evaluate(
+        load_rows(args.input), args.top_k, args.risk_penalty, args.split_strategy,
+        args.regularization_c, args.false_positive_cost, args.minimum_recall,
+    )
     payload = asdict(report)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

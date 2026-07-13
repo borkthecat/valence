@@ -17,6 +17,10 @@ from benchmarks.export_emscad import export
 from benchmarks.generate_provenance_pairs import generate_records
 from benchmarks.generate_guard_hard_negatives import generate_records as generate_hard_negative_records
 from benchmarks.build_ranking_judge_tasks import build_tasks
+from benchmarks.calibrate_pii_thresholds import calibrate as calibrate_pii
+from benchmarks.generate_pii_locale_suite import generate as generate_pii_locale_suite
+from benchmarks.adjudicate_ranking_silver import adjudicate as adjudicate_silver
+from benchmarks.evaluate_guard_cascade import compact_margin
 from benchmarks.train_emscad_fraud_model import evaluate as evaluate_trained_fraud_model
 from benchmarks.train_emscad_fraud_model import load_rows, row_text
 from benchmarks.train_emscad_fraud_model import _campaign_group, _split_rows
@@ -89,6 +93,8 @@ def test_trained_emscad_baseline_uses_text_fields() -> None:
     assert "requirements:" in text
     assert "metadata:" in text
     assert "NO_EXTERNAL_VERIFICATION" in text
+    assert "TEXT_LENGTH_" in text
+    assert "LINK_COUNT_" in text
     assert any(marker in text for marker in ("HAS_LOGO", "MISSING_LOGO"))
     assert report.records == 16
     assert report.test_records >= 1
@@ -141,6 +147,63 @@ def test_ranking_judge_task_builder_creates_pairwise_prompts() -> None:
     assert len(tasks) == 4
     assert all("score" in task["expected_response_schema"] for task in tasks)
     assert all("Return only JSON" in task["prompt"] for task in tasks)
+    assert all(set(task["reviewer_prompts"]) == {"reviewer_a", "reviewer_b"} for task in tasks)
+    assert all(task["release_gate_eligible"] is False for task in tasks)
+
+
+def test_silver_ranking_adjudication_never_becomes_release_evidence() -> None:
+    tasks = [{"task_id": "t1", "job_id": "j1", "candidate_id": "c1"}, {"task_id": "t2", "job_id": "j1", "candidate_id": "c2"}]
+    reviewer_a = {"t1": {"score": 4}, "t2": {"score": 5}}
+    reviewer_b = {"t1": {"score": 5}, "t2": {"score": 1}}
+    adjudicator = {"t2": {"score": 2}}
+
+    labels, report = adjudicate_silver(tasks, reviewer_a, reviewer_b, adjudicator)
+
+    assert [row["resolved_score"] for row in labels] == [4, 2]
+    assert report["unresolved"] == 0
+    assert report["releaseGateEligible"] is False
+    assert all(row["evidence_level"] == "silver_pseudo_label" for row in labels)
+
+
+def test_compact_guard_margin_is_relative_to_policy_threshold() -> None:
+    model = {
+        "policyAware": True,
+        "bias": 0.25,
+        "threshold": 0.0,
+        "policyThresholds": {"direct": 0.1},
+        "features": {},
+    }
+
+    assert compact_margin("benign", "direct", model) == pytest.approx(0.15)
+
+
+def test_pii_threshold_calibration_is_out_of_fold() -> None:
+    records = []
+    for index in range(20):
+        truth = [{"start": 0, "end": 5, "category": "PERSON_NAME"}]
+        predictions = [{"start": 0, "end": 5, "category": "PERSON_NAME", "score": 0.9}]
+        if index % 4 == 0:
+            predictions.append({"start": 7, "end": 12, "category": "PERSON_NAME", "score": 0.4})
+        records.append({"record_id": f"record-{index}", "truth": truth, "predictions": predictions})
+
+    report = calibrate_pii(records, folds=5)
+
+    assert report["evidencePartition"] == "out-of-fold"
+    assert report["outOfFoldMetrics"]["recall"] == 1.0
+    assert report["outOfFoldMetrics"]["precision"] == 1.0
+    assert 0.4 < report["thresholds"]["PERSON_NAME"] <= 0.9
+
+
+def test_pii_locale_suite_has_exact_synthetic_spans() -> None:
+    pytest.importorskip("faker")
+    records = generate_pii_locale_suite(8, ("en_US", "ja_JP"), 7)
+
+    assert len(records) == 16
+    assert {record["provenance"]["locale"] for record in records} == {"en_US", "ja_JP"}
+    assert all(record["provenance"]["releaseEvidence"] is False for record in records)
+    for record in records:
+        entity = record["entities"][0]
+        assert record["text"][entity["start"]:entity["end"]]
 
 
 def test_transformer_guard_reads_provenance_tokens(tmp_path: Path) -> None:

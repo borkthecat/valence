@@ -12,7 +12,7 @@ The completed V6 provenance run and selective expert routing now pass the risk-c
 
 The gateway now also has an opt-in shadow-review capture hook on the live reverse-proxy path. Set `SHADOW_REVIEW_LOG_PATH` to a JSONL destination and keep `SHADOW_REVIEW_SOURCES=hse_llm,cgoosen_combined` to collect redacted source-review events from requests that include `source_id` or `sourceId`. This is wired but disabled by default; a production or staging shadow run and reviewer decisions are still required. Benchmark records cannot substitute for either.
 
-The compact bundled guard is not enterprise-grade yet and is advisory by default as of v1.13.3. Set `GUARD_MODEL_ENFORCEMENT=block` only for a separately validated model after `pipeline/shadow_readiness_gate.py` passes. Compact passes 5/15 strict prompt-injection corpus gates, but the suite rollup shows the real distribution:
+The compact bundled guard is not enterprise-grade and remains advisory. Set `GUARD_MODEL_ENFORCEMENT=block` only for a separately validated model after `pipeline/shadow_readiness_gate.py` passes. The v1.13.4 compact-to-V6 cascade improves pooled shadow metrics to 97.29% accuracy and 95.97% F1 at 1.75% FPR, but the test-aware routing margin is not a frozen release threshold and two secret-policy sources still fail badly.
 
 | Suite | F1 | Primary failure |
 | --- | ---: | --- |
@@ -29,7 +29,7 @@ Required next work:
 2. Use the completed provenance-aware V6 transformer result as the frozen baseline and collect real review-only outcomes for the weak sources before further calibration. Do not retrain against held-out labels.
 3. Keep block and review thresholds separate; do not collapse results into a single pooled score.
 
-The PII engineering path is now complete for repository scope: the optional CUDA GLiNER service uses the production HTTP contract, category thresholds are validated at startup, all 4,314 Gretel entities are included in the denominator, and promotion fails closed. The calibrated result is 75.36% precision, 69.05% recall, and 72.07% F1. Remaining PII work requires stronger real span evidence, especially person-name boundaries, passwords, broad identifiers, and held-out locale suites; threshold tuning alone did not close the gap.
+The PII engineering path is complete for repository scope: the optional CUDA GLiNER service uses the production HTTP contract, prediction caches contain offsets rather than source text, category thresholds are validated at startup, all 4,314 Gretel entities are included, and promotion fails closed. Five-fold calibration estimates 74.58% precision, 69.03% recall, and 71.70% F1. Context and entropy validation improve the heuristic to 94.49% precision and 24.25% recall. Remaining PII work requires independently annotated real spans, especially person names, broad identifiers, and jurisdictional locale sets; synthetic Faker coverage cannot close that evidence gap.
 
 Current implementation support:
 
@@ -63,7 +63,7 @@ Current implementation support:
 - v1.11.7 records a full local DeBERTa-v3-small EMSCAD result: 98.66% accuracy and 85.80% F1. It did not improve the baseline, so the next fraud gains need better labelled features, calibration, or model strategy.
 - v1.11.8 adds metadata markers and weighted transformer loss. Weighted DeBERTa improves to 87.65% F1, and metadata TF-IDF reaches 92.36% precision but only 83.82% recall. The current held-out precision-recall frontier shows at least 95% recall costs too much precision, so the 95% fraud target is blocked on stronger labels/features/modeling, not another threshold tweak.
 - v1.12.0 adds EMSCAD false-negative analysis and ensemble evaluation. Its random split reached 92.99% precision, 84.39% recall, 88.48% F1, and 0.32% false-positive rate, but is retained as regression evidence only.
-- v1.13.3 adds a stricter holdout across 4,935 company/domain/template campaign groups. With zero train/test group overlap, the best bounded run reaches 62.56% precision, 82.47% recall, 71.15% F1, and 1.98% FPR. This is the current generalization baseline and confirms that text-only EMSCAD is not an automatic-blocking model.
+- v1.13.4 adds structural markers and asymmetric false-positive cost. Across 4,942 company/domain/template campaign groups with zero train/test overlap, the selected cost-32 run reaches 90.15% precision, 64.32% recall, 75.08% F1, and 0.48% FPR. This is a materially stronger precision-first triage point, but recall is too low for automatic blocking.
 - The external verification pipeline is implemented and bounded: domain/email and posting-URL mismatch, DNS/HTTP liveness, persistent cache, and rate-limited provider-cache boundaries. EMSCAD itself has insufficient current company-domain and registry evidence to validate these as production fraud signals. Deploying the adapters requires a current job-feed source, approved provider credentials where applicable, and independently reviewed fraud labels.
 
 ## Priority 3: Indirect Injection Needs Schema, Not Just More Data

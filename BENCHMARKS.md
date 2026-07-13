@@ -4,7 +4,7 @@ Measured through July 14, 2026. These results separate internal regression check
 
 ## Reproducibility manifest
 
-`gateway/benchmarks/reproducibility-manifest.json` catalogs all 41 checked-in benchmark result artifacts. The seven artifacts used as current release evidence include an exact command, dataset/model revision, input hash, and split metadata; the other 34 are explicitly classified as historical archival results rather than release gates.
+`gateway/benchmarks/reproducibility-manifest.json` catalogs all 60 checked-in benchmark result artifacts. The 14 artifacts used as current release evidence include an exact command, dataset/model revision, input hash, and split metadata; the other 46 are explicitly classified as historical archival results rather than release gates.
 
 Validate the checked-in catalog without rerunning heavyweight training:
 
@@ -31,9 +31,9 @@ Detector: `HeuristicPiiDetector` plus the optional `urchade/gliner_multi_pii-v1`
 | Annotated entities | 4,314 |
 | Entities in declared PII taxonomy | 4,314 |
 | Declared taxonomy coverage | 100.0% |
-| Exact-span precision | 75.4% |
-| Exact-span recall | 69.1% |
-| Exact-span F1 | 72.1% |
+| Out-of-fold exact-span precision | 74.58% |
+| Out-of-fold exact-span recall | 69.03% |
+| Out-of-fold exact-span F1 | 71.70% |
 
 Per detected category (generic-sensitive and person-name spans are also included in the aggregate denominator):
 
@@ -47,14 +47,15 @@ Per detected category (generic-sensitive and person-name spans are also included
 | Phone | 93.9% | 89.5% | 91.6% |
 | Password | 33.3% | 71.4% | 45.5% |
 
-The v1.13.3 run corrects the evaluation denominator: names, addresses, dates, account identifiers, medical identifiers, and other declared sensitive spans can be tokenized as person or generic-sensitive categories and therefore count as false negatives when missed. Declared taxonomy accounting is now 100%. The heuristic-only baseline remains 92.7% precision, 17.8% recall, and 29.9% F1; the GLiNER combination raises F1 to 72.1% but still fails the 95/95 gate, primarily on person-name exact boundaries, generic identifiers, and passwords. Category thresholds were selected on this same 1,000-row development corpus, so 72.1% is an exploratory calibrated result, not an untouched test estimate. Production promotion requires a frozen threshold vector followed by separate locale/jurisdiction test sets. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use. Checked-in evidence includes `v1.13.3-gretel-pii-full-taxonomy.json`, `v1.13.3-gretel-pii-gliner-calibrated.json`, and the intentionally failing `v1.13.3-pii-release-gate.json`.
+The v1.13.4 run preserves 100% taxonomy accounting and replaces same-set threshold reporting with deterministic record-hash five-fold calibration. Its 71.70% out-of-fold F1 is slightly below the earlier 72.07% post-hoc value and is the more honest estimate. Context and entropy filters raise the heuristic-only path from 92.66% precision, 17.85% recall, and 29.93% F1 to 94.49%, 24.25%, and 38.59%. Person names and broad generic identifiers remain the dominant misses. A deterministic six-locale Faker suite reaches 100% precision, 55.00% recall, and 70.97% F1, but is synthetic regression evidence only. Production promotion still requires untouched, independently annotated locale/jurisdiction test sets. Checked-in current evidence includes `v1.13.4-gretel-pii-heuristic.json`, `v1.13.4-gretel-pii-gliner-oof-calibration.json`, and `v1.13.4-pii-locale-heuristic.json`.
 
 Reproduce:
 
 ```bash
 python pipeline/benchmarks/export_gretel_pii.py --rows 1000 --output .benchmark-data/gretel-pii-1000.jsonl
-PII_CLASSIFIER_URL=http://127.0.0.1:8765/v1/classify PII_CLASSIFIER_MINIMUM_SCORE=0.7 PII_CLASSIFIER_LABEL_THRESHOLDS='{"GENERIC_SECRET":0.7,"PERSON_NAME":0.85,"SSN":0.85,"EMAIL":0.85,"IP_ADDRESS":0.85,"PHONE":0.7,"CREDIT_CARD":0.85,"API_KEY":0.85,"PASSWORD":0.85,"ACCESS_TOKEN":1.0}' npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json
-python pipeline/pii_release_gate.py --input gateway/benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json --output gateway/benchmarks/results/v1.13.3-pii-release-gate.json
+PII_PREDICTION_CACHE_OUTPUT=../.benchmark-data/gretel-pii-v114-score-cache.jsonl PII_CLASSIFIER_URL=http://127.0.0.1:8765/v1/classify PII_CLASSIFIER_MINIMUM_SCORE=0 npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.4-gretel-pii-gliner-score-floor.json
+python pipeline/benchmarks/calibrate_pii_thresholds.py --input .benchmark-data/gretel-pii-v114-score-cache.jsonl --output gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json --folds 5
+python pipeline/benchmarks/generate_pii_locale_suite.py --output .benchmark-data/pii-locale-suite-v114.jsonl --records-per-locale 40
 ```
 
 ## Prompt injection
@@ -116,6 +117,8 @@ This changes the diagnosis. The direct-attack suite is near the strict target, w
 The full V6 provenance model is evaluated with selective source experts only where they improve held-out false-positive behavior. The current `v1.13.1` release target retains the final `v1.13.1` benchmark artifact as its risk-calibrated evidence matrix: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% aggregate FPR, and 4.62% maximum per-source FPR. The profile is checked by `pipeline/remediation/assert_operating_standard.py` against `gateway/benchmarks/enterprise-operating-standard.json`.
 
 `cgoosen_combined` and `hse_llm` meet the low-FPR constraint but have 14.77% and 25.00% recall respectively, so they are review-only, not automatic block routes. `pipeline/remediation/shadow_review_loop.py` creates a PII-reduced queue from real shadow events and merges explicit human labels for the next expert-data audit. These two sources are not evidence for production detection coverage until that shadow evaluation completes.
+
+v1.13.4 also measures a compact early-allow cascade into the frozen V6 model. At the exploratory `-0.5` compact-margin setting, 40.77% of cases route to V6 and pooled performance reaches 97.29% accuracy, 96.55% precision, 95.39% recall, 95.97% F1, and 1.75% FPR. This setting was selected after inspecting the same held-out matrix, so it is a shadow candidate rather than a frozen release gate. More importantly, `hse_llm` remains at 64.29% precision and 25.00% FPR, while `cgoosen_combined` remains at 92.41% precision and 60.00% FPR. Existing nonlinear source SVM experts also failed to clear all source gates. The measured conclusion is that routing improves pooled workload and quality but does not manufacture missing source-specific separation.
 
 Valence now includes a pinned exporter for [NotInject](https://huggingface.co/datasets/leolee99/NotInject), a benign trigger-word-heavy benchmark introduced by the InjecGuard/PIGuard work. NotInject measures whether a guard blocks harmless prompts merely because they contain words such as "ignore" or other injection-like triggers.
 
@@ -186,6 +189,8 @@ An initial external run used the first 1,000 held-out test rows from Amazon Scie
 
 For external evaluation, `pipeline/ranking_evaluator.py` accepts independently labeled JSONL and reports top-1 accuracy with a Wilson 95% confidence interval, top-5 winner recall, mean reciprocal rank, NDCG@5, and fail-closed batches. Release gates compare `--min-top1` against the confidence interval's lower bound rather than the point estimate. The checked-in fixture verifies metric behavior only and is not an external benchmark.
 
+The v1.13.4 adjustment-weight sweep uses a deterministic 70/30 record-hash partition and 243 combinations. It selected a ranking-equivalent uniform scaling and scored 36.36% top-1 and 0.482 NDCG@5 on the 11-group held-out partition, so it does not improve the 34-query baseline. Dual independent reviewer tasks, within-one agreement, third-review adjudication, and provenance fields are now automated, but machine-judged outputs are always marked silver and cannot satisfy the candidate/job release gate.
+
 ### Job-profile fraud baseline
 
 EMSCAD is the first candidate/job profile safety benchmark because it contains real job postings with binary fraudulent labels. `pipeline/benchmarks/export_emscad.py` converts the CSV into Valence rich-profile JSONL, and `pipeline/fraud_evaluator.py` reports fraud precision, recall, F1, false-positive rate, and Fraud Exposure Rate at top-k before and after risk-adjusted reranking.
@@ -217,7 +222,7 @@ For v1.12.0, `pipeline/benchmarks/analyze_emscad_false_negatives.py` was added t
 
 A fresh v1.12.0 DeBERTa-v3-small weighted run did not beat TF-IDF: 98.57% accuracy, 88.13% precision, 81.50% recall, 84.68% F1, and 0.56% false-positive rate. `pipeline/benchmarks/evaluate_emscad_ensemble.py` then evaluated TF-IDF, the fresh transformer, max-score, OR, and weighted-score combinations on the same held-out split. The best low-FPR constrained result was effectively TF-IDF-only with weight 1.0: 98.94% accuracy, 92.99% precision, 84.39% recall, 88.48% F1, and 0.32% false-positive rate. Unconstrained blends can lift recall to 88.44%-89.60%, but they raise false-positive rate to 0.59%-0.71%. The ensemble therefore improves the precision-biased operating point slightly, but it does not solve the 95% recall target without external verification features or new labels.
 
-v1.13.3 adds a stricter company/domain/template campaign-group holdout. Across 4,935 groups with zero train/test group overlap, the best bounded regularization point (`C=4`) reaches 97.42% accuracy, 62.56% precision, 82.47% recall, 71.15% F1, and 1.98% FPR. The random-split 88.48% F1 remains a regression result, not deployment evidence. The group result is the current generalization baseline and confirms that current verified external signals and later-time labels are required.
+v1.13.4 adds text-structure markers and explicit asymmetric false-positive cost. On the enriched local EMSCAD export, the selected cost-32 point uses 4,942 campaign groups with zero train/test overlap and reaches 97.26% accuracy, 90.15% precision, 64.32% recall, 75.08% F1, and 0.48% FPR. This substantially improves precision and FPR over v1.13.3's 62.56% precision and 1.98% FPR group baseline, but recall falls from 82.47% to 64.32%. Cost 64 reaches 90.40% precision but only 61.08% recall and 72.90% F1, so cost 32 is the selected precision-first frontier. The random-split 88.48% F1 remains regression evidence, not deployment evidence, and the group result remains triage-only pending a current verified feed.
 
 The next fraud experiment should add external verification markers before training. `pipeline/benchmarks/external_verification_features.py` extracts company-domain, contact-email-domain, posting-URL, mismatch, liveness, similarity, domain-age, and registry-status markers from enriched job CSVs. Liveness and RDAP checks are optional because they touch the network; when enabled, they deduplicate requests, use bounded retry/rate controls, and persist TTL-cached results. RDAP discovery uses the [IANA domain bootstrap registry](https://www.iana.org/assignments/rdap-dns/rdap-dns.xhtml), and domain queries follow [RFC 9082](https://datatracker.ietf.org/doc/html/rfc9082). Transient network failures remain `unknown` and do not add fraud risk. Offline mode is deterministic and suitable for CI or feature review. The fraud trainers automatically consume `verification_evidence_markers` and `verification_risk_score` when those columns exist.
 

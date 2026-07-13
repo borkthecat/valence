@@ -54,6 +54,17 @@ async function run(): Promise<void> {
         ],
         'contextual secret rules return value-only exact spans',
     );
+    const entropyFindings = await heuristic.detect(
+        'Password: onboarding; employee_id = EMP-72A91K; customer id: unknown',
+    );
+    assert.deepEqual(
+        entropyFindings.map((finding) => ({
+            category: finding.category,
+            value: 'Password: onboarding; employee_id = EMP-72A91K; customer id: unknown'.slice(finding.start, finding.end),
+        })),
+        [{ category: 'GENERIC_SECRET', value: 'EMP-72A91K' }],
+        'entropy and context filters reject benign placeholders but retain structured identifiers',
+    );
     const shield = new InjectionShield([new HeuristicInjectionDetector()]);
     const benign = await shield.evaluate('Please summarize this quarterly report.');
     assert.equal(benign.blocked, false, 'benign prompt allowed');
@@ -76,6 +87,14 @@ async function run(): Promise<void> {
     assert.deepEqual(await classifier.classify('Alice'), [
         { label: 'PERSON', start: 0, end: 5, score: 0.97 },
     ]);
+    const partialNameClassifier = new EmbeddingClassifierDetector({
+        classify: async () => [{ label: 'PERSON', start: 1, end: 6, score: 0.99 }],
+    });
+    assert.deepEqual(
+        (await partialNameClassifier.detect('Nanami')).map((finding) => ({ start: finding.start, end: finding.end })),
+        [{ start: 0, end: 6 }],
+        'person-name classifier spans align conservatively to Unicode token boundaries',
+    );
     const calibratedClassifier = new EmbeddingClassifierDetector(classifier, {
         minimumScore: 0.5,
         categoryMinimumScores: parsePiiCategoryThresholds('{"PERSON_NAME":0.98}'),

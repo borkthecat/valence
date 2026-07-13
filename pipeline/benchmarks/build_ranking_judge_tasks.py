@@ -63,6 +63,18 @@ def _prompt(job: dict[str, Any], candidate: dict[str, Any]) -> str:
     )
 
 
+def _counter_prompt(job: dict[str, Any], candidate: dict[str, Any]) -> str:
+    job_text = _field(job, "title", "description", "requirements", "responsibilities", "skills")
+    candidate_text = _field(candidate, "title", "summary", "description", "skills", "experience", "projects")
+    return (
+        "Evaluate only demonstrated evidence. First identify missing hard requirements, then score fit from 0 to 5.\n"
+        "Do not infer credentials, seniority, or protected traits. Return only JSON with score and rationale.\n\n"
+        f"Candidate evidence:\n{candidate_text}\n\n"
+        f"Role evidence:\n{job_text}\n\n"
+        f"Rubric: {json.dumps(JUDGE_RUBRIC, sort_keys=True)}"
+    )
+
+
 def build_tasks(
     jobs: list[dict[str, Any]],
     candidates: list[dict[str, Any]],
@@ -85,6 +97,12 @@ def build_tasks(
                 "candidate_id": candidate_id,
                 "rubric": JUDGE_RUBRIC,
                 "prompt": _prompt(job, candidate),
+                "reviewer_prompts": {
+                    "reviewer_a": _prompt(job, candidate),
+                    "reviewer_b": _counter_prompt(job, candidate),
+                },
+                "evidence_level": "silver_pseudo_label",
+                "release_gate_eligible": False,
                 "expected_response_schema": {
                     "score": "integer 0..5",
                     "rationale": "short evidence-based string",
