@@ -28,8 +28,12 @@ class StudyStore:
    if not adjudicator and not c.execute("SELECT 1 FROM assignments WHERE case_id=? AND reviewer=?",(case_id,actor)).fetchone():raise PermissionError()
    record=json.loads(r["record"]);return {"case_id":case_id,"state":r["state"],"job":record.get("job"),"candidates":record.get("candidates")} # deliberately excludes outputs/other labels
  def save(self,tenant,case_id,reviewer,payload,final=False):
-  self.case(tenant,case_id,reviewer)
-  with self.db() as c:c.execute("INSERT OR REPLACE INTO annotations VALUES(?,?,?,?)",(case_id,reviewer,json.dumps(payload),int(final)))
+  case=self.case(tenant,case_id,reviewer)
+  if case["state"]=="frozen":raise ValueError("frozen datasets cannot be edited")
+  with self.db() as c:
+   current=c.execute("SELECT final FROM annotations WHERE case_id=? AND reviewer=?",(case_id,reviewer)).fetchone()
+   if current and current["final"]:raise ValueError("submitted annotations are immutable")
+   c.execute("INSERT INTO annotations VALUES(?,?,?,?) ON CONFLICT(case_id,reviewer) DO UPDATE SET payload=excluded.payload,final=excluded.final",(case_id,reviewer,json.dumps(payload),int(final)))
  def disagreements(self,tenant,case_id):
   with self.db() as c:
    rows=c.execute("SELECT payload FROM annotations WHERE case_id=? AND final=1",(case_id,)).fetchall()
@@ -37,6 +41,9 @@ class StudyStore:
    a,b=[json.loads(r["payload"]) for r in rows[:2]];return {k:(a.get(k),b.get(k)) for k in MATERIAL if a.get(k)!=b.get(k) and (k!="graded_relevance" or abs(a.get(k,0)-b.get(k,0))>1)}
  def adjudicate(self,tenant,case_id,actor,resolution,reason):
   if not self.disagreements(tenant,case_id):raise ValueError("no material disagreement")
-  with self.db() as c:c.execute("INSERT OR REPLACE INTO resolutions VALUES(?,?,?,?,?)",(case_id,actor,json.dumps(resolution),reason,datetime.now(UTC).isoformat()));c.execute("UPDATE study_cases SET state='adjudication',version=version+1 WHERE id=? AND tenant=?",(case_id,tenant))
+  if not reason:raise ValueError("adjudication reason is required")
+  with self.db() as c:
+   if c.execute("SELECT 1 FROM resolutions WHERE case_id=?",(case_id,)).fetchone():raise ValueError("resolution is immutable; create a new dataset version")
+   c.execute("INSERT INTO resolutions VALUES(?,?,?,?,?)",(case_id,actor,json.dumps(resolution),reason,datetime.now(UTC).isoformat()));c.execute("UPDATE study_cases SET state='adjudication',version=version+1 WHERE id=? AND tenant=?",(case_id,tenant))
  def freeze(self,tenant,case_id):
   with self.db() as c:c.execute("UPDATE study_cases SET state='frozen',version=version+1 WHERE id=? AND tenant=?",(case_id,tenant))
