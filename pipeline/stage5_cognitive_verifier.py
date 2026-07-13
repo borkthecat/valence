@@ -207,7 +207,7 @@ def apply_review_policy(
             and not reasons
         )
         needs_review = (
-            finding.eligibility == "unknown"
+            finding.eligibility != "eligible"
             or finding.recommended_action in ("hold_for_review", "insufficient_evidence")
             or (
                 finding.recommended_action == "exclude_by_policy"

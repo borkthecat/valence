@@ -60,7 +60,7 @@ def _judgment(candidate_id: str, **overrides: object) -> s5.CandidateJudgment:
     ({"uncertainties": ["UNCERTAINTY_MISSING_REQUIRED_EVIDENCE"]}, False, True),
     ({"eligibility": "unknown", "recommended_action": "hold_for_review"}, False, True),
     ({"eligibility": "eligible", "recommended_action": "exclude_by_policy"}, False, True),
-    ({"eligibility": "ineligible", "recommended_action": "exclude_by_policy"}, False, False),
+    ({"eligibility": "ineligible", "recommended_action": "exclude_by_policy"}, False, True),
 ])
 def test_stage5_deterministic_policy_matrix(
     overrides: dict[str, object], shortlisted: bool, human_review: bool
@@ -152,6 +152,43 @@ def test_stage5_review_model_failure_fails_entire_pool() -> None:
             s5._known_good_request(), FailingProxy()
         ))
     assert metrics.snapshot().review_failures_total == 1
+
+
+def test_stage5_http_contract_exposes_review_metrics_and_verify_deprecation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fastapi.testclient import TestClient
+
+    class MockProxy:
+        async def complete(self, body: bytes, headers: dict[str, str]) -> s5.ProxyResponse:
+            payload = json.loads(body)
+            pool = json.loads(payload["messages"][1]["content"])["candidate_pool"]
+            if "candidate_id, eligibility" in payload["messages"][0]["content"]:
+                content = {"judgments": [_judgment(candidate["id"]).model_dump() for candidate in pool]}
+            else:
+                content = {
+                    "selected_winner_id": pool[0]["id"],
+                    "confidence_coefficient": 0.8,
+                    "qualitative_justification": "Compatibility path.",
+                }
+            return s5.ProxyResponse(200, json.dumps({
+                "choices": [{"message": {"content": json.dumps(content)}}],
+                "usage": {"total_tokens": 1},
+            }).encode())
+
+    monkeypatch.setattr(s5, "_RUNTIME_PROXY", MockProxy())
+    request = s5._known_good_request().model_dump()
+    with TestClient(s5.app) as client:
+        review = client.post("/v1/valence/stage5/review", json=request)
+        assert review.status_code == 200
+        assert review.json()["schema_version"] == "1.0"
+        assert {item["candidate_id"] for item in review.json()["candidates"]} == {
+            item["id"] for item in request["pool"]
+        }
+        legacy = client.post("/v1/valence/stage5/verify", json=request)
+        assert legacy.headers["deprecation"] == "true"
+        metrics = client.get("/metrics")
+        assert "valence_stage5_review_requests_total" in metrics.text
 
 
 def test_stage3_profile_quality_gate() -> None:

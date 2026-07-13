@@ -32,7 +32,7 @@ The Stage 5 process is an internal service. Both `/review` and `/verify` share t
 }
 ```
 
-The top-level contract includes `schema_version: "1.0"` and `decision_mode: "advisory_review"`. Each candidate contains separate `model_assessment` and `policy_outcome` objects. Valence validates that every pool member appears exactly once. Code includes only clean `eligible` + `shortlist` findings in `recommended_shortlist`; any uncertainty, risk, unknown eligibility, or review recommendation sets `human_review_required=true`. Neither output is a final hiring action.
+The top-level contract includes `schema_version: "1.0"` and `decision_mode: "advisory_review"`. Each candidate contains separate `model_assessment` and `policy_outcome` objects. Valence validates that every pool member appears exactly once. Code includes only clean `eligible` + `shortlist` findings in `recommended_shortlist`; any uncertainty, risk, model-originated ineligibility, unknown eligibility, or review recommendation sets `human_review_required=true`. Neither output is a final hiring action.
 
 The older `/verify` endpoint selects one winner and is retained only for compatibility with non-employment experiments. It is deprecated for Talent Integrity integrations, will not receive new Talent Integrity features, and returns `Deprecation: true` with a documentation link. No removal date is declared yet.
 
