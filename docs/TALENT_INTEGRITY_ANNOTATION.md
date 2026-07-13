@@ -46,3 +46,7 @@ python pipeline/talent_evaluator.py pilot-records.jsonl system-submissions.jsonl
 ```
 
 The evaluator rejects missing, duplicate, non-adjudicated, incomplete, non-reproducible, and internally inconsistent cases. It reports relevance-only and eligibility-adjusted ranking metrics; qualified micro and applicable-case macro recall; routing precision/recall; uncertainty diagnostics; reviewer agreement scaffolding; and optional slices for job family, seniority, region, language, and profile completeness. Slices below 30 cases must be labelled exploratory, not used as release gates. Run `python pipeline/talent_dataset_audit.py pilot-records.jsonl` before any benchmark to detect cross-split candidate/evidence reuse, duplicate IDs, policy mixing, and coverage gaps.
+
+Use the [benchmark protocol](TALENT_BENCHMARK_PROTOCOL.md) to freeze a signed
+pre-registration manifest before evaluation. The 10-case calibration phase
+measures annotation usability and reviewer agreement, not system quality.

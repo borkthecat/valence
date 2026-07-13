@@ -34,6 +34,7 @@ class AgreementMetrics:
     risk_weighted_kappa: float | None
     krippendorff_alpha_nominal: float | None
     rank_spearman_correlation: float | None
+    rank_kendall_tau_b: float | None
     top5_overlap: float | None
     adjudication_rate: float
     mean_reviewer_confidence_difference: float | None
@@ -83,18 +84,29 @@ class RankingBaseline(Protocol):
 
 
 class HardEligibilityLexicalBaseline:
-    """Deterministic baseline: documented skill overlap, then stable ID."""
+    """Deployable lexical baseline: candidate fields only, never human labels."""
 
-    name = "hard_eligibility_then_skill_overlap"
+    name = "lexical_skill_overlap"
 
     def rank(self, record: TalentEvaluationRecord) -> tuple[str, ...]:
         required = {skill.casefold() for skill in record.job.required_skills}
-        labels = _labels(record)
         def key(candidate: object) -> tuple[int, int, str]:
             profile = candidate
             skills = {skill.casefold() for skill in profile.claimed_skills}
-            return (labels[profile.candidate_id].hard_eligibility != "pass", -len(required & skills), profile.candidate_id)
+            preferred = {skill.casefold() for skill in record.job.preferred_skills}
+            return (-len(required & skills), -len(preferred & skills), profile.candidate_id)
         return tuple(item.candidate_id for item in sorted(record.candidates, key=key))
+
+
+class OracleHardEligibilityLexicalBaseline(HardEligibilityLexicalBaseline):
+    """Diagnostic upper bound only; this baseline intentionally reads resolved labels."""
+
+    name = "oracle_hard_eligibility_then_skill_overlap"
+
+    def rank(self, record: TalentEvaluationRecord) -> tuple[str, ...]:
+        labels = _labels(record)
+        lexical = super().rank(record)
+        return tuple(sorted(lexical, key=lambda candidate_id: (labels[candidate_id].hard_eligibility != "pass", lexical.index(candidate_id))))
 
 
 def _labels(record: TalentEvaluationRecord) -> dict[str, CandidateAnnotation]:
@@ -107,14 +119,25 @@ def _dcg(grades: list[int]) -> float:
     return sum((2**grade - 1) / math.log2(index + 2) for index, grade in enumerate(grades))
 
 
-def _kappa(left: list[object], right: list[object], weighted: bool = False) -> float | None:
+RISK_ORDER = ["none", "low", "medium", "high"]
+RELEVANCE_ORDER = [0, 1, 2, 3]
+EVIDENCE_ORDER = ["insufficient", "partial", "sufficient"]
+
+
+def _kappa(left: list[object], right: list[object], weighted: bool = False, order: list[object] | None = None, quadratic: bool = True) -> float | None:
     if not left or len(left) != len(right):
         return None
-    categories = sorted(set(left) | set(right), key=str)
-    observed = mean((1 - abs(categories.index(a) - categories.index(b)) / max(1, len(categories) - 1)) if weighted else float(a == b) for a, b in zip(left, right))
+    categories = order or sorted(set(left) | set(right), key=str)
+    if not set(left) | set(right) <= set(categories):
+        raise ValueError("kappa category order does not cover values")
+    def weight(a: object, b: object) -> float:
+        if not weighted: return float(a == b)
+        distance = abs(categories.index(a) - categories.index(b)) / max(1, len(categories) - 1)
+        return 1 - (distance**2 if quadratic else distance)
+    observed = mean(weight(a, b) for a, b in zip(left, right))
     left_counts = {value: left.count(value) / len(left) for value in categories}
     right_counts = {value: right.count(value) / len(right) for value in categories}
-    expected = sum(left_counts[a] * right_counts[b] * (1 - abs(categories.index(a) - categories.index(b)) / max(1, len(categories) - 1) if weighted else float(a == b)) for a in categories for b in categories)
+    expected = sum(left_counts[a] * right_counts[b] * weight(a, b) for a in categories for b in categories)
     return 1.0 if expected == 1.0 and observed == 1.0 else (observed - expected) / (1 - expected) if expected != 1 else 0.0
 
 
@@ -127,6 +150,33 @@ def _spearman(left: list[float], right: list[float]) -> float | None:
     return numerator / denominator if denominator else None
 
 
+def _average_descending_ranks(values: dict[str, int]) -> dict[str, float]:
+    """Tie-aware ranks: equal values get the average of their occupied ranks."""
+    result: dict[str, float] = {}
+    ordered = sorted(values, key=lambda item: (-values[item], item))
+    index = 0
+    while index < len(ordered):
+        end = index + 1
+        while end < len(ordered) and values[ordered[end]] == values[ordered[index]]: end += 1
+        average = ((index + 1) + end) / 2
+        for item in ordered[index:end]: result[item] = average
+        index = end
+    return result
+
+
+def _kendall_tau_b(left: list[float], right: list[float]) -> float | None:
+    concordant = discordant = left_ties = right_ties = 0
+    for i, j in combinations(range(len(left)), 2):
+        a, b = left[i] - left[j], right[i] - right[j]
+        if a == b == 0: continue
+        if a == 0: left_ties += 1
+        elif b == 0: right_ties += 1
+        elif (a > 0) == (b > 0): concordant += 1
+        else: discordant += 1
+    denominator = math.sqrt((concordant + discordant + left_ties) * (concordant + discordant + right_ties))
+    return (concordant - discordant) / denominator if denominator else None
+
+
 def _agreement(records: list[TalentEvaluationRecord]) -> AgreementMetrics:
     eligibility: tuple[list[object], list[object]] = ([], [])
     evidence: tuple[list[object], list[object]] = ([], [])
@@ -134,7 +184,7 @@ def _agreement(records: list[TalentEvaluationRecord]) -> AgreementMetrics:
     relevance: tuple[list[object], list[object]] = ([], [])
     risk: tuple[list[object], list[object]] = ([], [])
     confidence_diffs: list[float] = []
-    rank_correlations: list[float] = []
+    rank_correlations: list[float] = []; kendall_correlations: list[float] = []
     overlaps: list[float] = []
     all_nominal_items: list[list[object]] = []
     for record in records:
@@ -151,18 +201,21 @@ def _agreement(records: list[TalentEvaluationRecord]) -> AgreementMetrics:
             risk[0].append(a.fraud_or_inconsistency_risk); risk[1].append(b.fraud_or_inconsistency_risk)
             confidence_diffs.append(abs(a.confidence - b.confidence))
             all_nominal_items.append([item.hard_eligibility for reviewer in record.annotations.independent_reviews for item in reviewer.candidate_annotations if item.candidate_id == candidate_id])
-        left_rank = sorted(ids, key=lambda item: (-first_by_id[item].graded_relevance, item))
-        right_rank = sorted(ids, key=lambda item: (-second_by_id[item].graded_relevance, item))
-        left_pos, right_pos = {item: i for i, item in enumerate(left_rank)}, {item: i for i, item in enumerate(right_rank)}
-        correlation = _spearman([left_pos[item] for item in ids], [right_pos[item] for item in ids])
+        left_pos = _average_descending_ranks({item: first_by_id[item].graded_relevance for item in ids})
+        right_pos = _average_descending_ranks({item: second_by_id[item].graded_relevance for item in ids})
+        left_values, right_values = [left_pos[item] for item in ids], [right_pos[item] for item in ids]
+        correlation = _spearman(left_values, right_values)
         if correlation is not None: rank_correlations.append(correlation)
-        overlaps.append(len(set(left_rank[:5]) & set(right_rank[:5])) / min(5, len(ids)))
+        kendall = _kendall_tau_b(left_values, right_values)
+        if kendall is not None: kendall_correlations.append(kendall)
+        left_top = {item for item in ids if left_pos[item] <= 5}; right_top = {item for item in ids if right_pos[item] <= 5}
+        overlaps.append(len(left_top & right_top) / min(5, len(ids)))
     observed_pairs = [(a, b) for values in all_nominal_items for a, b in combinations(values, 2)]
     all_values = [value for values in all_nominal_items for value in values]
     observed_disagreement = mean(float(a != b) for a, b in observed_pairs) if observed_pairs else None
     expected_disagreement = mean(float(a != b) for a, b in combinations(all_values, 2)) if len(all_values) > 1 else None
     alpha = None if observed_disagreement is None or expected_disagreement in (None, 0) else 1 - observed_disagreement / expected_disagreement
-    return AgreementMetrics(_kappa(*eligibility), _kappa(*evidence), _kappa(*review), _kappa(*relevance, weighted=True), _kappa(*risk, weighted=True), alpha, mean(rank_correlations) if rank_correlations else None, mean(overlaps) if overlaps else None, sum(record.annotations.adjudication_status == "adjudicated" for record in records) / len(records), mean(confidence_diffs) if confidence_diffs else None)
+    return AgreementMetrics(_kappa(*eligibility), _kappa(*evidence), _kappa(*review), _kappa(*relevance, weighted=True, order=RELEVANCE_ORDER), _kappa(*risk, weighted=True, order=RISK_ORDER), alpha, mean(rank_correlations) if rank_correlations else None, mean(kendall_correlations) if kendall_correlations else None, mean(overlaps) if overlaps else None, sum(record.annotations.adjudication_status == "adjudicated" for record in records) / len(records), mean(confidence_diffs) if confidence_diffs else None)
 
 
 def evaluate(records: list[TalentEvaluationRecord], submissions: list[TalentEvaluationSubmission]) -> TalentEvaluationReport:

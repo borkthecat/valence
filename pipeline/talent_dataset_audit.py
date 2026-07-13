@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from talent_benchmark_manifest import canonical_record_digest
 from talent_evaluator import load_jsonl
 from talent_schema import TalentEvaluationRecord
 
@@ -24,6 +25,7 @@ class DatasetAuditReport:
     source_system_counts: dict[str, int]
     missing_slices: dict[str, int]
     reviewer_assignment_counts: dict[str, int]
+    invalid_record_digests: tuple[str, ...]
 
 
 def _duplicates(values: list[str]) -> tuple[str, ...]:
@@ -69,6 +71,7 @@ def audit_records(records: list[TalentEvaluationRecord]) -> DatasetAuditReport:
         source_system_counts=dict(sorted(source_systems.items())),
         missing_slices=dict(sorted(missing.items())),
         reviewer_assignment_counts=dict(sorted(reviewers.items())),
+        invalid_record_digests=tuple(sorted(record.case_id for record in records if canonical_record_digest(record) != record.provenance.record_digest)),
     )
 
 

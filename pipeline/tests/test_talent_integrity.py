@@ -7,7 +7,10 @@ from pydantic import ValidationError
 
 from talent_dataset_audit import audit_records
 from talent_evaluator import bootstrap_confidence_intervals, evaluate, evaluate_by_slice
+from talent_benchmark_manifest import BenchmarkManifest, canonical_digest, canonical_record_digest
+from talent_review_adapter import review_to_evaluation_submission
 from talent_schema import TalentEvaluationRecord, TalentEvaluationSubmission
+from stage5_cognitive_verifier import CandidateJudgment, apply_review_policy
 
 NOW = "2026-07-01T12:00:00+00:00"
 DIGEST = "sha256:" + "a" * 64
@@ -112,3 +115,24 @@ def test_dataset_audit_reports_structural_coverage() -> None:
     assert report.records == 1
     assert report.adjudication_counts == {"agreed": 1}
     assert report.missing_slices == {}
+    assert report.invalid_record_digests == ("case-001",)
+
+
+def test_record_digest_and_preregistered_manifest_are_verified() -> None:
+    record = _record()
+    record = record.model_copy(update={"provenance": record.provenance.model_copy(update={"record_digest": canonical_record_digest(record)})})
+    assert audit_records([record]).invalid_record_digests == ()
+    manifest = {"schema_version": "1.1", "manifest_version": "1", "dataset_digest": DIGEST, "declared_split": "pilot", "primary_metrics": ["policy_adjusted_ndcg_at_5"], "secondary_metrics": [], "threshold_profile": "calibration-only", "baseline_versions": {}, "model_artifact_digest": DIGEST, "policy_artifact_digest": DIGEST, "evaluation_code_commit": "abcdef0", "bootstrap_seed": 7, "excluded_case_ids": [], "exclusion_rules": [], "manifest_digest": ""}
+    manifest["manifest_digest"] = canonical_digest({key: value for key, value in manifest.items() if key != "manifest_digest"})
+    assert BenchmarkManifest.model_validate(manifest).manifest_version == "1"
+
+
+def test_live_review_adapter_preserves_candidates_and_evaluates() -> None:
+    review = apply_review_policy([
+        CandidateJudgment(candidate_id="candidate-a", eligibility="eligible", evidence_consistency=.9, relevance_adjustment=0, recommended_action="shortlist"),
+        CandidateJudgment(candidate_id="candidate-b", eligibility="eligible", evidence_consistency=.6, relevance_adjustment=0, recommended_action="hold_for_review"),
+        CandidateJudgment(candidate_id="candidate-c", eligibility="ineligible", evidence_consistency=.2, relevance_adjustment=0, recommended_action="exclude_by_policy"),
+    ], ["candidate-a", "candidate-b", "candidate-c"], [])
+    submission = review_to_evaluation_submission(review, case_id="case-001", policy_version="policy-1", model_version="candidate-model-0", reproducibility=_submission().reproducibility)
+    assert submission.ranked_candidate_ids == ("candidate-a", "candidate-b", "candidate-c")
+    assert evaluate([_record()], [submission]).cases == 1

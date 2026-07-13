@@ -29,6 +29,7 @@ Valence is a research preview. Current benchmark limitations are reported in [BE
 - [Talent Integrity boundaries and decision policy](docs/TALENT_INTEGRITY.md)
 - [Talent Integrity pilot annotation protocol](docs/TALENT_INTEGRITY_ANNOTATION.md)
 - [Talent Integrity delivery roadmap](docs/TALENT_INTEGRITY_ROADMAP.md)
+- [Talent Integrity benchmark protocol](docs/TALENT_BENCHMARK_PROTOCOL.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Fairness and human-review policy](docs/FAIRNESS.md)
 - [Operations, failure SLOs, and cost measurement](docs/OPERATIONS.md)
