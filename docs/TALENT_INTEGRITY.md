@@ -11,7 +11,17 @@ Talent Integrity is the first domain implementation of Valence Core. It is not r
 5. **Fairness evaluation:** measured separately from relevance; protected attributes and obvious proxies are not ranking features.
 6. **Bounded LLM review:** structured findings for ambiguous profiles only, followed by deterministic policy and human review.
 
-The target formulation is `relevance + evidence reliability - fraud risk - uncertainty`, with hard eligibility outside the score. The current Stage 4 product-identification fields (`colorway`, `anniversary`, and historical era) are legacy research-preview schema and must not be presented as a talent ranking model. They remain temporarily for benchmark compatibility while a versioned canonical talent schema is developed and independently labelled.
+The target formulation is `relevance + evidence reliability - fraud risk - uncertainty`, with hard eligibility outside the score. The current Stage 4 product-identification fields (`colorway`, `anniversary`, and historical era) are legacy research-preview schema and must not be presented as a talent ranking model. They remain temporarily for benchmark compatibility only.
+
+## Pilot foundation
+
+The versioned canonical data and evaluation-output contract is implemented in
+`pipeline/talent_schema.py`; the separate offline evaluator is in
+`pipeline/talent_evaluator.py`. Neither replaces the legacy research pipeline
+or makes an employment recommendation.
+
+- [Pilot annotation protocol](TALENT_INTEGRITY_ANNOTATION.md)
+- [Delivery roadmap](TALENT_INTEGRITY_ROADMAP.md)
 
 ## Stage 5 contract
 

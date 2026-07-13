@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from config import get_settings
 from observability import log_event
+from talent_schema import ReasonCode
 
 PROXY_PATH: Final[str] = "/v1/chat/completions"
 PROXY_MODEL: Final[str] = "valence-cognitive-1"
@@ -136,14 +137,6 @@ class CognitiveVerdict(BaseModel):
     confidence_coefficient: float = Field(ge=0.0, le=1.0)
     qualitative_justification: str
     mitigation_logs: str
-
-
-ReasonCode = Literal[
-    "RISK_PROFILE_INCONSISTENCY",
-    "RISK_UNTRUSTED_PROVENANCE",
-    "UNCERTAINTY_MISSING_REQUIRED_EVIDENCE",
-    "POLICY_HARD_REQUIREMENT_FAILED",
-]
 
 
 class CandidateJudgment(BaseModel):
