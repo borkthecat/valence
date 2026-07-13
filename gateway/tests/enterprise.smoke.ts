@@ -67,6 +67,7 @@ function fakeResponse(): {
 async function run(): Promise<void> {
     const token = signHs256({
         tenant: 'tenant-a',
+        sub: 'reviewer-a',
         scope: 'valence:proxy profile:read',
         exp: Math.floor(Date.now() / 1000) + 60,
     });
