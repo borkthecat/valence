@@ -32,18 +32,30 @@ class ShadowStore:
    return self.row(r)
  def list(self,t):
   with self.db() as c:return [self.row(r) for r in c.execute("SELECT * FROM shadow_runs WHERE tenant=? ORDER BY created DESC",(t,))]
- def outcome(self,t,i,outcome,version):return self.update(t,i,"outcome_pending",version,"outcome",outcome)
- def compare(self,t,i,comparison,version):return self.update(t,i,"compared",version,"comparison",comparison)
+ def outcome(self,t,i,outcome,version):return self.update(t,i,"outcome_pending",version,"outcome",outcome,{"completed","review_pending","outcome_pending"})
+ def compare(self,t,i,comparison,version):return self.update(t,i,"compared",version,"comparison",comparison,{"outcome_pending"})
  def replay(self,t,i,key):
   base=self.get(t,i); payload=ShadowInput.model_validate(json.loads(base["payload"])); replay=self.submit(payload,key)
   with self.db() as c:c.execute("UPDATE shadow_runs SET parent_id=? WHERE id=?",(i,replay["shadow_run_id"]));self.event(c,replay["shadow_run_id"],t,"replayed",{"parent":i})
   return self.get(t,replay["shadow_run_id"])
- def delete(self,t,i,version):return self.update(t,i,"deleted",version,"outcome",None)
- def update(self,t,i,status,version,column,value):
+ def expire(self,t,i,version):return self.update(t,i,"expired",version,"outcome",None,{"completed","review_pending","outcome_pending","compared","failed"})
+ def delete(self,t,i,version):return self.update(t,i,"deleted",version,"outcome",None,{"expired"})
+ def update(self,t,i,status,version,column,value,allowed):
   with self.db() as c:
    r=c.execute("SELECT * FROM shadow_runs WHERE id=? AND tenant=?",(i,t)).fetchone()
    if not r:raise KeyError(i)
    if r["version"]!=version:raise ValueError("version conflict")
+   if r["status"] not in allowed:raise ValueError("invalid state transition")
    c.execute(f"UPDATE shadow_runs SET status=?,{column}=?,version=?,updated=? WHERE id=?",(status,json.dumps(value) if value is not None else None,version+1,datetime.now(UTC).isoformat(),i));self.event(c,i,t,status,{column:value});return self.row(c.execute("SELECT * FROM shadow_runs WHERE id=?",(i,)).fetchone())
  def event(self,c,i,t,a,d):c.execute("INSERT INTO shadow_events(run_id,tenant,action,detail,created) VALUES(?,?,?,?,?)",(i,t,a,json.dumps(d),datetime.now(UTC).isoformat()))
  def row(self,r):return {"shadow_run_id":r["id"],"tenant_id":r["tenant"],"payload":r["payload"],"status":r["status"],"version":r["version"],"parent_id":r["parent_id"]}
+ def events(self,t,i):
+  with self.db() as c:return [dict(row) for row in c.execute("SELECT action,detail,created FROM shadow_events WHERE tenant=? AND run_id=? ORDER BY id",(t,i))]
+ def export_minimized(self,t):
+  """Export only immutable digests and policy outcomes; no candidate text is stored here."""
+  return [{key:value for key,value in self.row(row).items() if key not in {"payload"}} | {"digests": {key: json.loads(row["payload"])[key] for key in ("job_digest","candidate_set_digest","advisory_output_digest")}} for row in self._rows(t)]
+ def _rows(self,t):
+  with self.db() as c:return c.execute("SELECT * FROM shadow_runs WHERE tenant=? AND status!='deleted' ORDER BY created",(t,)).fetchall()
+ def report(self,t):
+  rows=self._rows(t); total=len(rows)
+  return {"total_cases":total,"status_counts":{status:sum(row["status"]==status for row in rows) for status in ("completed","review_pending","outcome_pending","compared","failed","expired")},"review_precision":"unmeasured","review_recall":"unmeasured","latency_p50":"unmeasured" if not rows else sorted(json.loads(row["payload"])["latency_ms"] for row in rows)[(total-1)//2]}
