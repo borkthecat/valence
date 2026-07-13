@@ -1,6 +1,7 @@
 """Local/research SQLite lifecycle primitives; not an enterprise database layer."""
 from __future__ import annotations
 import shutil,sqlite3,time
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,11 +16,11 @@ class LocalPersistence:
   elif row[0]>SCHEMA_VERSION:raise RuntimeError('database schema is newer than this application')
   c.commit();return c
  def integrity(self):
-  with self.connect() as c:
+  with closing(self.connect()) as c:
    if c.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise RuntimeError('sqlite integrity check failed')
  def backup(self,target:str|Path):
   start=time.perf_counter();target=Path(target)
-  with self.connect() as source,sqlite3.connect(target) as dest:source.backup(dest)
+  with closing(self.connect()) as source,closing(sqlite3.connect(target)) as dest:source.backup(dest)
   self.__class__(target).integrity();return time.perf_counter()-start
  def restore(self,backup:str|Path):
   start=time.perf_counter();shutil.copy2(backup,self.path);self.integrity();return time.perf_counter()-start

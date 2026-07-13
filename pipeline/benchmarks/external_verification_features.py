@@ -17,6 +17,13 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+try:
+    from .external_provider_cache import ExternalProviderCache
+    from .rdap_domain_evidence import RdapDomainEvidenceProvider
+except ImportError:  # direct script execution
+    from external_provider_cache import ExternalProviderCache
+    from rdap_domain_evidence import RdapDomainEvidenceProvider
+
 
 EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b", re.IGNORECASE)
 URL_RE = re.compile(r"\bhttps?://[^\s<>()\"']+", re.IGNORECASE)
@@ -36,6 +43,8 @@ class VerificationFeatures:
     domain_similarity: float | None
     verification_risk_score: float
     evidence_markers: list[str]
+    domain_age_days: int | None = None
+    registry_status: str = "not_checked"
 
 
 def _text(row: dict[str, str], key: str) -> str:
@@ -193,7 +202,8 @@ def _source_values(row: dict[str, str]) -> tuple[str, str, str]:
 
 
 def extract_features(row: dict[str, str], *, record_id: str, check_liveness: bool = False,
-                     timeout: float = 2.0, liveness_checker: LivenessChecker | None = None) -> VerificationFeatures:
+                     timeout: float = 2.0, liveness_checker: LivenessChecker | None = None,
+                     rdap_provider: RdapDomainEvidenceProvider | None = None) -> VerificationFeatures:
     blob = _row_blob(row)
     company_domain, posting_url, posting_domain = _source_values(row)
     contact_email_domain = _normalize_domain(_text(row, "contact_email_domain") or _text(row, "poster_email_domain") or _first_email_domain(blob))
@@ -218,7 +228,13 @@ def extract_features(row: dict[str, str], *, record_id: str, check_liveness: boo
     elif posting_live is True: markers.append("POSTING_URL_LIVE")
     else: markers.append("POSTING_URL_LIVENESS_UNKNOWN") if check_liveness and posting_url else None
     if similarity is not None and similarity < 0.75: markers.append("LOW_DOMAIN_SIMILARITY"); risk += 0.10
-    return VerificationFeatures(record_id, company_domain, contact_email_domain, posting_domain, email_mismatch, posting_mismatch, company_live, posting_live, similarity, round(min(1.0, risk), 6), markers)
+    rdap = rdap_provider.lookup(company_domain) if rdap_provider and company_domain else {"status": "not_checked"}
+    domain_age = rdap.get("domain_age_days") if isinstance(rdap.get("domain_age_days"), int) else None
+    registry_status = str(rdap.get("status", "unknown"))
+    if domain_age is not None and domain_age < 30: markers.append("DOMAIN_NEW_UNDER_30_DAYS"); risk += 0.25
+    elif domain_age is not None: markers.append("DOMAIN_REGISTRATION_FOUND")
+    elif rdap_provider and company_domain: markers.append("DOMAIN_REGISTRY_UNKNOWN")
+    return VerificationFeatures(record_id, company_domain, contact_email_domain, posting_domain, email_mismatch, posting_mismatch, company_live, posting_live, similarity, round(min(1.0, risk), 6), markers, domain_age, registry_status)
 
 
 def _checker(rows: list[dict[str, str]], args: Any) -> LivenessChecker | None:
@@ -242,21 +258,23 @@ def _rows(input_path: Path) -> tuple[list[dict[str, str]], list[str]]:
 
 def enrich_csv(input_path: Path, output_path: Path, args: Any) -> dict[str, Any]:
     rows, fieldnames = _rows(input_path); checker = _checker(rows, args)
-    extra = ["verification_company_domain", "verification_contact_email_domain", "verification_posting_domain", "verification_email_domain_mismatch", "verification_posting_domain_mismatch", "verification_company_domain_live", "verification_posting_url_live", "verification_domain_similarity", "verification_risk_score", "verification_evidence_markers"]
+    rdap = RdapDomainEvidenceProvider(ExternalProviderCache(args.rdap_cache_path)) if args.check_rdap else None
+    extra = ["verification_company_domain", "verification_contact_email_domain", "verification_posting_domain", "verification_email_domain_mismatch", "verification_posting_domain_mismatch", "verification_company_domain_live", "verification_posting_url_live", "verification_domain_similarity", "verification_risk_score", "verification_evidence_markers", "verification_domain_age_days", "verification_registry_status"]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.DictWriter(target, fieldnames=[*fieldnames, *extra]); writer.writeheader()
         for index, row in enumerate(rows):
-            feature = extract_features(row, record_id=_text(row, "job_id") or str(index), check_liveness=args.check_liveness, timeout=args.timeout, liveness_checker=checker)
-            writer.writerow({**row, "verification_company_domain": feature.company_domain, "verification_contact_email_domain": feature.contact_email_domain, "verification_posting_domain": feature.posting_domain, "verification_email_domain_mismatch": int(feature.email_domain_mismatch), "verification_posting_domain_mismatch": int(feature.posting_domain_mismatch), "verification_company_domain_live": "" if feature.company_domain_live is None else int(feature.company_domain_live), "verification_posting_url_live": "" if feature.posting_url_live is None else int(feature.posting_url_live), "verification_domain_similarity": "" if feature.domain_similarity is None else feature.domain_similarity, "verification_risk_score": feature.verification_risk_score, "verification_evidence_markers": " ".join(feature.evidence_markers)})
+            feature = extract_features(row, record_id=_text(row, "job_id") or str(index), check_liveness=args.check_liveness, timeout=args.timeout, liveness_checker=checker, rdap_provider=rdap)
+            writer.writerow({**row, "verification_company_domain": feature.company_domain, "verification_contact_email_domain": feature.contact_email_domain, "verification_posting_domain": feature.posting_domain, "verification_email_domain_mismatch": int(feature.email_domain_mismatch), "verification_posting_domain_mismatch": int(feature.posting_domain_mismatch), "verification_company_domain_live": "" if feature.company_domain_live is None else int(feature.company_domain_live), "verification_posting_url_live": "" if feature.posting_url_live is None else int(feature.posting_url_live), "verification_domain_similarity": "" if feature.domain_similarity is None else feature.domain_similarity, "verification_risk_score": feature.verification_risk_score, "verification_evidence_markers": " ".join(feature.evidence_markers), "verification_domain_age_days": "" if feature.domain_age_days is None else feature.domain_age_days, "verification_registry_status": feature.registry_status})
     return {"records": len(rows), "output": str(output_path), "livenessChecked": args.check_liveness}
 
 
 def export_jsonl(input_path: Path, output_path: Path, args: Any) -> dict[str, Any]:
     rows, _ = _rows(input_path); checker = _checker(rows, args); output_path.parent.mkdir(parents=True, exist_ok=True)
+    rdap = RdapDomainEvidenceProvider(ExternalProviderCache(args.rdap_cache_path)) if args.check_rdap else None
     with output_path.open("w", encoding="utf-8", newline="\n") as target:
         for index, row in enumerate(rows):
-            feature = extract_features(row, record_id=_text(row, "job_id") or str(index), check_liveness=args.check_liveness, timeout=args.timeout, liveness_checker=checker)
+            feature = extract_features(row, record_id=_text(row, "job_id") or str(index), check_liveness=args.check_liveness, timeout=args.timeout, liveness_checker=checker, rdap_provider=rdap)
             target.write(json.dumps(asdict(feature), ensure_ascii=True, separators=(",", ":")) + "\n")
     return {"records": len(rows), "output": str(output_path), "livenessChecked": args.check_liveness}
 
@@ -265,6 +283,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build external verification features for job fraud experiments")
     parser.add_argument("--input", type=Path, required=True); parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--format", choices=("csv", "jsonl"), default="csv"); parser.add_argument("--check-liveness", action="store_true")
+    parser.add_argument("--check-rdap", action="store_true")
+    parser.add_argument("--rdap-cache-path", type=Path, default=Path(".benchmark-data/verification-rdap-cache.sqlite"))
     parser.add_argument("--timeout", type=float, default=2.0); parser.add_argument("--max-workers", type=int, default=4)
     parser.add_argument("--retries", type=int, default=2); parser.add_argument("--backoff-seconds", type=float, default=0.25)
     parser.add_argument("--cache-path", type=Path, default=Path(".benchmark-data/verification-liveness-cache.json")); parser.add_argument("--cache-ttl-hours", type=float, default=24.0); parser.add_argument("--max-probes", type=int, default=250)

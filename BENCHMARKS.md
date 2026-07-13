@@ -1,6 +1,18 @@
 # Benchmark Report
 
-Measured on July 9, 2026. These results separate internal regression checks from external or independently sourced evaluation data.
+Measured through July 14, 2026. These results separate internal regression checks from external or independently sourced evaluation data.
+
+## Reproducibility manifest
+
+`gateway/benchmarks/reproducibility-manifest.json` catalogs all 41 checked-in benchmark result artifacts. The seven artifacts used as current release evidence include an exact command, dataset/model revision, input hash, and split metadata; the other 34 are explicitly classified as historical archival results rather than release gates.
+
+Validate the checked-in catalog without rerunning heavyweight training:
+
+```bash
+python pipeline/benchmarks/build_reproducibility_manifest.py --check
+```
+
+This proves that the recorded artifact inventory and pinned reproduction specifications agree with the repository. It does not replace downloading licensed/public inputs or rerunning the declared commands when independent result reproduction is required.
 
 ## What the numbers mean
 
@@ -17,27 +29,31 @@ Detector: `HeuristicPiiDetector`, without an external classifier.
 | Metric | Result |
 | --- | ---: |
 | Annotated entities | 4,314 |
-| Entities in compatible label families | 783 |
-| Compatible-label coverage | 18.2% |
-| Exact-span precision | 49.2% |
-| Exact-span recall | 63.2% |
-| Exact-span F1 | 55.3% |
+| Entities in compatible label families | 1,082 |
+| Compatible-label coverage | 25.1% |
+| Exact-span precision | 92.7% |
+| Exact-span recall | 71.2% |
+| Exact-span F1 | 80.5% |
 
 Per compatible label:
 
 | Label | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: |
 | Email | 98.3% | 99.6% | 98.9% |
-| SSN | 97.3% | 59.3% | 73.7% |
-| Phone | 15.1% | 29.8% | 20.1% |
+| SSN | 97.6% | 69.0% | 80.8% |
+| IP address | 94.7% | 73.3% | 82.6% |
+| API key | 100.0% | 66.7% | 80.0% |
+| Credit card | 92.8% | 60.6% | 73.3% |
+| Phone | 68.1% | 45.0% | 54.2% |
+| Password | 60.0% | 42.9% | 50.0% |
 
-This result is not production-grade. The largest gaps are label breadth and phone precision. Production deployments should connect a trained classifier through `PII_CLASSIFIER_URL`, calibrate it by locale and jurisdiction, and rerun the benchmark. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use.
+The v1.13.2 run fixes missing Gretel label aliases for IPv4 and credit-card entities, rejects numeric phone collisions, preserves international extensions, and adds exact-span contextual secret and spaced-SSN rules. It is a substantial heuristic improvement but is not production-grade: 74.9% of all annotated entities remain outside the built-in taxonomy, and phone, password, card, ID, multilingual, and locale-specific recall remain below the release gates. Production deployments should connect a trained span classifier through `PII_CLASSIFIER_URL`, calibrate it by locale and jurisdiction, and rerun the benchmark. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use. The checked-in result is `gateway/benchmarks/results/v1.13.2-gretel-pii.json`.
 
 Reproduce:
 
 ```bash
 python pipeline/benchmarks/export_gretel_pii.py --rows 1000 --output .benchmark-data/gretel-pii-1000.jsonl
-npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl
+npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.2-gretel-pii.json
 ```
 
 ## Prompt injection
@@ -96,7 +112,7 @@ This changes the diagnosis. The direct-attack suite is near the strict target, w
 
 ### Risk-calibrated provenance guard
 
-The full V6 provenance model is evaluated with selective source experts only where they improve held-out false-positive behavior. The current `v1.13.0` release target retains the final `v1.13.2` benchmark artifact as its risk-calibrated evidence matrix: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% aggregate FPR, and 4.62% maximum per-source FPR. The profile is checked by `pipeline/remediation/assert_operating_standard.py` against `gateway/benchmarks/enterprise-operating-standard.json`.
+The full V6 provenance model is evaluated with selective source experts only where they improve held-out false-positive behavior. The current `v1.13.1` release target retains the final `v1.13.1` benchmark artifact as its risk-calibrated evidence matrix: 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% aggregate FPR, and 4.62% maximum per-source FPR. The profile is checked by `pipeline/remediation/assert_operating_standard.py` against `gateway/benchmarks/enterprise-operating-standard.json`.
 
 `cgoosen_combined` and `hse_llm` meet the low-FPR constraint but have 14.77% and 25.00% recall respectively, so they are review-only, not automatic block routes. `pipeline/remediation/shadow_review_loop.py` creates a PII-reduced queue from real shadow events and merges explicit human labels for the next expert-data audit. These two sources are not evidence for production detection coverage until that shadow evaluation completes.
 
@@ -200,7 +216,7 @@ For v1.12.0, `pipeline/benchmarks/analyze_emscad_false_negatives.py` was added t
 
 A fresh v1.12.0 DeBERTa-v3-small weighted run did not beat TF-IDF: 98.57% accuracy, 88.13% precision, 81.50% recall, 84.68% F1, and 0.56% false-positive rate. `pipeline/benchmarks/evaluate_emscad_ensemble.py` then evaluated TF-IDF, the fresh transformer, max-score, OR, and weighted-score combinations on the same held-out split. The best low-FPR constrained result was effectively TF-IDF-only with weight 1.0: 98.94% accuracy, 92.99% precision, 84.39% recall, 88.48% F1, and 0.32% false-positive rate. Unconstrained blends can lift recall to 88.44%-89.60%, but they raise false-positive rate to 0.59%-0.71%. The ensemble therefore improves the precision-biased operating point slightly, but it does not solve the 95% recall target without external verification features or new labels.
 
-The next fraud experiment should add external verification markers before training. `pipeline/benchmarks/external_verification_features.py` extracts company-domain, contact-email-domain, posting-URL, mismatch, liveness, and similarity markers from enriched job CSVs. Liveness checks are optional because they touch the network; when enabled, they deduplicate domains and URLs, use bounded concurrency with retry/backoff, and persist TTL-cached results. Transient network failures remain `unknown` and do not add fraud risk. The no-liveness mode is deterministic and suitable for CI or offline feature review. The fraud trainers automatically consume `verification_evidence_markers` and `verification_risk_score` when those columns exist.
+The next fraud experiment should add external verification markers before training. `pipeline/benchmarks/external_verification_features.py` extracts company-domain, contact-email-domain, posting-URL, mismatch, liveness, similarity, domain-age, and registry-status markers from enriched job CSVs. Liveness and RDAP checks are optional because they touch the network; when enabled, they deduplicate requests, use bounded retry/rate controls, and persist TTL-cached results. RDAP discovery uses the [IANA domain bootstrap registry](https://www.iana.org/assignments/rdap-dns/rdap-dns.xhtml), and domain queries follow [RFC 9082](https://datatracker.ietf.org/doc/html/rfc9082). Transient network failures remain `unknown` and do not add fraud risk. Offline mode is deterministic and suitable for CI or feature review. The fraud trainers automatically consume `verification_evidence_markers` and `verification_risk_score` when those columns exist.
 
 `pipeline/benchmarks/external_provider_cache.py` is the required SQLite cache/rate-limit boundary for optional WHOIS, company-registry, and URL-reputation adapters. Providers must return verified evidence or `unknown`; absent credentials, timeouts, and provider errors must not become fraud evidence. `pipeline/benchmarks/evaluate_fraud_cascade.py` evaluates a recall-first sieve, structural verifier, and sparse-signal late fusion, and emits a label-free human fraud audit queue ordered by model disagreement.
 
@@ -215,6 +231,7 @@ python benchmarks/export_emscad.py --input /path/to/fake_job_postings.csv --outp
 python fraud_evaluator.py ../.benchmark-data/emscad.jsonl --threshold 0.5 --top-k 50 --risk-penalty 0.8
 python benchmarks/external_verification_features.py --input ../.benchmark-data/emscad.csv --output ../.benchmark-data/emscad.external.csv
 python benchmarks/external_verification_features.py --input ../.benchmark-data/emscad.csv --output ../.benchmark-data/emscad.external.live.csv --check-liveness --timeout 2 --max-workers 4 --retries 2 --max-probes 250 --cache-path ../.benchmark-data/verification-liveness-cache.json
+python benchmarks/external_verification_features.py --input ../.benchmark-data/current-jobs.csv --output ../.benchmark-data/current-jobs.external.csv --check-liveness --check-rdap --rdap-cache-path ../.benchmark-data/verification-rdap-cache.sqlite
 python benchmarks/train_emscad_fraud_model.py --input ../.benchmark-data/emscad.external.csv --output ../gateway/benchmarks/results/v1.11.9-emscad-tfidf-external-fraud.json --top-k 50 --risk-penalty 0.8
 python benchmarks/train_emscad_fraud_model.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.8-emscad-tfidf-metadata-fraud.json --top-k 50 --risk-penalty 0.8
 python benchmarks/train_emscad_transformer_fraud.py --input ../.benchmark-data/emscad.csv --output ../gateway/benchmarks/results/v1.11.8-emscad-deberta-weighted-fraud.json --base-model microsoft/deberta-v3-small --epochs 3

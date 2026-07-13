@@ -1,6 +1,6 @@
 {
   "profile": "risk-calibrated-guard-v1",
-  "report": "gateway\\benchmarks\\results\\v1.13.2-v6-enterprise-balanced-matrix.json",
+  "report": "gateway\\benchmarks\\results\\v1.13.1-v6-enterprise-balanced-matrix.json",
   "metrics": {
     "accuracy": 0.9622527344659064,
     "precision": 0.954181307097681,

@@ -6,13 +6,12 @@ import json
 import warnings
 from datetime import UTC, datetime
 
-from starlette.exceptions import StarletteDeprecationWarning
-
-warnings.filterwarnings("ignore", category=StarletteDeprecationWarning, message="Using `httpx` with `starlette.testclient` is deprecated.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning, message="Using `httpx` with `starlette.testclient` is deprecated.*")
 from fastapi.testclient import TestClient
 
 from review_operations import CreateReview, ReviewStore, create_app
-from stage5_cognitive_verifier import CandidateJudgment, CandidateProfile, CandidateReview, PolicyOutcome, Stage5Request, StructuredReview, configure_review_task_store, persist_review_tasks
+from shadow_operations import ShadowStore
+from stage5_cognitive_verifier import CandidateJudgment, CandidateProfile, CandidateReview, PolicyOutcome, Stage5Request, StructuredReview, configure_review_task_store, configure_shadow_store, persist_review_tasks, persist_shadow_run
 
 
 def _task(tenant: str = "tenant-a") -> CreateReview:
@@ -87,4 +86,11 @@ def test_advisory_persists_only_review_required_tasks_idempotently(tmp_path) -> 
     assert len(first) == 1
     assert persist_review_tasks(request, review, "request-1", "trace-1") == first
     assert len(store.list("tenant-a", None, 10, 0)) == 1
+    shadow_store = ShadowStore(tmp_path / "shadow.db")
+    configure_shadow_store(shadow_store)
+    shadow_id = persist_shadow_run(request, review, first, "request-1", "trace-1", 2.5)
+    assert shadow_id is not None
+    shadow = shadow_store.get("tenant-a", shadow_id)
+    assert json.loads(shadow["payload"])["review_task_ids"] == list(first)
     configure_review_task_store(None)
+    configure_shadow_store(None)

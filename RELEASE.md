@@ -1,6 +1,14 @@
 # Release Process
 
-Current release target: `v1.13.0` advisory-review architecture research preview
+Current release target: `v1.13.2` PII-detection research preview
+
+## v1.13.2
+
+- Corrects Gretel IPv4 and credit-card label aliases in the exact-span PII benchmark.
+- Tightens phone validation to reject numeric identifier collisions while preserving international extensions.
+- Adds value-only contextual spans for API keys, passwords, and spaced SSNs.
+- Improves the 1,000-record Gretel supported-label result to 92.66% precision, 71.16% recall, and 80.50% F1, while retaining the 25.08% taxonomy-coverage limitation.
+- Publishes the benchmark completion and human-labelled ranking procedure in `docs/BENCHMARK_COMPLETION_PLAN.md`.
 
 ## Preflight
 
@@ -34,7 +42,7 @@ The release must not be described as 95% production-accurate unless the matrix r
 Risk-calibrated guard preflight:
 
 ```bash
-python pipeline/remediation/assert_operating_standard.py --report gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json --profile gateway/benchmarks/enterprise-operating-standard.json --output gateway/benchmarks/results/v1.13.2-enterprise-operating-standard.json
+python pipeline/remediation/assert_operating_standard.py --report gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json --profile gateway/benchmarks/enterprise-operating-standard.json --output gateway/benchmarks/results/v1.13.1-enterprise-operating-standard.json
 ```
 
 The profile requires 96% accuracy, 95% precision, 93% recall, 94% F1, 3% aggregate FPR, and 5% maximum source FPR. Sources below the configured 50% recall are review-only. Before promotion, run the review sources in shadow mode and merge explicit human decisions; do not use model predictions as labels.
@@ -46,7 +54,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.13.0` and `valence-pipeline:1.13.0` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.13.1` and `valence-pipeline:1.13.1` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -57,13 +65,19 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.13.0 -m "Valence v1.13.0"
-git push origin main v1.13.0
+git tag -a v1.13.2 -m "Valence v1.13.2"
+git push origin main v1.13.2
 ```
 
 ## Release Notes
 
-`v1.13.0` adds the versioned advisory Talent Integrity review contract while preserving the risk-calibrated provenance guard. Benchmark artifacts named `v1.13.x` remain experimental evidence and are not product release tags:
+`v1.13.1` completes repository-owned operational hardening without changing the measured model operating points:
+
+- Adds deterministic talent adapters, identity-only metamorphic regression checks, policy rollback, integrity-checked recovery drills, SLO/drift aggregates, and credential-free RDAP domain evidence.
+- Adds CI dependency and built-image inventories while keeping deployed signing and production SLO certification external.
+- Leaves independently human-labelled talent and shadow outcomes as the final evidence step.
+
+`v1.13.0` adds the versioned advisory Talent Integrity review contract while preserving the risk-calibrated provenance guard:
 
 - Records the V6 selective expert routing matrix at 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, and 2.29% aggregate FPR.
 - Adds an enforce/review routing decision so `hse_llm` and `cgoosen_combined` cannot automatically block while their held-out recall remains below 50%.

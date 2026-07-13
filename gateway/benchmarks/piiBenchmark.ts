@@ -1,4 +1,5 @@
 import { createReadStream } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
 import { HeuristicPiiDetector, type PiiFinding } from '../src/core/filters/piiScanner';
@@ -15,11 +16,13 @@ const SUPPORTED_LABELS: Readonly<Record<string, string>> = {
     SSN: 'SSN',
     US_SSN: 'SSN',
     CREDIT_CARD: 'CREDIT_CARD',
+    CREDIT_CARD_NUMBER: 'CREDIT_CARD',
     CREDITCARD: 'CREDIT_CARD',
     TEL: 'PHONE',
     PHONE: 'PHONE',
     PHONE_NUMBER: 'PHONE',
     IP: 'IP_ADDRESS',
+    IPV4: 'IP_ADDRESS',
     IP_ADDRESS: 'IP_ADDRESS',
     API_KEY: 'API_KEY',
     ACCESS_TOKEN: 'ACCESS_TOKEN',
@@ -68,8 +71,9 @@ function findingKey(finding: PiiFinding): string {
 async function run(): Promise<void> {
     const input = process.argv[2];
     const limitArg = process.argv[3];
+    const output = process.argv[4];
     if (input === undefined) {
-        throw new Error('usage: npm run benchmark:pii -- <ai4privacy-compatible.jsonl> [limit]');
+        throw new Error('usage: npm run benchmark:pii -- <ai4privacy-compatible.jsonl> [limit] [output.json]');
     }
     const limit = limitArg === undefined ? Number.POSITIVE_INFINITY : Number(limitArg);
     if (!(limit > 0)) {
@@ -87,6 +91,7 @@ async function run(): Promise<void> {
     let supportedFalsePositive = 0;
     let supportedFalseNegative = 0;
     const perLabel = new Map<string, { truePositive: number; falsePositive: number; falseNegative: number }>();
+    const unsupportedLabels = new Map<string, number>();
     const supportedCategories = new Set(Object.values(SUPPORTED_LABELS));
     for await (const line of reader) {
         const normalizedLine = line.replace(/^\uFEFF/, '').trim();
@@ -100,6 +105,8 @@ async function run(): Promise<void> {
             if (mapped !== undefined) {
                 truth.add(key(entity.start, entity.end, mapped));
                 supportedGroundTruth += 1;
+            } else {
+                unsupportedLabels.set(entity.label, (unsupportedLabels.get(entity.label) ?? 0) + 1);
             }
         }
         const predictions = new Set(findings.map(findingKey));
@@ -132,7 +139,7 @@ async function run(): Promise<void> {
     const recallDenominator = supportedTruePositive + supportedFalseNegative;
     const precision = precisionDenominator === 0 ? 0 : supportedTruePositive / precisionDenominator;
     const recall = recallDenominator === 0 ? 0 : supportedTruePositive / recallDenominator;
-    process.stdout.write(`${JSON.stringify({
+    const report = {
         benchmark: 'pii-span-detection',
         detector: 'valence-heuristic-static',
         records,
@@ -165,7 +172,15 @@ async function run(): Promise<void> {
                 }];
             }),
         ),
-    }, null, 2)}\n`);
+        unsupportedGroundTruthByLabel: Object.fromEntries(
+            [...unsupportedLabels.entries()].sort((left, right) => right[1] - left[1]),
+        ),
+    };
+    const serialized = `${JSON.stringify(report, null, 2)}\n`;
+    if (output !== undefined) {
+        await writeFile(resolve(output), serialized, 'utf8');
+    }
+    process.stdout.write(serialized);
 }
 
 run().catch((error: unknown) => {

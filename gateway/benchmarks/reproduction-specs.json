@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "release_evidence": [
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-tfidf-current.json",
+      "command": "python pipeline/benchmarks/train_emscad_fraud_model.py --input .benchmark-data/emscad.csv --output gateway/benchmarks/results/v1.12.0-emscad-tfidf-current.json",
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        }
+      ],
+      "split": {"method": "stratified_random", "seed": 1500, "train": 12516, "validation": 1788, "test": 3576}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-deberta-weighted-current.json",
+      "command": "python pipeline/benchmarks/train_emscad_transformer_fraud.py --input .benchmark-data/emscad.csv --output gateway/benchmarks/results/v1.12.0-emscad-deberta-weighted-current.json --model-output .benchmark-data/emscad-deberta-weighted-v112 --base-model microsoft/deberta-v3-small --epochs 3 --batch-size 8 --max-length 384 --seed 1500",
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        }
+      ],
+      "split": {"method": "stratified_random", "seed": 1500, "train": 12516, "validation": 1788, "test": 3576}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-ensemble.json",
+      "command": "python pipeline/benchmarks/evaluate_emscad_ensemble.py --input .benchmark-data/emscad.csv --transformer-model .benchmark-data/emscad-deberta-weighted-v112 --output gateway/benchmarks/results/v1.12.0-emscad-ensemble.json --batch-size 16 --max-length 384 --max-fpr 0.003526300323244196",
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        },
+        {
+          "path": ".benchmark-data/emscad-deberta-weighted-v112",
+          "source": "local_model_artifact",
+          "sha256": "21e5dee4af70a6e9f6fd5a483d0a800e9ff5c614c4deb7fc50c80b678adefd08"
+        }
+      ],
+      "split": {"method": "stratified_random", "seed": 1500, "train": 12516, "validation": 1788, "test": 3576}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-false-negative-analysis.json",
+      "command": "python pipeline/benchmarks/analyze_emscad_false_negatives.py --input .benchmark-data/emscad.csv --output-json gateway/benchmarks/results/v1.12.0-emscad-false-negative-analysis.json --output-markdown gateway/benchmarks/results/v1.12.0-emscad-false-negative-analysis.md --false-negatives-csv gateway/benchmarks/results/v1.12.0-emscad-false-negatives.csv",
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        }
+      ],
+      "split": {"method": "stratified_random", "seed": 1500, "train": 12516, "validation": 1788, "test": 3576}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json",
+      "command": "python pipeline/remediation/evaluate_moe_guard.py --matrix .benchmark-data/injection-matrix-v113/matrix.json --model .benchmark-data/mmbert-provenance-guard-v6-full --registry .benchmark-data/mmbert-provenance-guard-v6-enterprise-balanced/registry.json --output gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json",
+      "inputs": [
+        {"path": ".benchmark-data/injection-matrix-v113", "source": "normalized_held_out_matrix", "sha256": "309f694fb155d47da501b2da145d812822f9509599c7abd5146d6c932deaf33e"},
+        {"path": ".benchmark-data/mmbert-provenance-guard-v6-full", "source": "model_artifact", "sha256": "2941778eba3fa051fa564436e218b82aac748ea7102916cc5cbf5462c1a6b0c6"},
+        {"path": ".benchmark-data/mmbert-provenance-guard-v6-enterprise-balanced/registry.json", "source": "expert_registry", "sha256": "e0701a66ba7522ad03f6f850b8ad98bf1c2b3f03066a1163934d880feeb7cfee"}
+      ],
+      "split": {"method": "source_pinned_held_out_fixtures", "corpora": 15, "train_test_leakage_policy": "normalized_exact_text_global"}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.1-enterprise-operating-standard.json",
+      "command": "python pipeline/remediation/assert_operating_standard.py --report gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json --profile gateway/benchmarks/enterprise-operating-standard.json --output gateway/benchmarks/results/v1.13.1-enterprise-operating-standard.json",
+      "inputs": [
+        {"path": "gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json", "source": "evaluation_report", "sha256": "9e67c3fa2deabce9a7b81279798f4fedc1d57926adf3acc8c3a099a9d76662a2"},
+        {"path": "gateway/benchmarks/enterprise-operating-standard.json", "source": "operating_profile", "sha256": "cc45616b90309ed5a9b9af655432854d55664a7230482be4f19a83fdcf4ae34d"}
+      ],
+      "split": {"method": "inherited_from_evaluation_report", "corpora": 15}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.2-gretel-pii.json",
+      "command": "npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.2-gretel-pii.json",
+      "inputs": [
+        {
+          "path": ".benchmark-data/gretel-pii-1000.jsonl",
+          "sha256": "b98211a9a267ba1e95b99846355d958759ba5ea6cdb221dbba26892e80576bb0",
+          "source": "gretelai/gretel-pii-masking-en-v1"
+        }
+      ],
+      "split": {"method": "first_rows", "rows": 1000, "purpose": "held_out_external_evaluation"}
+    }
+  ]
+}

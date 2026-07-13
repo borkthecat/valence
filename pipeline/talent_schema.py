@@ -28,7 +28,12 @@ ReasonCode = Literal[
 
 
 class TalentModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        str_strip_whitespace=True,
+        protected_namespaces=(),
+    )
 
 
 class PartialDate(TalentModel):

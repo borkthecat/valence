@@ -2,6 +2,12 @@
 
 Scope: review of `d39dd17` against `origin/main`, followed by a live Docker validation and the corrective commit `b2f50f2`. This is an evidence-based research-preview assessment, not a compliance certification.
 
+## Completion addendum
+
+The immediate pre-PR engineering items identified by this audit are now implemented on the release-readiness branch: CI performs a live authenticated Docker smoke across the gateway, Stage 5 pipeline, and signed operations service; all current release benchmark artifacts have complete pinned reproduction specifications; and review/shadow records now have a durable local-mode lifecycle with tenant-scoped authorization, audit history, outcome comparison, replay, retention actions, and receipts.
+
+These changes close repository implementation gaps, not external evidence gaps. The scores below describe the audited baseline and have not been inflated. Enterprise readiness remains blocked on real shadow outcomes, independently adjudicated talent labels, current fraud verification data, production persistence/recovery evidence, and production SLOs.
+
 ## Commit review
 
 The architectural split and advisory review contract are directionally correct. The audit found and corrected two policy-boundary defects: model-originated `ineligible` findings now always require human review, and duplicate candidate IDs are rejected during request validation rather than after a model call. The latter is tested in-process and through the Docker API.
@@ -16,7 +22,7 @@ The review endpoint is exercised through HTTP under the mock provider. It is not
 | --- | --- | --- | --- |
 | Core gateway | Request-scoped restoration, tenant tests, fail-closed streaming, strict schemas, audit chain | Key rotation, vault revocation, outage/recovery evidence, multi-host SLOs | Strong gateway research preview; limited deployment after shadow operations evidence |
 | Injection guard | Per-corpus reporting, provenance routing, train-only calibration, negative benchmark honesty | Indirect/secret coverage, NotInject over-defense, public corpora do not represent production tool traffic | Useful review/telemetry guard, not autonomous enterprise blocker |
-| PII/tokenization | Scoped vault, streaming reconstruction, email performance, leakage tests | Exact span F1 55.3%, weak phone/SSN coverage, English-only default evaluation | Secure transport mechanism; detector remains experimental |
+| PII/tokenization | Scoped vault, streaming reconstruction, email performance, leakage tests | Exact span F1 80.5% on supported labels, only 25.1% taxonomy coverage, weak phone/password/card/SSN recall, English-only default evaluation | Secure transport mechanism; detector remains experimental |
 | Talent Integrity | Bounded review contract, explicit human boundary, EMSCAD fraud baseline, ranking evaluator | Legacy product schema, no independently adjudicated candidate-job data, no reviewer workflow | Safe orchestration demonstration, not a validated ranker |
 
 More infrastructure, ranking fields, synthetic profiles, generic LLM size, or dashboards should be deferred. They would not repair missing labels, weak attack distribution coverage, or absent operational evidence. Raw multimodal processing should also wait for an OCR threat/cost model.
@@ -86,7 +92,7 @@ Every release dataset needs a card, license, collection period, provenance/check
 | Architecture | 82 | Clear security boundaries; talent schema is still legacy |
 | Security design | 84 | Strong scoped tokenization and fail-closed posture; operational controls incomplete |
 | Security-model effectiveness | 60 | Direct performance useful; indirect, secret, and benign FPR fail enterprise gates |
-| PII protection | 58 | Restoration design is strong; default detector measured far below required span quality |
+| PII protection | 66 | Restoration design is strong and supported-label F1 improved to 80.5%; taxonomy breadth and several entity recalls remain below gates |
 | Ranking validity | 25 | No real candidate-job ground truth |
 | Fraud detection | 66 | Solid EMSCAD baseline, insufficient current/generalizable evidence |
 | Testing/reproducibility | 80 | Broad tests and pinned public sources; incomplete reproducibility manifests and live CI |

@@ -22,6 +22,7 @@ from config import get_settings
 from observability import log_event
 from talent_schema import ReasonCode
 from review_operations import CreateReview, ReviewStore
+from shadow_operations import ShadowInput, ShadowStore
 
 PROXY_PATH: Final[str] = "/v1/chat/completions"
 PROXY_MODEL: Final[str] = "valence-cognitive-1"
@@ -168,7 +169,7 @@ class PolicyOutcome(BaseModel):
 
 
 class CandidateReview(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, protected_namespaces=())
 
     candidate_id: str
     model_assessment: CandidateJudgment
@@ -1016,11 +1017,26 @@ _RUNTIME_METRICS = OTelMetrics()
 _RUNTIME_VERIFIER = CognitiveVerifier(_RUNTIME_METRICS, ContextualSanitizer())
 _RUNTIME_PROXY: ProxyClient = AsyncHttpProxyClient()
 _REVIEW_TASK_STORE: ReviewStore | None = None
+_SHADOW_STORE: ShadowStore | None = None
 
 
 def configure_review_task_store(store: ReviewStore | None) -> None:
     global _REVIEW_TASK_STORE
     _REVIEW_TASK_STORE = store
+
+
+def configure_shadow_store(store: ShadowStore | None) -> None:
+    global _SHADOW_STORE
+    _SHADOW_STORE = store
+
+
+def configure_review_task_store_from_environment() -> None:
+    path = os.environ.get("VALENCE_REVIEW_DB_PATH")
+    if path:
+        configure_review_task_store(ReviewStore(path))
+    shadow_path = os.environ.get("VALENCE_SHADOW_DB_PATH")
+    if shadow_path:
+        configure_shadow_store(ShadowStore(shadow_path))
 
 
 def _review_digest(value: object) -> str:
@@ -1045,6 +1061,42 @@ def persist_review_tasks(request: Stage5Request, review: StructuredReview, reque
         f"{request.tenant_id}:{advisory_digest}:{item.candidate_id}") for item in required)
     tasks = _REVIEW_TASK_STORE.create_many(batch)
     return tuple(task["review_id"] for task in tasks)
+
+
+def persist_shadow_run(
+    request: Stage5Request,
+    review: StructuredReview,
+    review_task_ids: tuple[str, ...],
+    request_id: str,
+    trace_id: str,
+    latency_ms: float,
+) -> str | None:
+    if _SHADOW_STORE is None:
+        return None
+    advisory = review.model_dump(mode="json")
+    advisory_digest = _review_digest(advisory)
+    item = ShadowInput(
+        tenant_id=request.tenant_id,
+        source_event_id=request_id,
+        case_id=request_id,
+        job_digest=_review_digest({"target_channel": request.target_channel}),
+        candidate_set_digest=_review_digest([candidate.model_dump(mode="json") for candidate in request.pool]),
+        input_schema_version="legacy-stage5-1.0",
+        model_version=PROXY_MODEL,
+        model_digest="unavailable",
+        policy_version="talent-integrity-v1",
+        policy_digest=_review_digest({"policy_version": "talent-integrity-v1"}),
+        advisory_output=advisory,
+        advisory_output_digest=advisory_digest,
+        review_task_ids=review_task_ids,
+        latency_ms=latency_ms,
+        trace_id=trace_id,
+    )
+    stored = _SHADOW_STORE.submit(item, f"{request.tenant_id}:{request_id}:{advisory_digest}")
+    return str(stored["shadow_run_id"])
+
+
+configure_review_task_store_from_environment()
 
 
 _DASHBOARD_HTML: Final[str] = """
@@ -1400,12 +1452,23 @@ async def verify_endpoint(request: Stage5Request, response: Response) -> Cogniti
 @app.post("/v1/valence/stage5/review", response_model=StructuredReview)
 async def review_endpoint(request: Stage5Request, response: Response = Response()) -> StructuredReview:
     try:
+        started = time.perf_counter()
         review = await _RUNTIME_VERIFIER.review(request, _RUNTIME_PROXY)
         request_id = response.headers.get("x-request-id", str(uuid.uuid4())) if response else str(uuid.uuid4())
         trace_id = response.headers.get("x-trace-id", request_id) if response else request_id
         task_ids = persist_review_tasks(request, review, request_id, trace_id)
+        shadow_run_id = persist_shadow_run(
+            request,
+            review,
+            task_ids,
+            request_id,
+            trace_id,
+            (time.perf_counter() - started) * 1000,
+        )
         if task_ids and response:
             response.headers["x-valence-review-tasks"] = str(len(task_ids))
+        if shadow_run_id and response:
+            response.headers["x-valence-shadow-run"] = shadow_run_id
         return review
     except CognitivePipelineCompromisedError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
