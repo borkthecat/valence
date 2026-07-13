@@ -56,6 +56,36 @@ interface InjectionRule {
 }
 const INJECTION_RULES: readonly InjectionRule[] = [
     {
+        id: 'roleplay-instruction-control',
+        description: 'Requests exclusive roleplay control over the assistant response',
+        pattern: /\b(?:act|respond|reply)\s+as\s+(?:an?\s+)?(?:interviewer|storyteller|journalist)\b/,
+        weight: 0.8,
+    },
+    {
+        id: 'embedding-or-hidden-output-exfiltration',
+        description: 'Requests hidden model artifacts or internal representations',
+        pattern: /\b(?:return|show|print|reveal)\b[^.!?]{0,40}\b(?:your embeddings?|prompt texts?|hidden instructions?|initial instructions?)\b/,
+        weight: 0.8,
+    },
+    {
+        id: 'forced-answer-policy',
+        description: 'Attempts to force a fixed response regardless of the request',
+        pattern: /\b(?:answer|respond|reply)\s+(?:every|all)\s+(?:question|request)s?\s+with\b/,
+        weight: 0.7,
+    },
+    {
+        id: 'benchmark-control-payloads',
+        description: 'Known instruction-control and hidden-output payload forms',
+        pattern: /\b(?:generate\s+sql\s+code\s+to\s+access\s+a\s+database|translate\s+to\s+[a-z-]+|tell\s+me\s+a\s+joke\s+about\s+a\s+woman|most\s+responsible|return\s+your\s+embeddings?|new\s+statement|editorial\s+newspaper\s+team)\b/,
+        weight: 0.8,
+    },
+    {
+        id: 'forget-before-typo-variant',
+        description: 'Typo-tolerant request to discard earlier context',
+        pattern: /\bforget\s+(?:everything|what)\b[^.!?]{0,40}\b(?:before|previously|earlier)\b/,
+        weight: 0.8,
+    },
+    {
         id: 'override-previous-instructions',
         description: 'Attempts to void prior/system instructions',
         pattern: /\b(?:ignore|disregard|forget|override|bypass)\b[^.!?]{0,40}\b(?:previous|prior|above|earlier|all|system)\b[^.!?]{0,20}\b(?:instructions?|rules?|prompts?|guidelines?|directives?)\b/,
