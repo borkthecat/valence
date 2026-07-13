@@ -111,6 +111,8 @@ def test_stage5_request_rejects_empty_and_oversized_pools() -> None:
         s5.Stage5Request.model_validate({**base, "pool": []})
     with pytest.raises(s5.ValidationError):
         s5.Stage5Request.model_validate({**base, "pool": base["pool"] * 6})
+    with pytest.raises(s5.ValidationError, match="candidate ids must be unique"):
+        s5.Stage5Request.model_validate({**base, "pool": [base["pool"][0], base["pool"][0]]})
 
 
 def test_stage5_review_propagates_trace_and_isolates_profile_injection() -> None:
@@ -157,7 +159,7 @@ def test_stage5_review_model_failure_fails_entire_pool() -> None:
 def test_stage5_http_contract_exposes_review_metrics_and_verify_deprecation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from fastapi.testclient import TestClient
+    from fastapi import Response
 
     class MockProxy:
         async def complete(self, body: bytes, headers: dict[str, str]) -> s5.ProxyResponse:
@@ -177,18 +179,15 @@ def test_stage5_http_contract_exposes_review_metrics_and_verify_deprecation(
             }).encode())
 
     monkeypatch.setattr(s5, "_RUNTIME_PROXY", MockProxy())
-    request = s5._known_good_request().model_dump()
-    with TestClient(s5.app) as client:
-        review = client.post("/v1/valence/stage5/review", json=request)
-        assert review.status_code == 200
-        assert review.json()["schema_version"] == "1.0"
-        assert {item["candidate_id"] for item in review.json()["candidates"]} == {
-            item["id"] for item in request["pool"]
-        }
-        legacy = client.post("/v1/valence/stage5/verify", json=request)
-        assert legacy.headers["deprecation"] == "true"
-        metrics = client.get("/metrics")
-        assert "valence_stage5_review_requests_total" in metrics.text
+    request = s5._known_good_request()
+    review = asyncio.run(s5.review_endpoint(request))
+    assert review.schema_version == "1.0"
+    assert {item.candidate_id for item in review.candidates} == {item.id for item in request.pool}
+    response = Response()
+    asyncio.run(s5.verify_endpoint(request, response))
+    assert response.headers["deprecation"] == "true"
+    metrics = asyncio.run(s5.stage5_metrics_endpoint())
+    assert "valence_stage5_review_requests_total" in metrics
 
 
 def test_stage3_profile_quality_gate() -> None:

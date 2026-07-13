@@ -14,7 +14,7 @@ from typing import Any, Final, Literal, Protocol
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from config import get_settings
 from observability import log_event
@@ -120,6 +120,13 @@ class Stage5Request(BaseModel):
     tenant_id: str = Field(min_length=1, max_length=128)
     target_channel: str = Field(min_length=1, max_length=128)
     pool: list[CandidateProfile] = Field(min_length=1, max_length=MAX_POOL_SIZE)
+
+    @model_validator(mode="after")
+    def unique_candidate_ids(self) -> Stage5Request:
+        ids = [candidate.id for candidate in self.pool]
+        if len(ids) != len(set(ids)):
+            raise ValueError("pool candidate ids must be unique")
+        return self
 
 
 class CognitiveVerdict(BaseModel):
