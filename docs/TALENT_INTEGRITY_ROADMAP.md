@@ -1,0 +1,17 @@
+# Talent Integrity delivery roadmap
+
+This roadmap sequences the work required before any employment-facing claim. The current branch implements only the first contract-and-evaluation milestone; it does not include a talent model, collected data, benchmark results, or a production decision workflow.
+
+| Priority | Workstream | Deliverable | Likely files | Required dataset | Benchmark unlocked | Acceptance criteria | Dependencies | Release blocker | Sequence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| P0 | Canonical contract | Versioned job, candidate, evidence, annotation, and output schema | `pipeline/talent_schema.py`, docs | None | Reproducible pilot ingestion | Strict validation; candidates and labels reconcile; no legacy-field reuse | Policy-owner review | No approved contract | 1 |
+| P0 | Annotation operations | 200-job protocol, calibration, dual review, adjudication | annotation protocol | 200 permissioned de-identified job cases | Human-reference evaluation | Two blind reviews/case; only agreed/adjudicated records scored | Reviewer training, permissions | No independently labelled data | 2 |
+| P0 | Offline evaluator | Metrics, JSONL loading, validation, slice reports | `pipeline/talent_evaluator.py`, tests | Frozen annotated pilot plus submissions | Safety and ranking baseline | Complete case coverage; confidence intervals added after collection | Contract | No benchmark run | 3 |
+| P0 | Data governance | Consent, source, retention, access, appeal and audit controls | governance/data policy | Source inventory and processing record | Auditable pilot | Legal/privacy/security sign-off and deletion test | Organization policy | Missing employment-data governance | 4 |
+| P1 | Data collection | Versioned pilot dataset and quality report | secure store; manifest | 200 jobs, 10--20 profiles/job where available | Coverage and inter-rater agreement | Provenance complete; calibration excluded; disagreement rate reported | P0 workstreams | No authorized data | 5 |
+| P1 | Benchmark protocol | Pre-registered metrics, slices, error taxonomy, confidence intervals | evaluation plan/report template | Frozen pilot + shadow holdout | Comparable assessments | No leakage; slice coverage review; failure-mode review | Evaluator, data | No reliable benchmark | 6 |
+| P1 | Shadow workflow | Human-owned review queue with monitoring and rollback | policy adapter, operations docs | Shadow cases and outcomes | Operational safety evidence | No automatic employment action; audit and kill-switch test | Governance, benchmark | No shadow evidence | 7 |
+| P2 | External validation | Multi-source, multi-region replication | validation report | Independent holdout sources | Generalization evidence | Predefined acceptance thresholds met with uncertainty bounds | Mature pilot | No external validation | 8 |
+| P2 | Product decision | Narrow approved advisory-release decision | release checklist | Completed validation evidence | Release readiness decision | Legal, security, fairness, accessibility, and policy gates signed | All prior work | Any open P0/P1 gate | 9 |
+
+Current evaluator metrics: NDCG@5, qualified recall@5, pairwise preference accuracy, top-1 agreement, hard-eligibility violation rate, unsupported-evidence promotion rate, human-review routing rate, incorrect automatic-exclusion rate, and mean uncertainty. Targets must be pre-registered after data collection; this repository intentionally supplies no invented benchmark threshold.
