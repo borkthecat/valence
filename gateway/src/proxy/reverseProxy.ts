@@ -66,6 +66,13 @@ export interface ProxyEventSink {
         readonly requestId: string;
         readonly phase: 'pre-upstream' | 'streaming';
     }): void;
+    onShadowReviewEvent?(event: {
+        readonly requestId: string;
+        readonly sourceId: string;
+        readonly policy: GuardPolicy;
+        readonly score: number;
+        readonly text: string;
+    }): void;
 }
 export interface ReverseProxyDeps {
     readonly upstreamBaseUrl: string;
@@ -75,6 +82,7 @@ export interface ReverseProxyDeps {
     readonly scanner: PiiScanner;
     readonly shield: InjectionShield;
     readonly guardUserPolicy: GuardPolicy;
+    readonly shadowReviewSources?: ReadonlySet<string>;
     readonly http?: AxiosInstance;
     readonly sink?: ProxyEventSink;
 }
@@ -93,6 +101,13 @@ function guardContextForMessage(message: ProxyMessage, userPolicy: GuardPolicy):
         return routeForProvenance({ boundary: 'user_session' });
     }
     return { policy: userPolicy };
+}
+function sourceIdOf(message: ProxyMessage): string | undefined {
+    const candidate = (message as ProxyMessage & {
+        source_id?: unknown;
+        sourceId?: unknown;
+    }).source_id ?? (message as ProxyMessage & { sourceId?: unknown }).sourceId;
+    return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : undefined;
 }
 export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
     const http = deps.http ??
@@ -146,12 +161,23 @@ export function createReverseProxy(deps: ReverseProxyDeps): RequestHandler {
                 if (!isShieldTarget(message)) {
                     continue;
                 }
+                const context = guardContextForMessage(message, deps.guardUserPolicy);
                 const verdict = await guarded(
-                    () => deps.shield.evaluate(message.content, guardContextForMessage(message, deps.guardUserPolicy)),
+                    () => deps.shield.evaluate(message.content, context),
                     benignVerdict,
                     'injection-shield',
                     requestId,
                 );
+                const sourceId = sourceIdOf(message);
+                if (sourceId !== undefined && deps.shadowReviewSources?.has(sourceId) === true) {
+                    deps.sink?.onShadowReviewEvent?.({
+                        requestId,
+                        sourceId,
+                        policy: context.policy,
+                        score: verdict.score,
+                        text: message.content,
+                    });
+                }
                 if (verdict.blocked) {
                     const ruleIds = verdict.matches.map((match) => match.ruleId);
                     deps.sink?.onPromptBlocked({

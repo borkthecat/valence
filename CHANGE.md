@@ -8,7 +8,11 @@ This project keeps a change record for released source modifications.
 - Added an operating-standard assertion script so the release gate checks aggregate accuracy, precision, recall, F1, aggregate false-positive rate, and maximum per-source false-positive rate from structured benchmark reports.
 - Added enforce/review routing decisions for source-specific guard behavior so `hse_llm` and `cgoosen_combined` remain review-only while their held-out recall is below 50%.
 - Added privacy-reduced shadow review tooling to capture real events, deduplicate them, redact common PII, and merge only explicit human labels.
+- Wired opt-in gateway shadow-review logging into the reverse proxy path via `SHADOW_REVIEW_LOG_PATH` and `SHADOW_REVIEW_SOURCES`, with source IDs read from `source_id` or `sourceId` request metadata and redacted JSONL output.
 - Added EMSCAD external verification feature plumbing, including email/domain mismatch checks, posting URL mismatch checks, liveness probes, and provider-cache boundaries for future WHOIS, registry, and reputation adapters.
+- Added EMSCAD false-negative analysis for the deterministic held-out split. The current full-CSV rerun found 24 false negatives, with misses concentrated in missing education/experience fields, missing industry/function records, and IT-labeled fraud.
+- Added an EMSCAD ensemble evaluator for TF-IDF plus a saved transformer artifact. The best low-FPR v1.12.0 ensemble was effectively TF-IDF-only at 98.94% accuracy, 92.99% precision, 84.39% recall, 88.48% F1, and 0.32% false-positive rate; unconstrained blends improved recall but raised false positives.
+- Added benign trigger-word hard-negative generation plus training/calibration ingestion for compact guard experiments. The measured NotInject result stayed flat at 61.65% accuracy and 38.35% false-positive rate, so the compact model over-defense blocker remains open.
 - Kept the release status at research preview because the review-only guard sources still need a real shadow run and EMSCAD still needs live external verification signals before production fraud-detection claims are justified.
 
 ## 1.11.8

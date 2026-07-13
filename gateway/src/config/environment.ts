@@ -73,6 +73,8 @@ const environmentSchema = z.object({
     GUARD_MODEL_SHA256: z.string().trim().regex(/^[a-f0-9]{64}$/).optional(),
     GUARD_MODEL_API_KEY: z.string().trim().min(16).optional(),
     GUARD_USER_POLICY: z.enum(GUARD_USER_POLICIES).default('direct'),
+    SHADOW_REVIEW_LOG_PATH: z.string().trim().min(1).default('off'),
+    SHADOW_REVIEW_SOURCES: z.string().trim().min(1).default('hse_llm,cgoosen_combined'),
     MODEL_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(3000),
     EVIDENCE_URL_VALIDATION: z.enum(EVIDENCE_URL_VALIDATION_MODES).default('syntax'),
     EVIDENCE_URL_TIMEOUT_MS: z.coerce.number().int().min(100).max(10000).default(3000),
