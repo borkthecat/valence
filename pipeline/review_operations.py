@@ -19,7 +19,7 @@ Status = Literal["pending", "claimed", "in_review", "escalated", "resolved", "re
 class Model(BaseModel): model_config = ConfigDict(extra="forbid", frozen=True)
 class CreateReview(Model):
     tenant_id: str; case_id: str; candidate_id: str; source_request_id: str; policy_version: str; model_version: str
-    model_digest: str; evidence_snapshot_digest: str; reason_codes: tuple[str,...] = (); risk: str; uncertainty: float = Field(ge=0,le=1); due_at: datetime | None=None; priority: int = Field(default=0,ge=0,le=100)
+    model_digest: str; evidence_snapshot_digest: str; reason_codes: tuple[str,...] = (); risk: str; uncertainty: float = Field(default=0,ge=0,le=1); due_at: datetime | None=None; priority: int = Field(default=0,ge=0,le=100)
 class Decision(Model): resolution: str = Field(min_length=1,max_length=4096); version: int = Field(ge=1)
 class Action(Model): version: int = Field(ge=1)
 class Actor(Model): actor_id: str; tenant_id: str; scopes: frozenset[str]
