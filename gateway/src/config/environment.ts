@@ -92,6 +92,8 @@ const environmentSchema = z.object({
         .max(100000, 'RATE_LIMIT_MAX_REQUESTS must be <= 100000')
         .default(120),
     AUDIT_LOG_PATH: z.string().trim().min(1).default('audit/valence-audit.log'),
+    REVIEW_OPERATIONS_URL: secureServiceUrl.optional(),
+    REVIEW_OPERATIONS_INTERNAL_KEY: z.string().trim().min(32).optional(),
     NODE_ENV: z
         .enum(['development', 'test', 'production'])
         .default('production'),
@@ -133,6 +135,13 @@ const environmentSchema = z.object({
             code: z.ZodIssueCode.custom,
             path: ['SECURITY_MODE'],
             message: 'SECURITY_MODE=FAIL_OPEN is not allowed when NODE_ENV=production',
+        });
+    }
+    if ((value.REVIEW_OPERATIONS_URL === undefined) !== (value.REVIEW_OPERATIONS_INTERNAL_KEY === undefined)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['REVIEW_OPERATIONS_URL'],
+            message: 'REVIEW_OPERATIONS_URL and REVIEW_OPERATIONS_INTERNAL_KEY must be configured together',
         });
     }
 });

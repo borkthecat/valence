@@ -14,5 +14,5 @@ def run_shadow_lifecycle(store:ShadowStore,tenant:str,now:datetime,batch_size:in
  expired=0
  for item in store.list(tenant)[:batch_size]:
   payload=__import__('json').loads(item['payload']);expiry=payload.get('retention_expires_at')
-  if expiry and datetime.fromisoformat(expiry.replace('Z','+00:00'))<=now and item['status']!='deleted':store.delete(tenant,item['shadow_run_id'],item['version']);expired+=1
+  if expiry and datetime.fromisoformat(expiry.replace('Z','+00:00'))<=now and item['status'] not in {'deleted','expired'}:store.expire(tenant,item['shadow_run_id'],item['version']);expired+=1
  return {'expired':expired}

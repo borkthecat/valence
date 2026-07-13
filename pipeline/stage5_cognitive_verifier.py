@@ -9,6 +9,8 @@ import os
 import random
 import re
 import time
+import hashlib
+import uuid
 from dataclasses import dataclass
 from typing import Any, Final, Literal, Protocol
 
@@ -19,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from config import get_settings
 from observability import log_event
 from talent_schema import ReasonCode
+from review_operations import CreateReview, ReviewStore
 
 PROXY_PATH: Final[str] = "/v1/chat/completions"
 PROXY_MODEL: Final[str] = "valence-cognitive-1"
@@ -1012,6 +1015,36 @@ app = FastAPI(title="Valence Gateway Stage 5 Cognitive Verifier")
 _RUNTIME_METRICS = OTelMetrics()
 _RUNTIME_VERIFIER = CognitiveVerifier(_RUNTIME_METRICS, ContextualSanitizer())
 _RUNTIME_PROXY: ProxyClient = AsyncHttpProxyClient()
+_REVIEW_TASK_STORE: ReviewStore | None = None
+
+
+def configure_review_task_store(store: ReviewStore | None) -> None:
+    global _REVIEW_TASK_STORE
+    _REVIEW_TASK_STORE = store
+
+
+def _review_digest(value: object) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+
+
+def persist_review_tasks(request: Stage5Request, review: StructuredReview, request_id: str, trace_id: str) -> tuple[str, ...]:
+    required = tuple(candidate for candidate in review.candidates if candidate.policy_outcome.human_review_required)
+    if not required:
+        return ()
+    if _REVIEW_TASK_STORE is None:
+        raise RuntimeError("review task persistence is not configured")
+    advisory_digest = _review_digest(review.model_dump(mode="json"))
+    candidates = {candidate.id: candidate for candidate in request.pool}
+    batch = tuple((
+        CreateReview(tenant_id=request.tenant_id, case_id=request_id, candidate_id=item.candidate_id,
+            source_request_id=request_id, trace_id=trace_id, policy_version="talent-integrity-v1", model_version=PROXY_MODEL,
+            model_digest="unavailable", evidence_snapshot_digest=_review_digest(candidates[item.candidate_id].model_dump(mode="json")),
+            advisory_output_digest=advisory_digest,
+            reason_codes=tuple(item.policy_outcome.reason_codes), risk="high" if item.model_assessment.risk_findings else "none",
+            uncertainty=max(1-item.model_assessment.evidence_consistency, 0.5)),
+        f"{request.tenant_id}:{advisory_digest}:{item.candidate_id}") for item in required)
+    tasks = _REVIEW_TASK_STORE.create_many(batch)
+    return tuple(task["review_id"] for task in tasks)
 
 
 _DASHBOARD_HTML: Final[str] = """
@@ -1365,11 +1398,19 @@ async def verify_endpoint(request: Stage5Request, response: Response) -> Cogniti
 
 
 @app.post("/v1/valence/stage5/review", response_model=StructuredReview)
-async def review_endpoint(request: Stage5Request) -> StructuredReview:
+async def review_endpoint(request: Stage5Request, response: Response = Response()) -> StructuredReview:
     try:
-        return await _RUNTIME_VERIFIER.review(request, _RUNTIME_PROXY)
+        review = await _RUNTIME_VERIFIER.review(request, _RUNTIME_PROXY)
+        request_id = response.headers.get("x-request-id", str(uuid.uuid4())) if response else str(uuid.uuid4())
+        trace_id = response.headers.get("x-trace-id", request_id) if response else request_id
+        task_ids = persist_review_tasks(request, review, request_id, trace_id)
+        if task_ids and response:
+            response.headers["x-valence-review-tasks"] = str(len(task_ids))
+        return review
     except CognitivePipelineCompromisedError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="review task persistence unavailable") from exc
 
 
 @app.get("/metrics", response_class=PlainTextResponse, include_in_schema=False)

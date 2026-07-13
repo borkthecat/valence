@@ -10,6 +10,7 @@ export function createEnterpriseIngestAuth(): RequestHandler {
         return createGatewayAuth(environment.GATEWAY_API_KEY, {
             tenantContext: {
                 tenantId: 'enterprise-local',
+                actorId: 'enterprise-ingest-service',
                 scopes: ['valence:ingest'],
             },
         });
