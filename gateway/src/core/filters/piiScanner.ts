@@ -33,7 +33,8 @@ interface HeuristicRule {
     readonly category: SurrogateCategory;
     readonly pattern: RegExp;
     readonly confidence: number;
-    readonly validate?: (match: string) => boolean;
+    readonly captureGroup?: number;
+    readonly validate?: (match: string, text: string, start: number) => boolean;
 }
 function passesLuhn(digits: string): boolean {
     let sum = 0;
@@ -85,15 +86,28 @@ function isValidSsn(match: string): boolean {
     }
     return true;
 }
-function isValidPhone(match: string): boolean {
+function isValidPhone(match: string, text: string, start: number): boolean {
+    const base = match.replace(/\s*(?:x|ext\.?|extension)\s*\d{1,6}$/i, '');
     if (
-        /^\d{3}-\d{2}-\d{4}$/.test(match)
-        || /^\d{4}(?:[ -]\d{4}){2,3}$/.test(match)
+        /^\d{3}[- ]\d{2,3}[- ]\d{3,4}$/.test(base)
+        || /^\d{4}(?:[ -]\d{4}){2,3}$/.test(base)
+        || /^(?:\d{1,3}\.){3}\d{1,3}$/.test(base)
+        || /^(?:\d{1,2}\.){2}(?:19|20)\d{2}$/.test(base)
+        || isValidCreditCard(base)
     ) {
         return false;
     }
-    const digits = match.replace(/\D/g, '');
-    return digits.length >= 7 && digits.length <= 15 && !/^(\d)\1+$/.test(digits);
+    const digits = base.replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15 || /^(\d)\1+$/.test(digits)) {
+        return false;
+    }
+    if (digits.length <= 9) {
+        const context = text.slice(Math.max(0, start - 48), Math.min(text.length, start + match.length + 32));
+        if (!/\b(?:call|contact|fax|mobile|phone|tel|telephone|whatsapp)\b/i.test(context)) {
+            return false;
+        }
+    }
+    return true;
 }
 function isValidIpv4(match: string): boolean {
     const octets = match.split('.');
@@ -119,9 +133,16 @@ const HEURISTIC_RULES: readonly HeuristicRule[] = [
         validate: isValidSsn,
     },
     {
+        id: 'ssn-spaced-contextual',
+        category: SurrogateCategory.SSN,
+        pattern: /\b(?:SSN|social security(?: number)?)\s*[:=(,-]?\s*(\d{3} \d{3} \d{3})\b/gi,
+        confidence: 0.85,
+        captureGroup: 1,
+    },
+    {
         id: 'phone-international',
         category: SurrogateCategory.PHONE,
-        pattern: /(?<![\w.])(?:\+\d{1,3}[ .-]?)?(?:\(\d{2,4}\)[ .-]?|\d{2,4}[ .-]){1,3}\d{3,4}(?![\w.])/g,
+        pattern: /(?<![\w.])(?:\+\d{1,3}[ .-]?)?(?:\(\d{1,4}\)[ .-]?|\d{2,4}[ .-]){1,3}\d{3,4}(?:\s*(?:x|ext\.?|extension)\s*\d{1,6})?(?!\w|[ .-]\d|\s*(?:x|ext\.?|extension)\s*\d)/gi,
         confidence: 0.75,
         validate: isValidPhone,
     },
@@ -164,6 +185,27 @@ const HEURISTIC_RULES: readonly HeuristicRule[] = [
         confidence: 0.98,
     },
     {
+        id: 'contextual-api-key',
+        category: SurrogateCategory.API_KEY,
+        pattern: /\bapi[_ -]?keys?\s*(?:[:=,]|\bis\b)?\s*["'(\[]?([A-Za-z0-9][A-Za-z0-9._-]{19,511})/gi,
+        confidence: 0.9,
+        captureGroup: 1,
+    },
+    {
+        id: 'contextual-password-assignment',
+        category: SurrogateCategory.PASSWORD,
+        pattern: /\bpassword\s*[:=]\s*["'(\[]?([^\s"',;)\]]{8,128})/gi,
+        confidence: 0.9,
+        captureGroup: 1,
+    },
+    {
+        id: 'contextual-password-example',
+        category: SurrogateCategory.PASSWORD,
+        pattern: /\bpasswords?\s+(?:like|such as)\s+["'(\[]?([^\s"',;)\]]{8,128})/gi,
+        confidence: 0.85,
+        captureGroup: 1,
+    },
+    {
         id: 'slack-token',
         category: SurrogateCategory.ACCESS_TOKEN,
         pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,512}\b/g,
@@ -198,12 +240,16 @@ export class HeuristicPiiDetector implements PiiDetector {
         for (const rule of this.rules) {
             const pattern = new RegExp(rule.pattern.source, rule.pattern.flags);
             for (const match of text.matchAll(pattern)) {
-                const value = match[0];
-                const start = match.index;
-                if (value === undefined || value.length === 0 || start === undefined) {
+                const fullMatch = match[0];
+                const value = rule.captureGroup === undefined ? fullMatch : match[rule.captureGroup];
+                const fullStart = match.index;
+                if (value === undefined || value.length === 0 || fullStart === undefined) {
                     continue;
                 }
-                if (rule.validate !== undefined && !rule.validate(value)) {
+                const relativeStart = rule.captureGroup === undefined ? 0 : fullMatch.lastIndexOf(value);
+                if (relativeStart < 0) continue;
+                const start = fullStart + relativeStart;
+                if (rule.validate !== undefined && !rule.validate(value, text, start)) {
                     continue;
                 }
                 findings.push({

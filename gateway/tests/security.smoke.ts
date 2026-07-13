@@ -24,6 +24,33 @@ async function run(): Promise<void> {
     assert.ok(result.sanitizedText.includes('000-12-3456'), 'invalid SSN not masked');
     assert.ok(result.sanitizedText.includes('1234 5678 9012 3456'), 'non-Luhn digits not masked');
     assert.equal(result.surrogates.length, result.findings.length, 'surrogates reported');
+    const heuristic = new HeuristicPiiDetector();
+    const numericFindings = await heuristic.detect(
+        'IP 203.0.113.42, date 24.08.1995, SSN 647 710 268, phone +1-229-239-6062 x16754.',
+    );
+    assert.deepEqual(
+        numericFindings.filter((finding) => finding.category === 'PHONE').map((finding) => ({
+            start: finding.start,
+            value: 'IP 203.0.113.42, date 24.08.1995, SSN 647 710 268, phone +1-229-239-6062 x16754.'.slice(finding.start, finding.end),
+        })),
+        [{ start: 57, value: '+1-229-239-6062 x16754' }],
+        'phone detector rejects overlapping numeric identifiers and keeps the full extension',
+    );
+    const contextualFindings = await heuristic.detect(
+        'SSN (126 658 814), api_key = "fb-5UvuvCrnMhwkCBmj3kGg0whmv2sa2ukJaQHtAjUq", Password: wZ2s70Yth#wDO',
+    );
+    assert.deepEqual(
+        contextualFindings.map((finding) => ({
+            category: finding.category,
+            value: 'SSN (126 658 814), api_key = "fb-5UvuvCrnMhwkCBmj3kGg0whmv2sa2ukJaQHtAjUq", Password: wZ2s70Yth#wDO'.slice(finding.start, finding.end),
+        })),
+        [
+            { category: 'SSN', value: '126 658 814' },
+            { category: 'API_KEY', value: 'fb-5UvuvCrnMhwkCBmj3kGg0whmv2sa2ukJaQHtAjUq' },
+            { category: 'PASSWORD', value: 'wZ2s70Yth#wDO' },
+        ],
+        'contextual secret rules return value-only exact spans',
+    );
     const shield = new InjectionShield([new HeuristicInjectionDetector()]);
     const benign = await shield.evaluate('Please summarize this quarterly report.');
     assert.equal(benign.blocked, false, 'benign prompt allowed');

@@ -1,0 +1,110 @@
+{
+  "benchmark": "pii-span-detection",
+  "detector": "valence-heuristic-static",
+  "records": 1000,
+  "allGroundTruthEntities": 4314,
+  "supportedGroundTruthEntities": 1082,
+  "labelCoverage": 0.2508113120074177,
+  "exactSpanMetricsOnSupportedLabels": {
+    "truePositive": 770,
+    "falsePositive": 61,
+    "falseNegative": 312,
+    "precision": 0.9265944645006017,
+    "recall": 0.711645101663586,
+    "f1": 0.8050182958703608
+  },
+  "perLabel": {
+    "SSN": {
+      "truePositive": 249,
+      "falsePositive": 6,
+      "falseNegative": 112,
+      "precision": 0.9764705882352941,
+      "recall": 0.6897506925207756,
+      "f1": 0.8084415584415584
+    },
+    "EMAIL": {
+      "truePositive": 228,
+      "falsePositive": 4,
+      "falseNegative": 1,
+      "precision": 0.9827586206896551,
+      "recall": 0.9956331877729258,
+      "f1": 0.9891540130151844
+    },
+    "IP_ADDRESS": {
+      "truePositive": 126,
+      "falsePositive": 7,
+      "falseNegative": 46,
+      "precision": 0.9473684210526315,
+      "recall": 0.7325581395348837,
+      "f1": 0.8262295081967214
+    },
+    "PHONE": {
+      "truePositive": 77,
+      "falsePositive": 36,
+      "falseNegative": 94,
+      "precision": 0.6814159292035398,
+      "recall": 0.4502923976608187,
+      "f1": 0.5422535211267606
+    },
+    "CREDIT_CARD": {
+      "truePositive": 77,
+      "falsePositive": 6,
+      "falseNegative": 50,
+      "precision": 0.927710843373494,
+      "recall": 0.6062992125984252,
+      "f1": 0.7333333333333333
+    },
+    "API_KEY": {
+      "truePositive": 10,
+      "falsePositive": 0,
+      "falseNegative": 5,
+      "precision": 1,
+      "recall": 0.6666666666666666,
+      "f1": 0.8
+    },
+    "PASSWORD": {
+      "truePositive": 3,
+      "falsePositive": 2,
+      "falseNegative": 4,
+      "precision": 0.6,
+      "recall": 0.42857142857142855,
+      "f1": 0.5
+    }
+  },
+  "unsupportedGroundTruthByLabel": {
+    "MEDICAL_RECORD_NUMBER": 551,
+    "DATE_OF_BIRTH": 491,
+    "DATE": 222,
+    "CUSTOMER_ID": 222,
+    "FIRST_NAME": 222,
+    "LAST_NAME": 202,
+    "EMPLOYEE_ID": 189,
+    "NAME": 186,
+    "STREET_ADDRESS": 181,
+    "LICENSE_PLATE": 125,
+    "ADDRESS": 115,
+    "USER_NAME": 69,
+    "DATE_TIME": 46,
+    "DEVICE_IDENTIFIER": 43,
+    "CITY": 40,
+    "ACCOUNT_NUMBER": 35,
+    "CERTIFICATE_LICENSE_NUMBER": 34,
+    "COMPANY_NAME": 33,
+    "BANK_ROUTING_NUMBER": 33,
+    "UNIQUE_IDENTIFIER": 29,
+    "BIOMETRIC_IDENTIFIER": 27,
+    "POSTCODE": 25,
+    "TIME": 24,
+    "VEHICLE_IDENTIFIER": 15,
+    "IPV6": 15,
+    "COUNTRY": 13,
+    "COORDINATE": 13,
+    "TAX_ID": 7,
+    "NATIONAL_ID": 7,
+    "URL": 5,
+    "STATE": 5,
+    "HEALTH_PLAN_BENEFICIARY_NUMBER": 5,
+    "SWIFT_BIC": 2,
+    "CVV": 1
+  }
+}

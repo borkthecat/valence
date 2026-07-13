@@ -72,6 +72,18 @@
         {"path": "gateway/benchmarks/enterprise-operating-standard.json", "source": "operating_profile", "sha256": "cc45616b90309ed5a9b9af655432854d55664a7230482be4f19a83fdcf4ae34d"}
       ],
       "split": {"method": "inherited_from_evaluation_report", "corpora": 15}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.2-gretel-pii.json",
+      "command": "npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.2-gretel-pii.json",
+      "inputs": [
+        {
+          "path": ".benchmark-data/gretel-pii-1000.jsonl",
+          "sha256": "b98211a9a267ba1e95b99846355d958759ba5ea6cdb221dbba26892e80576bb0",
+          "source": "gretelai/gretel-pii-masking-en-v1"
+        }
+      ],
+      "split": {"method": "first_rows", "rows": 1000, "purpose": "held_out_external_evaluation"}
     }
   ]
 }

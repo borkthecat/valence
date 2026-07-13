@@ -1,6 +1,14 @@
 # Release Process
 
-Current release target: `v1.13.1` operational-hardening research preview
+Current release target: `v1.13.2` PII-detection research preview
+
+## v1.13.2
+
+- Corrects Gretel IPv4 and credit-card label aliases in the exact-span PII benchmark.
+- Tightens phone validation to reject numeric identifier collisions while preserving international extensions.
+- Adds value-only contextual spans for API keys, passwords, and spaced SSNs.
+- Improves the 1,000-record Gretel supported-label result to 92.66% precision, 71.16% recall, and 80.50% F1, while retaining the 25.08% taxonomy-coverage limitation.
+- Publishes the benchmark completion and human-labelled ranking procedure in `docs/BENCHMARK_COMPLETION_PLAN.md`.
 
 ## Preflight
 
@@ -57,8 +65,8 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.13.1 -m "Valence v1.13.1"
-git push origin main v1.13.1
+git tag -a v1.13.2 -m "Valence v1.13.2"
+git push origin main v1.13.2
 ```
 
 ## Release Notes

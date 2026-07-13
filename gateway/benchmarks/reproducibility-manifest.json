@@ -1496,17 +1496,39 @@
       "release_evidence": false,
       "reproducibility_status": "archived_incomplete",
       "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.2-gretel-pii.json",
+      "artifact_bytes": 2692,
+      "artifact_commit": "uncommitted",
+      "artifact_sha256": "2ed42730db3e92d1ee23e9fcefeedc7b933da07f9cdb3d013758b4b3bdd85fae",
+      "command": "npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.2-gretel-pii.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/gretel-pii-1000.jsonl",
+          "sha256": "b98211a9a267ba1e95b99846355d958759ba5ea6cdb221dbba26892e80576bb0",
+          "source": "gretelai/gretel-pii-masking-en-v1"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "first_rows",
+        "purpose": "held_out_external_evaluation",
+        "rows": 1000
+      }
     }
   ],
   "results_directory": "gateway/benchmarks/results",
   "schema_version": "1.0",
   "summary": {
-    "artifacts": 40,
+    "artifacts": 41,
     "historical_archival": 34,
     "incomplete_release_artifacts": [],
     "missing_release_artifacts": [],
-    "release_evidence": 6,
-    "release_evidence_complete": 6,
+    "release_evidence": 7,
+    "release_evidence_complete": 7,
     "release_ready": true
   }
 }

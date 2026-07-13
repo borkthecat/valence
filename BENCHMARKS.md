@@ -1,10 +1,10 @@
 # Benchmark Report
 
-Measured on July 9, 2026. These results separate internal regression checks from external or independently sourced evaluation data.
+Measured through July 14, 2026. These results separate internal regression checks from external or independently sourced evaluation data.
 
 ## Reproducibility manifest
 
-`gateway/benchmarks/reproducibility-manifest.json` catalogs all 40 checked-in benchmark result artifacts. The six artifacts used as current release evidence include an exact command, dataset/model revision, input hash, and split metadata; the other 34 are explicitly classified as historical archival results rather than release gates.
+`gateway/benchmarks/reproducibility-manifest.json` catalogs all 41 checked-in benchmark result artifacts. The seven artifacts used as current release evidence include an exact command, dataset/model revision, input hash, and split metadata; the other 34 are explicitly classified as historical archival results rather than release gates.
 
 Validate the checked-in catalog without rerunning heavyweight training:
 
@@ -29,27 +29,31 @@ Detector: `HeuristicPiiDetector`, without an external classifier.
 | Metric | Result |
 | --- | ---: |
 | Annotated entities | 4,314 |
-| Entities in compatible label families | 783 |
-| Compatible-label coverage | 18.2% |
-| Exact-span precision | 49.2% |
-| Exact-span recall | 63.2% |
-| Exact-span F1 | 55.3% |
+| Entities in compatible label families | 1,082 |
+| Compatible-label coverage | 25.1% |
+| Exact-span precision | 92.7% |
+| Exact-span recall | 71.2% |
+| Exact-span F1 | 80.5% |
 
 Per compatible label:
 
 | Label | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: |
 | Email | 98.3% | 99.6% | 98.9% |
-| SSN | 97.3% | 59.3% | 73.7% |
-| Phone | 15.1% | 29.8% | 20.1% |
+| SSN | 97.6% | 69.0% | 80.8% |
+| IP address | 94.7% | 73.3% | 82.6% |
+| API key | 100.0% | 66.7% | 80.0% |
+| Credit card | 92.8% | 60.6% | 73.3% |
+| Phone | 68.1% | 45.0% | 54.2% |
+| Password | 60.0% | 42.9% | 50.0% |
 
-This result is not production-grade. The largest gaps are label breadth and phone precision. Production deployments should connect a trained classifier through `PII_CLASSIFIER_URL`, calibrate it by locale and jurisdiction, and rerun the benchmark. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use.
+The v1.13.2 run fixes missing Gretel label aliases for IPv4 and credit-card entities, rejects numeric phone collisions, preserves international extensions, and adds exact-span contextual secret and spaced-SSN rules. It is a substantial heuristic improvement but is not production-grade: 74.9% of all annotated entities remain outside the built-in taxonomy, and phone, password, card, ID, multilingual, and locale-specific recall remain below the release gates. Production deployments should connect a trained span classifier through `PII_CLASSIFIER_URL`, calibrate it by locale and jurisdiction, and rerun the benchmark. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use. The checked-in result is `gateway/benchmarks/results/v1.13.2-gretel-pii.json`.
 
 Reproduce:
 
 ```bash
 python pipeline/benchmarks/export_gretel_pii.py --rows 1000 --output .benchmark-data/gretel-pii-1000.jsonl
-npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl
+npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.2-gretel-pii.json
 ```
 
 ## Prompt injection
