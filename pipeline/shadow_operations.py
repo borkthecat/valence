@@ -24,7 +24,7 @@ class ShadowStore:
   with self.db() as c:
    r=c.execute("SELECT * FROM shadow_runs WHERE tenant=? AND idem=?",(item.tenant_id,key)).fetchone()
    if r:return self.row(r)
-   i=str(uuid.uuid4());c.execute("INSERT INTO shadow_runs VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",(i,item.tenant_id,item.model_dump_json(),"completed",None,None,None,1,now,now,key));self.event(c,i,item.tenant_id,"submitted",{});return self.row(c.execute("SELECT * FROM shadow_runs WHERE id=?",(i,)).fetchone())
+   i=str(uuid.uuid4());c.execute("INSERT INTO shadow_runs VALUES (?,?,?,?,?,?,?,?,?,?,?)",(i,item.tenant_id,item.model_dump_json(),"completed",None,None,None,1,now,now,key));self.event(c,i,item.tenant_id,"submitted",{});return self.row(c.execute("SELECT * FROM shadow_runs WHERE id=?",(i,)).fetchone())
  def get(self,t,i):
   with self.db() as c:
    r=c.execute("SELECT * FROM shadow_runs WHERE id=? AND tenant=?",(i,t)).fetchone()
