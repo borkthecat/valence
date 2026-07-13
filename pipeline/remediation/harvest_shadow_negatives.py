@@ -7,8 +7,13 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+try:
+    import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+except ImportError:  # Optional transformer workflow.
+    torch = None  # type: ignore[assignment]
+    AutoModelForSequenceClassification = None  # type: ignore[assignment]
+    AutoTokenizer = None  # type: ignore[assignment]
 
 ROOT = Path(__file__).resolve().parents[1] / "benchmarks"
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
@@ -34,6 +39,8 @@ def _embed(model: object, tokenizer: object, texts: list[str], device: torch.dev
 
 
 def main() -> int:
+    if torch is None or AutoTokenizer is None or AutoModelForSequenceClassification is None:
+        raise RuntimeError("Install optional dependencies with: pip install -r requirements-transformer.txt")
     parser = argparse.ArgumentParser(description="Harvest trusted benign high-similarity telemetry for expert-data audit")
     parser.add_argument("--telemetry", type=Path, required=True); parser.add_argument("--model", type=Path, required=True); parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--cache", type=Path, default=Path(".benchmark-data/huggingface")); parser.add_argument("--minimum-similarity", type=float, default=0.85); parser.add_argument("--anchor-limit", type=int, default=500); parser.add_argument("--batch-size", type=int, default=16)

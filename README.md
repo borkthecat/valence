@@ -1,15 +1,36 @@
 # Valence
 
-Valence is an experimental zero-trust processing platform for candidate ranking and LLM traffic protection. It combines a deterministic profile-ranking pipeline with an inline security gateway. Detected sensitive data is tokenized before upstream transit, and security subsystem failures default to fail-closed behavior.
+Valence is a security and verification layer for LLM-assisted enterprise decision pipelines. It protects sensitive data, identifies hostile or untrusted context, and produces auditable, reproducible findings. Its first reference application is Talent Integrity: candidate ranking, job-fraud screening, and profile verification with human review.
 
 In simple terms: Valence lets companies put an LLM behind a security gateway so private data, tool outputs, product records, and candidate profiles are checked before they reach the model. It also provides a reproducible verification pipeline so profile-ranking behavior and security controls can be tested instead of trusted by assumption.
 
-The platform ships as a single package with two cooperating components:
+The repository has a deliberate platform/application boundary:
 
-| Component | Path | Language | Role |
+| Layer | Path | Language | Role |
 | --- | --- | --- | --- |
-| Valence Gateway | `gateway/` | TypeScript / Node.js 20+ | Inline zero-trust security proxy for the model traffic |
-| Valence Pipeline | `pipeline/` | Python 3.11+ | Deterministic candidate ranking and cognitive verification |
+| Valence Core | `gateway/` | TypeScript / Node.js 20+ | Reusable security gateway, provenance policy, token vault, audit, and observability |
+| Talent Integrity reference app | `pipeline/` | Python 3.11+ | Domain adapter, deterministic ranking, fraud evaluation, and bounded LLM review |
+
+The gateway can be deployed without the talent pipeline. The reference application demonstrates how Valence Core secures an LLM-assisted decision workflow; it is not required gateway infrastructure.
+
+## Who it is for
+
+- Security and AI-governance teams protecting existing LLM applications.
+- Talent-platform teams evaluating auditable ranking and fraud controls in shadow mode.
+- Researchers reproducing provenance, PII, ranking, and reliability benchmarks.
+
+Valence is a research preview. Current benchmark limitations are reported in [BENCHMARKS.md](BENCHMARKS.md); it must not autonomously reject applicants or be represented as enterprise-certified.
+
+> **Talent accuracy status:** the current repository does not claim validated candidate-job matching accuracy. Talent Integrity demonstrates bounded review orchestration and safety controls. Production ranking requires a domain-specific schema and independently adjudicated evaluation data.
+
+## Documentation map
+
+- [Gateway and deployment modes](docs/DEPLOYMENT.md)
+- [Talent Integrity boundaries and decision policy](docs/TALENT_INTEGRITY.md)
+- [Threat model](docs/THREAT_MODEL.md)
+- [Fairness and human-review policy](docs/FAIRNESS.md)
+- [Operations, failure SLOs, and cost measurement](docs/OPERATIONS.md)
+- [Model and data governance](docs/GOVERNANCE.md)
 
 ## Architecture
 
@@ -36,10 +57,10 @@ The platform ships as a single package with two cooperating components:
  +-----------------------------+        |  PII tokenization, streaming|
             |                           +-----------------------------+
             v
-   single verified winner
+ structured findings and shortlist
 ```
 
-Stage 4 reduces a large candidate batch to a small high-integrity pool. Stage 5 adjudicates that pool down to a single winner, routing the request through the Valence Gateway, which authenticates the caller, screens for injection, tokenizes any sensitive values before they reach the upstream model, and restores them in the streamed response.
+Stage 4 reduces a large candidate batch to a small high-integrity pool. The preferred Stage 5 `/review` API returns per-candidate eligibility, evidence consistency, bounded relevance adjustment, risk findings, uncertainties, and a non-binding shortlist. A deterministic policy derives the shortlist and routes ambiguous cases to human review. The legacy `/verify` winner endpoint remains temporarily available for compatibility and is not appropriate for autonomous employment decisions.
 
 ## Valence Gateway (`gateway/`)
 
@@ -96,7 +117,7 @@ Stage 3 also includes a synthetic-distribution regression gate. It audits schema
 
 ### Stage 5: Cognitive Verification Pass
 
-`pipeline/stage5_cognitive_verifier.py`. Asynchronous FastAPI controller exposing `POST /v1/valence/stage5/verify`. Validates inbound payloads with strict Pydantic v2 schemas, sanitizes each profile against indirect injection and context poisoning, enforces a per-profile byte quota, and routes the request through the Valence Gateway over a non-blocking asyncio HTTP client with distributed trace headers. Rich profiles can include entity type, title, description, attributes, numeric signals, evidence quality, up to 12 image views, and up to 12 source links; raw image bytes are not sent to the verifier. The result is an immutable, schema-validated verdict. Any upstream drop, connection failure, or security rejection triggers a fail-closed protocol that freezes the transaction and flags the tenant.
+`pipeline/stage5_cognitive_verifier.py`. Asynchronous FastAPI controller exposing the preferred `POST /v1/valence/stage5/review` API and the compatibility `POST /v1/valence/stage5/verify` API. The review API constrains the LLM to structured semantic findings; deterministic code validates complete pool coverage, derives the shortlist, and requires human review for ambiguity, risk, or exclusion. Both paths validate strict schemas, sanitize indirect injection, enforce byte quotas, and fail closed on an unreadable or incomplete upstream response.
 
 ### Getting started
 
@@ -447,7 +468,7 @@ Copyright 2026 Arai Nanami Rachel. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES
 
 ## Releases
 
-The current release target is `v1.12.0` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
+The current release target is `v1.13.0` as a research preview, not an enterprise 1.0. See [RELEASE.md](RELEASE.md) for the preflight checklist and tag process. The current engineering blockers and domain call are tracked in [PROJECT_BLOCKERS.md](PROJECT_BLOCKERS.md).
 
 ## Authorship
 

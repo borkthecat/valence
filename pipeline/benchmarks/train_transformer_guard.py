@@ -11,12 +11,29 @@ from itertools import islice, product
 from pathlib import Path
 from typing import Any
 
-import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+try:
+    import torch
+    import torch.nn.functional as F
+    from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+except ImportError:  # Transformer benchmarks are optional for core development.
+    torch = None  # type: ignore[assignment]
+    F = None  # type: ignore[assignment]
+    DataLoader = Any  # type: ignore[misc,assignment]
+    Dataset = object  # type: ignore[misc,assignment]
+    WeightedRandomSampler = None  # type: ignore[assignment]
+    AutoModelForSequenceClassification = None  # type: ignore[assignment]
+    AutoTokenizer = None  # type: ignore[assignment]
 
 from injection_corpora import fingerprint, load_corpora, policy_text
+
+
+def require_transformer_dependencies() -> None:
+    if torch is None or AutoTokenizer is None or AutoModelForSequenceClassification is None:
+        raise RuntimeError(
+            "This command requires transformer dependencies. Install them with: "
+            "pip install -r requirements-transformer.txt"
+        )
 
 
 class PromptDataset(Dataset):
@@ -304,6 +321,7 @@ def _evaluate(model: Any, loader: DataLoader, device: torch.device) -> dict[str,
 
 
 def main() -> int:
+    require_transformer_dependencies()
     parser = argparse.ArgumentParser(description="Train a multilingual transformer prompt-injection guard")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--cache", type=Path, default=Path(".benchmark-data/huggingface"))

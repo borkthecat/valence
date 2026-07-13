@@ -8,14 +8,32 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-import torch
-from torch import nn
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+try:
+    import torch
+    from torch import nn
+    from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+except ImportError:  # Transformer benchmarks are optional for core development.
+    torch = None  # type: ignore[assignment]
+    nn = None  # type: ignore[assignment]
+    DataLoader = Any  # type: ignore[misc,assignment]
+    Dataset = object  # type: ignore[misc,assignment]
+    WeightedRandomSampler = None  # type: ignore[assignment]
+    AutoModelForSequenceClassification = None  # type: ignore[assignment]
+    AutoTokenizer = None  # type: ignore[assignment]
 
 from train_emscad_fraud_model import load_rows, row_text
+
+
+def require_transformer_dependencies() -> None:
+    if torch is None or AutoTokenizer is None or AutoModelForSequenceClassification is None:
+        raise RuntimeError(
+            "This command requires transformer dependencies. Install them with: "
+            "pip install -r requirements-transformer.txt"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,6 +251,7 @@ def _scores(model: Any, loader: DataLoader, device: torch.device) -> list[float]
 
 
 def main() -> int:
+    require_transformer_dependencies()
     parser = argparse.ArgumentParser(description="Train a transformer EMSCAD fake-job fraud classifier")
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)

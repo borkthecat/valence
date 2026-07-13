@@ -5,7 +5,7 @@ import { parseIngestionPayload } from './ingestSchema';
 import { environment } from '../config/environment';
 import { validateEvidenceUrls } from '../services/evidenceUrlValidator';
 
-export const ingestRouter = Router();
+export const ingestRouter: Router = Router();
 
 ingestRouter.post(
     '/api/v1/ingest',
