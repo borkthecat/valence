@@ -43,7 +43,7 @@ class ReviewStore:
         with self.db() as c:
             row=c.execute("SELECT * FROM reviews WHERE tenant=? AND idempotency=?",(item.tenant_id,key)).fetchone()
             if row:return self._row(row)
-            c.execute("INSERT INTO reviews VALUES (?,?,?,?,?,?,?,?,?,?,?)",(review_id,item.tenant_id,item.model_dump_json(),"pending",None,None,1,now,now,key)); self._event(c,review_id,item.tenant_id,"system","created",{})
+            c.execute("INSERT INTO reviews VALUES (?,?,?,?,?,?,?,?,?,?)",(review_id,item.tenant_id,item.model_dump_json(),"pending",None,None,1,now,now,key)); self._event(c,review_id,item.tenant_id,"system","created",{})
             return self._row(c.execute("SELECT * FROM reviews WHERE id=?",(review_id,)).fetchone())
     def get(self, tenant:str, review_id:str)->dict:
         with self.db() as c:
