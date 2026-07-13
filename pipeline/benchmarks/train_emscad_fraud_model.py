@@ -12,7 +12,7 @@ from typing import Any
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedGroupKFold, train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
 
 from export_emscad import TEXT_FIELDS, map_row
@@ -32,6 +32,10 @@ STRUCTURED_FIELDS = (
 
 @dataclass(frozen=True, slots=True)
 class FraudModelReport:
+    split_strategy: str
+    campaign_groups: int
+    train_test_group_overlap: int
+    regularization_c: float
     records: int
     fraudulent: int
     train_records: int
@@ -111,6 +115,57 @@ def _stable_id(row: dict[str, str], index: int) -> str:
     return hashlib.sha256(f"{index}:{raw}".encode("utf-8")).hexdigest()
 
 
+def _campaign_group(row: dict[str, str], index: int) -> str:
+    for key in ("verification_posting_domain", "verification_company_domain", "company_domain"):
+        value = _text(row, key).casefold()
+        if value:
+            return f"domain:{value}"
+    profile = _text(row, "company_profile").casefold()
+    if profile:
+        return "profile:" + hashlib.sha256(profile.encode("utf-8")).hexdigest()
+    fallback = "\x1f".join((
+        _text(row, "title").casefold(),
+        _text(row, "location").casefold(),
+        _text(row, "department").casefold(),
+        _text(row, "description").casefold()[:512],
+    ))
+    if fallback.strip("\x1f"):
+        return "content:" + hashlib.sha256(fallback.encode("utf-8")).hexdigest()
+    return f"record:{index}"
+
+
+def _split_rows(
+    indexed: list[tuple[int, dict[str, str]]],
+    split_strategy: str,
+) -> tuple[list[tuple[int, dict[str, str]]], list[tuple[int, dict[str, str]]], list[tuple[int, dict[str, str]]]]:
+    labels = [_label(row) for _, row in indexed]
+    if split_strategy == "random":
+        train_plus_validation, test = train_test_split(
+            indexed, test_size=0.2, random_state=1500, stratify=labels,
+        )
+        train, validation = train_test_split(
+            train_plus_validation,
+            test_size=0.125,
+            random_state=1500,
+            stratify=[_label(row) for _, row in train_plus_validation],
+        )
+        return train, validation, test
+    if split_strategy != "group":
+        raise ValueError("split_strategy must be random or group")
+    groups = [_campaign_group(row, index) for index, row in indexed]
+    outer = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=1500)
+    train_validation_indices, test_indices = next(outer.split(indexed, labels, groups))
+    train_plus_validation = [indexed[index] for index in train_validation_indices]
+    test = [indexed[index] for index in test_indices]
+    inner_labels = [_label(row) for _, row in train_plus_validation]
+    inner_groups = [_campaign_group(row, index) for index, row in train_plus_validation]
+    inner = StratifiedGroupKFold(n_splits=8, shuffle=True, random_state=1500)
+    train_indices, validation_indices = next(inner.split(train_plus_validation, inner_labels, inner_groups))
+    train = [train_plus_validation[index] for index in train_indices]
+    validation = [train_plus_validation[index] for index in validation_indices]
+    return train, validation, test
+
+
 def _best_threshold(scores: list[float], labels: list[int]) -> float:
     best_threshold = 0.5
     best_score = -1.0
@@ -129,28 +184,25 @@ def _best_threshold(scores: list[float], labels: list[int]) -> float:
     return best_threshold
 
 
-def evaluate(rows: list[dict[str, str]], top_k: int, risk_penalty: float) -> FraudModelReport:
+def evaluate(
+    rows: list[dict[str, str]],
+    top_k: int,
+    risk_penalty: float,
+    split_strategy: str = "random",
+    regularization_c: float = 1.0,
+) -> FraudModelReport:
     indexed = list(enumerate(rows))
     labels = [_label(row) for _, row in indexed]
-    train_plus_validation, test = train_test_split(
-        indexed,
-        test_size=0.2,
-        random_state=1500,
-        stratify=labels,
-    )
-    train_validation_labels = [_label(row) for _, row in train_plus_validation]
-    train, validation = train_test_split(
-        train_plus_validation,
-        test_size=0.125,
-        random_state=1500,
-        stratify=train_validation_labels,
-    )
+    train, validation, test = _split_rows(indexed, split_strategy)
+    all_groups = {_campaign_group(row, index) for index, row in indexed}
+    train_groups = {_campaign_group(row, index) for index, row in train}
+    test_groups = {_campaign_group(row, index) for index, row in test}
     model = Pipeline([
         ("features", FeatureUnion([
             ("word", TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_features=100_000, sublinear_tf=True)),
             ("char", TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=2, max_features=80_000, sublinear_tf=True)),
         ])),
-        ("classifier", LogisticRegression(class_weight="balanced", max_iter=2000, n_jobs=1, random_state=1500)),
+        ("classifier", LogisticRegression(class_weight="balanced", C=regularization_c, max_iter=2000, n_jobs=1, random_state=1500)),
     ])
     model.fit([row_text(row) for _, row in train], [_label(row) for _, row in train])
     validation_scores = [float(score) for score in model.predict_proba([row_text(row) for _, row in validation])[:, 1]]
@@ -185,10 +237,16 @@ def evaluate(rows: list[dict[str, str]], top_k: int, risk_penalty: float) -> Fra
         "records": len(rows),
         "fraudulent": sum(labels),
         "threshold": threshold,
+        "split_strategy": split_strategy,
+        "regularization_c": regularization_c,
         "features": int(model.named_steps["features"].transformer_list[0][1].idf_.shape[0])
         + int(model.named_steps["features"].transformer_list[1][1].idf_.shape[0]),
     }
     return FraudModelReport(
+        split_strategy=split_strategy,
+        campaign_groups=len(all_groups),
+        train_test_group_overlap=len(train_groups & test_groups),
+        regularization_c=regularization_c,
         records=len(rows),
         fraudulent=sum(labels),
         train_records=len(train),
@@ -216,10 +274,14 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--top-k", type=int, default=50)
     parser.add_argument("--risk-penalty", type=float, default=0.8)
+    parser.add_argument("--split-strategy", choices=("random", "group"), default="random")
+    parser.add_argument("--regularization-c", type=float, default=1.0)
     args = parser.parse_args()
     if args.top_k <= 0:
         raise ValueError("--top-k must be positive")
-    report = evaluate(load_rows(args.input), args.top_k, args.risk_penalty)
+    if args.regularization_c <= 0:
+        raise ValueError("--regularization-c must be positive")
+    report = evaluate(load_rows(args.input), args.top_k, args.risk_penalty, args.split_strategy, args.regularization_c)
     payload = asdict(report)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

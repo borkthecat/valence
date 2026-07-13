@@ -24,36 +24,37 @@ This proves that the recorded artifact inventory and pinned reproduction specifi
 
 Dataset: first 1,000 rows of Gretel.ai's Apache-2.0 [`gretel-pii-masking-en-v1`](https://huggingface.co/datasets/gretelai/gretel-pii-masking-en-v1) corpus.
 
-Detector: `HeuristicPiiDetector`, without an external classifier.
+Detector: `HeuristicPiiDetector` plus the optional `urchade/gliner_multi_pii-v1` classifier on CUDA, using the production HTTP adapter and category-calibrated score thresholds.
 
 | Metric | Result |
 | --- | ---: |
 | Annotated entities | 4,314 |
-| Entities in compatible label families | 1,082 |
-| Compatible-label coverage | 25.1% |
-| Exact-span precision | 92.7% |
-| Exact-span recall | 71.2% |
-| Exact-span F1 | 80.5% |
+| Entities in declared PII taxonomy | 4,314 |
+| Declared taxonomy coverage | 100.0% |
+| Exact-span precision | 75.4% |
+| Exact-span recall | 69.1% |
+| Exact-span F1 | 72.1% |
 
-Per compatible label:
+Per detected category (generic-sensitive and person-name spans are also included in the aggregate denominator):
 
 | Label | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: |
-| Email | 98.3% | 99.6% | 98.9% |
-| SSN | 97.6% | 69.0% | 80.8% |
-| IP address | 94.7% | 73.3% | 82.6% |
-| API key | 100.0% | 66.7% | 80.0% |
-| Credit card | 92.8% | 60.6% | 73.3% |
-| Phone | 68.1% | 45.0% | 54.2% |
-| Password | 60.0% | 42.9% | 50.0% |
+| Email | 97.4% | 100.0% | 98.7% |
+| SSN | 95.6% | 90.3% | 92.9% |
+| IP address | 93.7% | 87.7% | 90.6% |
+| API key | 77.8% | 93.3% | 84.8% |
+| Credit card | 94.4% | 92.9% | 93.7% |
+| Phone | 93.9% | 89.5% | 91.6% |
+| Password | 33.3% | 71.4% | 45.5% |
 
-The v1.13.2 run fixes missing Gretel label aliases for IPv4 and credit-card entities, rejects numeric phone collisions, preserves international extensions, and adds exact-span contextual secret and spaced-SSN rules. It is a substantial heuristic improvement but is not production-grade: 74.9% of all annotated entities remain outside the built-in taxonomy, and phone, password, card, ID, multilingual, and locale-specific recall remain below the release gates. Production deployments should connect a trained span classifier through `PII_CLASSIFIER_URL`, calibrate it by locale and jurisdiction, and rerun the benchmark. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use. The checked-in result is `gateway/benchmarks/results/v1.13.2-gretel-pii.json`.
+The v1.13.3 run corrects the evaluation denominator: names, addresses, dates, account identifiers, medical identifiers, and other declared sensitive spans can be tokenized as person or generic-sensitive categories and therefore count as false negatives when missed. Declared taxonomy accounting is now 100%. The heuristic-only baseline remains 92.7% precision, 17.8% recall, and 29.9% F1; the GLiNER combination raises F1 to 72.1% but still fails the 95/95 gate, primarily on person-name exact boundaries, generic identifiers, and passwords. Category thresholds were selected on this same 1,000-row development corpus, so 72.1% is an exploratory calibrated result, not an untouched test estimate. Production promotion requires a frozen threshold vector followed by separate locale/jurisdiction test sets. The previously documented AI4Privacy sample is no longer the default because its current license restricts commercial use. Checked-in evidence includes `v1.13.3-gretel-pii-full-taxonomy.json`, `v1.13.3-gretel-pii-gliner-calibrated.json`, and the intentionally failing `v1.13.3-pii-release-gate.json`.
 
 Reproduce:
 
 ```bash
 python pipeline/benchmarks/export_gretel_pii.py --rows 1000 --output .benchmark-data/gretel-pii-1000.jsonl
-npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.2-gretel-pii.json
+PII_CLASSIFIER_URL=http://127.0.0.1:8765/v1/classify PII_CLASSIFIER_MINIMUM_SCORE=0.7 PII_CLASSIFIER_LABEL_THRESHOLDS='{"GENERIC_SECRET":0.7,"PERSON_NAME":0.85,"SSN":0.85,"EMAIL":0.85,"IP_ADDRESS":0.85,"PHONE":0.7,"CREDIT_CARD":0.85,"API_KEY":0.85,"PASSWORD":0.85,"ACCESS_TOKEN":1.0}' npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json
+python pipeline/pii_release_gate.py --input gateway/benchmarks/results/v1.13.3-gretel-pii-gliner-calibrated.json --output gateway/benchmarks/results/v1.13.3-pii-release-gate.json
 ```
 
 ## Prompt injection
@@ -216,11 +217,13 @@ For v1.12.0, `pipeline/benchmarks/analyze_emscad_false_negatives.py` was added t
 
 A fresh v1.12.0 DeBERTa-v3-small weighted run did not beat TF-IDF: 98.57% accuracy, 88.13% precision, 81.50% recall, 84.68% F1, and 0.56% false-positive rate. `pipeline/benchmarks/evaluate_emscad_ensemble.py` then evaluated TF-IDF, the fresh transformer, max-score, OR, and weighted-score combinations on the same held-out split. The best low-FPR constrained result was effectively TF-IDF-only with weight 1.0: 98.94% accuracy, 92.99% precision, 84.39% recall, 88.48% F1, and 0.32% false-positive rate. Unconstrained blends can lift recall to 88.44%-89.60%, but they raise false-positive rate to 0.59%-0.71%. The ensemble therefore improves the precision-biased operating point slightly, but it does not solve the 95% recall target without external verification features or new labels.
 
+v1.13.3 adds a stricter company/domain/template campaign-group holdout. Across 4,935 groups with zero train/test group overlap, the best bounded regularization point (`C=4`) reaches 97.42% accuracy, 62.56% precision, 82.47% recall, 71.15% F1, and 1.98% FPR. The random-split 88.48% F1 remains a regression result, not deployment evidence. The group result is the current generalization baseline and confirms that current verified external signals and later-time labels are required.
+
 The next fraud experiment should add external verification markers before training. `pipeline/benchmarks/external_verification_features.py` extracts company-domain, contact-email-domain, posting-URL, mismatch, liveness, similarity, domain-age, and registry-status markers from enriched job CSVs. Liveness and RDAP checks are optional because they touch the network; when enabled, they deduplicate requests, use bounded retry/rate controls, and persist TTL-cached results. RDAP discovery uses the [IANA domain bootstrap registry](https://www.iana.org/assignments/rdap-dns/rdap-dns.xhtml), and domain queries follow [RFC 9082](https://datatracker.ietf.org/doc/html/rfc9082). Transient network failures remain `unknown` and do not add fraud risk. Offline mode is deterministic and suitable for CI or feature review. The fraud trainers automatically consume `verification_evidence_markers` and `verification_risk_score` when those columns exist.
 
 `pipeline/benchmarks/external_provider_cache.py` is the required SQLite cache/rate-limit boundary for optional WHOIS, company-registry, and URL-reputation adapters. Providers must return verified evidence or `unknown`; absent credentials, timeouts, and provider errors must not become fraud evidence. `pipeline/benchmarks/evaluate_fraud_cascade.py` evaluates a recall-first sieve, structural verifier, and sparse-signal late fusion, and emits a label-free human fraud audit queue ordered by model disagreement.
 
-`pipeline/benchmarks/codex_fraud_engine.py` adds train-only stateful domain-history and structural-clone evidence. Its blocklist requires at least three fraud observations and no legitimate observations; clone matches are continuous evidence by default, not an unconditional fraud label. The engine must be trained only on the training partition before evaluating a held-out partition.
+`pipeline/benchmarks/stateful_fraud_engine.py` adds train-only stateful domain-history and structural-clone evidence. Its blocklist requires at least three fraud observations and no legitimate observations; clone matches are continuous evidence by default, not an unconditional fraud label. The engine must be trained only on the training partition before evaluating a held-out partition.
 
 For source-specific guard remediation, `pipeline/remediation/audit_expert_data.py` is the required fail-closed intake step for curated `hse_llm` and `cgoosen_combined` data. It accepts JSONL records with `source`, boolean `label`, and `text`; removes metadata artifacts, rejects duplicates and cross-label collisions, requires balanced class counts, and checks for label-correlated length imbalance before expert training.
 

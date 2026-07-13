@@ -8,7 +8,7 @@ from pathlib import Path
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
-from codex_fraud_engine import CodexFraudEngine
+from stateful_fraud_engine import StatefulFraudEngine
 from train_emscad_fraud_model import _label
 
 
@@ -28,7 +28,7 @@ def main() -> int:
     args = parser.parse_args()
     with args.input.open("r", encoding="utf-8-sig", newline="") as source: rows = list(csv.DictReader(source))
     train, test = train_test_split(rows, test_size=0.2, random_state=1500, stratify=[_label(row) for row in rows])
-    engine = CodexFraudEngine(min_fraud_support=args.min_fraud_support)
+    engine = StatefulFraudEngine(min_fraud_support=args.min_fraud_support)
     engine.train_stateful_layers([mapped(row) for row in train])
     decisions = [engine.evaluate_pipeline(mapped(row), tfidf_probability=0, verifier_probability=0) for row in test]
     labels = [_label(row) for row in test]; predictions = [decision.intercepted or "CLONE_DOMAIN_MISMATCH" in decision.evidence for decision in decisions]

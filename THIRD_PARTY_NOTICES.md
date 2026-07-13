@@ -21,3 +21,7 @@ The source dataset is licensed under Apache License 2.0. The repository's root `
 ## Optional Benchmark Datasets
 
 Valence can download the additional public datasets listed in `DATASETS.md` for local evaluation. Their records are not redistributed in this repository or its release archives. Each source remains governed by the license and notices published by its owner; operators must review those terms before downloading or reusing the data.
+
+## Optional GLiNER PII Classifier
+
+The optional `urchade/gliner_multi_pii-v1` model and GLiNER library are available under Apache License 2.0. They are not bundled in Valence images or release archives. Operators download model weights separately when installing `requirements-pii-classifier.txt`; the repository's root `LICENSE` contains the applicable Apache 2.0 terms.

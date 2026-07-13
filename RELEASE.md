@@ -1,6 +1,17 @@
 # Release Process
 
-Current release target: `v1.13.2` PII-detection research preview
+Current release target: `v1.13.3` release-evidence hardening research preview
+
+## v1.13.3
+
+- Makes the bundled compact guard advisory by default; model-only blocking now requires explicit `GUARD_MODEL_ENFORCEMENT=block` promotion after shadow gates pass.
+- Adds an optional authenticated, CUDA-capable GLiNER PII classifier service and benchmarks external classifiers through the same HTTP span adapter used in production.
+- Corrects PII taxonomy accounting from 25.1% selected-label coverage to all 4,314 declared sensitive spans. Category calibration lifts the production-path GLiNER combination to 75.36% precision, 69.05% recall, and 72.07% F1; the machine release gate correctly remains closed.
+- Adds an exact-span PII gate and a human-reviewed shadow gate with precision, recall, agreement, and latency assertions.
+- Adds a zero-overlap EMSCAD company/domain/template group holdout. The best bounded regularization run reaches 97.42% accuracy, 62.56% precision, 82.47% recall, 71.15% F1, and 1.98% FPR across 3,998 test records.
+- Renames stateful fraud modules to product-facing names and moves ongoing work to the non-tool-prefixed `release/v1.13.3-readiness` branch.
+
+The older random-split EMSCAD result (88.48% F1) remains useful regression evidence but is no longer presented as the production-generalization baseline.
 
 ## v1.13.2
 
@@ -54,7 +65,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.13.1` and `valence-pipeline:1.13.1` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.13.3` and `valence-pipeline:1.13.3` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -65,8 +76,8 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.13.2 -m "Valence v1.13.2"
-git push origin main v1.13.2
+git tag -a v1.13.3 -m "Valence v1.13.3"
+git push origin main v1.13.3
 ```
 
 ## Release Notes

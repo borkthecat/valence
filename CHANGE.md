@@ -4,6 +4,18 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+## 1.13.3
+
+- Made guard model findings advisory by default with explicit blocking promotion.
+- Added production-path CUDA GLiNER PII service support, validated per-category score calibration, full-taxonomy exact-span accounting, and fail-closed PII/shadow gates.
+- Added zero-overlap EMSCAD campaign-group evaluation and published the lower, more realistic generalization baseline.
+- Renamed stateful fraud modules and moved release work to a non-tool-prefixed branch.
+
+## 1.13.2
+
+- Improved exact-span heuristic detection for Gretel-compatible email, SSN, IP, phone, card, API-key, and password labels.
+- Published the initial supported-label PII artifact and benchmark completion plan.
+
 ## 1.13.1
 
 - Added a signed, tenant-scoped internal operations service for review and shadow records, including outcome comparison, replay, expiry, cancellation, deletion receipts, audit history, and PII-minimized exports.

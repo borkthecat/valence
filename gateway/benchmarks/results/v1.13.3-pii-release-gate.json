@@ -1,0 +1,116 @@
+{
+  "checks": {
+    "exact_span_precision": false,
+    "exact_span_recall": false,
+    "required_label_recall": false,
+    "taxonomy_coverage": true
+  },
+  "label_checks": {
+    "API_KEY": true,
+    "CREDIT_CARD": true,
+    "EMAIL": true,
+    "IP_ADDRESS": true,
+    "PASSWORD": false,
+    "PHONE": true,
+    "SSN": true
+  },
+  "observed": {
+    "allGroundTruthEntities": 4314,
+    "benchmark": "pii-span-detection",
+    "classifierConfigured": true,
+    "detector": "heuristic-static+embedding-classifier",
+    "exactSpanMetricsOnSupportedLabels": {
+      "f1": 0.7206967460989475,
+      "falseNegative": 1335,
+      "falsePositive": 974,
+      "precision": 0.7536048570705793,
+      "recall": 0.6905424200278164,
+      "truePositive": 2979
+    },
+    "labelCoverage": 1,
+    "perLabel": {
+      "API_KEY": {
+        "f1": 0.8484848484848485,
+        "falseNegative": 1,
+        "falsePositive": 4,
+        "precision": 0.7777777777777778,
+        "recall": 0.9333333333333333,
+        "truePositive": 14
+      },
+      "CREDIT_CARD": {
+        "f1": 0.9365079365079364,
+        "falseNegative": 9,
+        "falsePositive": 7,
+        "precision": 0.944,
+        "recall": 0.9291338582677166,
+        "truePositive": 118
+      },
+      "EMAIL": {
+        "f1": 0.9870689655172413,
+        "falseNegative": 0,
+        "falsePositive": 6,
+        "precision": 0.9744680851063829,
+        "recall": 1,
+        "truePositive": 229
+      },
+      "GENERIC_SECRET": {
+        "f1": 0.7123343527013251,
+        "falseNegative": 860,
+        "falsePositive": 551,
+        "precision": 0.7602262837249782,
+        "recall": 0.6701189106252398,
+        "truePositive": 1747
+      },
+      "IP_ADDRESS": {
+        "f1": 0.9060773480662982,
+        "falseNegative": 23,
+        "falsePositive": 11,
+        "precision": 0.9371428571428572,
+        "recall": 0.8770053475935828,
+        "truePositive": 164
+      },
+      "PASSWORD": {
+        "f1": 0.4545454545454545,
+        "falseNegative": 2,
+        "falsePositive": 10,
+        "precision": 0.3333333333333333,
+        "recall": 0.7142857142857143,
+        "truePositive": 5
+      },
+      "PERSON_NAME": {
+        "f1": 0.37384744341994974,
+        "falseNegative": 387,
+        "falsePositive": 360,
+        "precision": 0.38250428816466553,
+        "recall": 0.3655737704918033,
+        "truePositive": 223
+      },
+      "PHONE": {
+        "f1": 0.9161676646706587,
+        "falseNegative": 18,
+        "falsePositive": 10,
+        "precision": 0.9386503067484663,
+        "recall": 0.8947368421052632,
+        "truePositive": 153
+      },
+      "SSN": {
+        "f1": 0.9287749287749288,
+        "falseNegative": 35,
+        "falsePositive": 15,
+        "precision": 0.9560117302052786,
+        "recall": 0.9030470914127424,
+        "truePositive": 326
+      }
+    },
+    "records": 1000,
+    "supportedGroundTruthEntities": 4314,
+    "unsupportedGroundTruthByLabel": {}
+  },
+  "passed": false,
+  "thresholds": {
+    "minimum_coverage": 0.9,
+    "minimum_label_recall": 0.8,
+    "minimum_precision": 0.95,
+    "minimum_recall": 0.95
+  }
+}

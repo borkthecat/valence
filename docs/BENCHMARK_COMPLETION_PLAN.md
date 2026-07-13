@@ -1,21 +1,21 @@
 # Benchmark completion plan
 
-This is the decisive path from the v1.13.2 research preview to measured shadow readiness. A pooled score never overrides a failed critical slice. Human-labelled and production-shadow evidence is intentionally last because the remaining repository-side controls and evaluators already exist.
+This is the decisive path from the v1.13.3 research preview to measured shadow readiness. A pooled score never overrides a failed critical slice. Human-labelled and production-shadow evidence is intentionally last because the remaining repository-side controls and evaluators already exist.
 
 ## Current decision table
 
 | Area | Current evidence | Research gate | Decision |
 | --- | --- | --- | --- |
-| PII exact span | 92.66% precision, 71.16% recall, 80.50% F1 on 1,082 supported entities; 25.08% taxonomy coverage | compatible precision/recall/F1 >=95%; entity recall targets by type | Keep heuristics as high-precision defense in depth; add a broad span model before enforcement |
+| PII exact span | Calibrated GLiNER + heuristics: 75.36% precision, 69.05% recall, 72.07% F1 across all 4,314 declared sensitive spans; 100% taxonomy accounting | precision/recall/F1 >=95%; entity recall targets by type | Keep advisory; person, generic identifier, and password spans remain below release gates |
 | NotInject Compact | 61.65% benign accuracy, 38.35% FPR | FPR <=5% | Do not use Compact as an autonomous blocker |
 | PIGuard reference | 88.50% benign accuracy, 11.50% FPR | FPR <=5% | Better baseline, still not a release candidate without Valence-policy fine-tuning |
 | V6 risk-calibrated guard | 96.23% accuracy, 95.42% precision, 93.33% recall, 94.36% F1, 2.29% FPR | direct recall/F1 >=95%; weak suites >=90% recall; benign FPR <=5% | Use for shadow/review routing; keep weak sources review-only |
-| EMSCAD fraud | 98.94% accuracy, 92.99% precision, 84.39% recall, 88.48% F1, 0.32% FPR | review recall >=95%; auto-block precision >=98% and FPR <=0.1% | Triage only; add current external verification and time/group holdout |
+| EMSCAD fraud | Group holdout: 97.42% accuracy, 62.56% precision, 82.47% recall, 71.15% F1, 1.98% FPR; zero group overlap | review recall >=95%; auto-block precision >=98% and FPR <=0.1% | Triage only; random-split 88.48% F1 is not deployment evidence |
 | Talent ranking | Candidate-job accuracy unmeasured; ESCI evaluator baseline NDCG@5 0.562 | pilot NDCG@5 >=0.75, Recall@5 >=90%, pairwise >=80%, top-1 >=70% | No ranking quality claim until the human pilot is frozen |
 
 ## Work order
 
-1. **PII model layer.** Deploy one broad span classifier behind `PII_CLASSIFIER_URL`; retain the heuristic detector as an independent high-precision layer. The model must return character offsets and Valence categories, not redacted text. Evaluate Singapore, US, UK, EU, and Japan separately with at least 500 examples per gated entity and locale. Reject a model that improves recall by overlapping or shifting spans.
+1. **PII evidence expansion.** The broad GLiNER service, production adapter, score calibration, and fail-closed gate are implemented. Supply Singapore, US, UK, EU, and Japan evaluation sets with at least 500 examples per gated entity and locale. Use the persisted gate unchanged and reject models that improve recall through overlapping or shifted spans.
 2. **Guard replacement.** Retire Compact from automatic enforcement. Fine-tune the V6/PIGuard-class transformer on train-only benign trigger prompts paired with direct, indirect, retrieved, secret-exfiltration, multilingual, and obfuscated attacks. Pass provenance as metadata or special tokens, never an untrained text prefix. Calibrate on validation data, then freeze thresholds before NotInject and the 15-corpus test matrix.
 3. **Fraud evidence.** Enrich current, permissioned job postings with company-domain liveness, email/domain mismatch, posting URL status, RDAP age, registry status, and verified clone history. Use company/domain/campaign groups and a later time window as the test split. Unknown provider responses stay unknown, never fraudulent.
 4. **Human ranking pilot.** Run the exact workflow below. Do not train on the pilot. Use it to choose error priorities and to decide whether a larger 1,000-2,000-job benchmark is justified.

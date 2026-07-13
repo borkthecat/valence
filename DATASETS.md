@@ -20,6 +20,7 @@ Valence does not treat synthetic scale tests as universal accuracy evidence. Lar
 - License: Apache-2.0
 - Scale: approximately 60,000 synthetic, span-annotated English records
 - Use: training and evaluating a PII classifier connected through `PII_CLASSIFIER_URL`
+- Current evidence: 1,000 rows and 4,314 annotated spans; the v1.13.3 calibrated GLiNER plus heuristic path accounts for the full taxonomy and reaches 72.07% exact-span F1
 
 Valence supplies the secure classifier client and benchmark contract. Model training remains a separate, versioned ML process so weights, tokenizer, dataset revision, calibration thresholds, and model cards can be reviewed independently of the gateway.
 
@@ -69,7 +70,7 @@ Dataset files are downloaded only for local benchmarking and are not included in
 
 `pipeline/benchmarks/export_emscad.py` maps EMSCAD rows into Valence rich-profile records with `fraudulent`, `risk_score`, and `source_relevance_score` fields. `pipeline/fraud_evaluator.py` measures fraud precision, recall, F1, false-positive rate, and Fraud Exposure Rate before and after risk-adjusted reranking. The full CSV is not bundled; only a small EMSCAD-shaped fixture is checked in for CI smoke coverage.
 
-`pipeline/benchmarks/train_emscad_fraud_model.py` trains a deterministic TF-IDF logistic baseline against a local EMSCAD CSV. `pipeline/benchmarks/train_emscad_transformer_fraud.py` trains a DeBERTa-style sequence classifier path for the same CSV with metadata markers and weighted fraud loss. v1.11.6 used a local public raw mirror only to reproduce aggregate metrics; the raw CSV is ignored by git and not redistributed by this project.
+`pipeline/benchmarks/train_emscad_fraud_model.py` trains a deterministic TF-IDF logistic baseline against a local EMSCAD CSV. Use `--split-strategy group` for the deployment-oriented company/domain/template holdout; v1.13.3 records 4,935 groups and zero train/test overlap. `pipeline/benchmarks/train_emscad_transformer_fraud.py` retains the historical stratified transformer path. The raw CSV is ignored by git and not redistributed by this project.
 
 ## Excluded Defaults
 

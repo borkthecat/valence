@@ -2,7 +2,15 @@ import { createReadStream } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
-import { HeuristicPiiDetector, type PiiFinding } from '../src/core/filters/piiScanner';
+import {
+    EmbeddingClassifierDetector,
+    HeuristicPiiDetector,
+    parsePiiCategoryThresholds,
+    resolvePiiFindings,
+    type PiiDetector,
+    type PiiFinding,
+} from '../src/core/filters/piiScanner';
+import { HttpClassifierClient } from '../src/services/modelClients';
 
 interface Entity {
     readonly start: number;
@@ -27,6 +35,42 @@ const SUPPORTED_LABELS: Readonly<Record<string, string>> = {
     API_KEY: 'API_KEY',
     ACCESS_TOKEN: 'ACCESS_TOKEN',
     PASSWORD: 'PASSWORD',
+    PERSON: 'PERSON_NAME',
+    PERSON_NAME: 'PERSON_NAME',
+    NAME: 'PERSON_NAME',
+    FIRST_NAME: 'PERSON_NAME',
+    LAST_NAME: 'PERSON_NAME',
+    IPV6: 'IP_ADDRESS',
+    ADDRESS: 'GENERIC_SECRET',
+    STREET_ADDRESS: 'GENERIC_SECRET',
+    CITY: 'GENERIC_SECRET',
+    STATE: 'GENERIC_SECRET',
+    COUNTRY: 'GENERIC_SECRET',
+    POSTCODE: 'GENERIC_SECRET',
+    COORDINATE: 'GENERIC_SECRET',
+    DATE: 'GENERIC_SECRET',
+    DATE_TIME: 'GENERIC_SECRET',
+    DATE_OF_BIRTH: 'GENERIC_SECRET',
+    TIME: 'GENERIC_SECRET',
+    URL: 'GENERIC_SECRET',
+    COMPANY_NAME: 'GENERIC_SECRET',
+    ACCOUNT_NUMBER: 'GENERIC_SECRET',
+    BANK_ROUTING_NUMBER: 'GENERIC_SECRET',
+    BIOMETRIC_IDENTIFIER: 'GENERIC_SECRET',
+    CERTIFICATE_LICENSE_NUMBER: 'GENERIC_SECRET',
+    CUSTOMER_ID: 'GENERIC_SECRET',
+    CVV: 'GENERIC_SECRET',
+    DEVICE_IDENTIFIER: 'GENERIC_SECRET',
+    EMPLOYEE_ID: 'GENERIC_SECRET',
+    HEALTH_PLAN_BENEFICIARY_NUMBER: 'GENERIC_SECRET',
+    LICENSE_PLATE: 'GENERIC_SECRET',
+    MEDICAL_RECORD_NUMBER: 'GENERIC_SECRET',
+    NATIONAL_ID: 'GENERIC_SECRET',
+    SWIFT_BIC: 'GENERIC_SECRET',
+    TAX_ID: 'GENERIC_SECRET',
+    UNIQUE_IDENTIFIER: 'GENERIC_SECRET',
+    USER_NAME: 'GENERIC_SECRET',
+    VEHICLE_IDENTIFIER: 'GENERIC_SECRET',
 };
 
 function normalizedRecord(value: unknown): { text: string; entities: Entity[] } {
@@ -79,7 +123,24 @@ async function run(): Promise<void> {
     if (!(limit > 0)) {
         throw new RangeError('limit must be positive');
     }
-    const detector = new HeuristicPiiDetector();
+    const detectors: PiiDetector[] = [new HeuristicPiiDetector()];
+    const classifierUrl = process.env['PII_CLASSIFIER_URL'];
+    if (classifierUrl !== undefined) {
+        const minimumScore = Number(process.env['PII_CLASSIFIER_MINIMUM_SCORE'] ?? '0.5');
+        if (!(minimumScore >= 0 && minimumScore <= 1)) {
+            throw new RangeError('PII_CLASSIFIER_MINIMUM_SCORE must be between 0 and 1');
+        }
+        const categoryMinimumScores = parsePiiCategoryThresholds(
+            process.env['PII_CLASSIFIER_LABEL_THRESHOLDS'] ?? '{}',
+        );
+        detectors.push(new EmbeddingClassifierDetector(new HttpClassifierClient({
+            url: classifierUrl,
+            timeoutMs: Number(process.env['MODEL_SERVICE_TIMEOUT_MS'] ?? '3000'),
+            ...(process.env['PII_CLASSIFIER_API_KEY'] === undefined
+                ? {}
+                : { apiKey: process.env['PII_CLASSIFIER_API_KEY'] }),
+        }), { minimumScore, categoryMinimumScores }));
+    }
     const reader = createInterface({
         input: createReadStream(resolve(input), { encoding: 'utf8' }),
         crlfDelay: Infinity,
@@ -97,7 +158,9 @@ async function run(): Promise<void> {
         const normalizedLine = line.replace(/^\uFEFF/, '').trim();
         if (normalizedLine.length === 0) continue;
         const record = normalizedRecord(JSON.parse(normalizedLine));
-        const findings = await detector.detect(record.text);
+        const findings = resolvePiiFindings((await Promise.all(
+            detectors.map((detector) => detector.detect(record.text)),
+        )).flat());
         const truth = new Set<string>();
         for (const entity of record.entities) {
             allGroundTruth += 1;
@@ -141,7 +204,8 @@ async function run(): Promise<void> {
     const recall = recallDenominator === 0 ? 0 : supportedTruePositive / recallDenominator;
     const report = {
         benchmark: 'pii-span-detection',
-        detector: 'valence-heuristic-static',
+        detector: detectors.map((detector) => detector.name).join('+'),
+        classifierConfigured: classifierUrl !== undefined,
         records,
         allGroundTruthEntities: allGroundTruth,
         supportedGroundTruthEntities: supportedGroundTruth,

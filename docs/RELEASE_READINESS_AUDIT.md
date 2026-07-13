@@ -22,8 +22,8 @@ The review endpoint is exercised through HTTP under the mock provider. It is not
 | --- | --- | --- | --- |
 | Core gateway | Request-scoped restoration, tenant tests, fail-closed streaming, strict schemas, audit chain | Key rotation, vault revocation, outage/recovery evidence, multi-host SLOs | Strong gateway research preview; limited deployment after shadow operations evidence |
 | Injection guard | Per-corpus reporting, provenance routing, train-only calibration, negative benchmark honesty | Indirect/secret coverage, NotInject over-defense, public corpora do not represent production tool traffic | Useful review/telemetry guard, not autonomous enterprise blocker |
-| PII/tokenization | Scoped vault, streaming reconstruction, email performance, leakage tests | Exact span F1 80.5% on supported labels, only 25.1% taxonomy coverage, weak phone/password/card/SSN recall, English-only default evaluation | Secure transport mechanism; detector remains experimental |
-| Talent Integrity | Bounded review contract, explicit human boundary, EMSCAD fraud baseline, ranking evaluator | Legacy product schema, no independently adjudicated candidate-job data, no reviewer workflow | Safe orchestration demonstration, not a validated ranker |
+| PII/tokenization | Scoped vault, streaming reconstruction, production HTTP classifier path, CUDA GLiNER service, full-taxonomy gate | Calibrated exact-span F1 72.07% across 100% of declared taxonomy; person/password/generic identifier performance and locale evidence remain weak | Secure transport mechanism; detector remains experimental |
+| Talent Integrity | Bounded review contract, dual-review/adjudication lifecycle, group-held-out EMSCAD baseline, ranking evaluator | No independently adjudicated candidate-job pilot or current verified fraud feed | Safe orchestration demonstration, not a validated ranker |
 
 More infrastructure, ranking fields, synthetic profiles, generic LLM size, or dashboards should be deferred. They would not repair missing labels, weak attack distribution coverage, or absent operational evidence. Raw multimodal processing should also wait for an OCR threat/cost model.
 
@@ -35,7 +35,7 @@ The repository does well at separating synthetic regression from external evalua
 - Public injection corpora have inconsistent definitions of roleplay, indirect injection, and secret exfiltration; pooled scores are therefore descriptive only.
 - Small sources (for example 60, 94, 98, and 115 cases) have wide uncertainty and cannot support tight per-source claims.
 - ESCI is product search, not candidate ranking; it only validates evaluator mechanics and a lexical baseline.
-- EMSCAD is dated binary job-posting fraud data. Random stratified splits can leak company, template, URL, or campaign style across train and test; group/time splits are needed before deployment claims.
+- EMSCAD is dated binary job-posting fraud data. v1.13.3 removes company/domain/template group overlap and drops the honest F1 to 71.15%; a later-time current-feed holdout is still needed before deployment claims.
 - Threshold calibration appears train/validation separated in the reviewed trainers, but each result needs a persisted split manifest and dataset checksum to prove the exact partition.
 - Result JSON retains aggregate metrics and model hashes but not raw inputs. Public source revisions are pinned; a reproducibility bundle should add input manifests, normalized-record hashes, split hashes, commands, dependency lock hashes, and run environment.
 
@@ -92,10 +92,10 @@ Every release dataset needs a card, license, collection period, provenance/check
 | Architecture | 82 | Clear security boundaries; talent schema is still legacy |
 | Security design | 84 | Strong scoped tokenization and fail-closed posture; operational controls incomplete |
 | Security-model effectiveness | 60 | Direct performance useful; indirect, secret, and benign FPR fail enterprise gates |
-| PII protection | 66 | Restoration design is strong and supported-label F1 improved to 80.5%; taxonomy breadth and several entity recalls remain below gates |
+| PII protection | 70 | Restoration design is strong and taxonomy accounting is complete; calibrated full-taxonomy F1 is 72.07%, still below promotion gates |
 | Ranking validity | 25 | No real candidate-job ground truth |
-| Fraud detection | 66 | Solid EMSCAD baseline, insufficient current/generalizable evidence |
-| Testing/reproducibility | 80 | Broad tests and pinned public sources; incomplete reproducibility manifests and live CI |
+| Fraud detection | 58 | Zero-overlap EMSCAD group F1 is 71.15%; current verified external evidence is still absent |
+| Testing/reproducibility | 88 | Broad tests, pinned public sources, release-evidence manifests, and live Docker CI; production datasets remain external |
 | Observability | 68 | Metrics/audit foundations, no real operational SLO/drift evidence |
 | Enterprise operability | 42 | Docker/Kafka/Redis topology exists; reviewer, recovery, and lifecycle controls absent |
 | Governance/fairness | 55 | Good policy documents; controls are not operationalized |

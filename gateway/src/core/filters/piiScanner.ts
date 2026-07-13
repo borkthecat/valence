@@ -274,34 +274,78 @@ export interface ClassifierClient {
     classify(text: string): Promise<readonly ClassifiedSpan[]>;
 }
 const CLASSIFIER_LABEL_MAP: Readonly<Record<string, SurrogateCategory>> = {
+    EMAIL: SurrogateCategory.EMAIL,
     EMAIL_ADDRESS: SurrogateCategory.EMAIL,
+    PHONE: SurrogateCategory.PHONE,
     PHONE_NUMBER: SurrogateCategory.PHONE,
+    SSN: SurrogateCategory.SSN,
     US_SSN: SurrogateCategory.SSN,
+    CREDIT_CARD_NUMBER: SurrogateCategory.CREDIT_CARD,
     CREDIT_CARD: SurrogateCategory.CREDIT_CARD,
+    IP: SurrogateCategory.IP_ADDRESS,
+    IPV4: SurrogateCategory.IP_ADDRESS,
+    IPV6: SurrogateCategory.IP_ADDRESS,
     IP_ADDRESS: SurrogateCategory.IP_ADDRESS,
     API_KEY: SurrogateCategory.API_KEY,
     ACCESS_TOKEN: SurrogateCategory.ACCESS_TOKEN,
     PASSWORD: SurrogateCategory.PASSWORD,
     PERSON: SurrogateCategory.PERSON_NAME,
+    PERSON_NAME: SurrogateCategory.PERSON_NAME,
+    NAME: SurrogateCategory.PERSON_NAME,
+    FIRST_NAME: SurrogateCategory.PERSON_NAME,
+    LAST_NAME: SurrogateCategory.PERSON_NAME,
+    ADDRESS: SurrogateCategory.GENERIC_SECRET,
+    STREET_ADDRESS: SurrogateCategory.GENERIC_SECRET,
+    CITY: SurrogateCategory.GENERIC_SECRET,
+    STATE: SurrogateCategory.GENERIC_SECRET,
+    COUNTRY: SurrogateCategory.GENERIC_SECRET,
+    POSTCODE: SurrogateCategory.GENERIC_SECRET,
+    COORDINATE: SurrogateCategory.GENERIC_SECRET,
+    DATE: SurrogateCategory.GENERIC_SECRET,
+    DATE_TIME: SurrogateCategory.GENERIC_SECRET,
+    DATE_OF_BIRTH: SurrogateCategory.GENERIC_SECRET,
+    TIME: SurrogateCategory.GENERIC_SECRET,
+    URL: SurrogateCategory.GENERIC_SECRET,
+    COMPANY_NAME: SurrogateCategory.GENERIC_SECRET,
+    ACCOUNT_NUMBER: SurrogateCategory.GENERIC_SECRET,
+    BANK_ROUTING_NUMBER: SurrogateCategory.GENERIC_SECRET,
+    BIOMETRIC_IDENTIFIER: SurrogateCategory.GENERIC_SECRET,
+    CERTIFICATE_LICENSE_NUMBER: SurrogateCategory.GENERIC_SECRET,
+    CUSTOMER_ID: SurrogateCategory.GENERIC_SECRET,
+    CVV: SurrogateCategory.GENERIC_SECRET,
+    DEVICE_IDENTIFIER: SurrogateCategory.GENERIC_SECRET,
+    EMPLOYEE_ID: SurrogateCategory.GENERIC_SECRET,
+    HEALTH_PLAN_BENEFICIARY_NUMBER: SurrogateCategory.GENERIC_SECRET,
+    LICENSE_PLATE: SurrogateCategory.GENERIC_SECRET,
+    MEDICAL_RECORD_NUMBER: SurrogateCategory.GENERIC_SECRET,
+    NATIONAL_ID: SurrogateCategory.GENERIC_SECRET,
+    SWIFT_BIC: SurrogateCategory.GENERIC_SECRET,
+    TAX_ID: SurrogateCategory.GENERIC_SECRET,
+    UNIQUE_IDENTIFIER: SurrogateCategory.GENERIC_SECRET,
+    USER_NAME: SurrogateCategory.GENERIC_SECRET,
+    VEHICLE_IDENTIFIER: SurrogateCategory.GENERIC_SECRET,
 };
 export class EmbeddingClassifierDetector implements PiiDetector {
     public readonly name: string;
     private readonly client: ClassifierClient;
     private readonly minimumScore: number;
+    private readonly categoryMinimumScores: Readonly<Partial<Record<SurrogateCategory, number>>>;
     public constructor(client: ClassifierClient, options: {
         readonly name?: string;
         readonly minimumScore?: number;
+        readonly categoryMinimumScores?: Readonly<Partial<Record<SurrogateCategory, number>>>;
     } = {}) {
         this.client = client;
         this.name = options.name ?? 'embedding-classifier';
         this.minimumScore = options.minimumScore ?? 0.5;
+        this.categoryMinimumScores = options.categoryMinimumScores ?? {};
     }
     public async detect(text: string): Promise<readonly PiiFinding[]> {
         const spans = await this.client.classify(text);
         const findings: PiiFinding[] = [];
         for (const span of spans) {
             const category = CLASSIFIER_LABEL_MAP[span.label];
-            if (category === undefined || span.score < this.minimumScore) {
+            if (category === undefined || span.score < (this.categoryMinimumScores[category] ?? this.minimumScore)) {
                 continue;
             }
             if (!Number.isInteger(span.start) ||
@@ -322,12 +366,28 @@ export class EmbeddingClassifierDetector implements PiiDetector {
         return findings;
     }
 }
+
+export function parsePiiCategoryThresholds(value: string): Readonly<Partial<Record<SurrogateCategory, number>>> {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new TypeError('PII_CLASSIFIER_LABEL_THRESHOLDS must be a JSON object');
+    }
+    const categories = new Set<string>(Object.values(SurrogateCategory));
+    const thresholds: Partial<Record<SurrogateCategory, number>> = {};
+    for (const [category, threshold] of Object.entries(parsed)) {
+        if (!categories.has(category) || typeof threshold !== 'number' || threshold < 0 || threshold > 1) {
+            throw new RangeError(`invalid PII classifier threshold for ${category}`);
+        }
+        thresholds[category as SurrogateCategory] = threshold;
+    }
+    return thresholds;
+}
 export class NullClassifierClient implements ClassifierClient {
     public classify(): Promise<readonly ClassifiedSpan[]> {
         return Promise.resolve([]);
     }
 }
-function resolveOverlaps(findings: readonly PiiFinding[]): PiiFinding[] {
+export function resolvePiiFindings(findings: readonly PiiFinding[]): PiiFinding[] {
     const sorted = [...findings].sort((a, b) => {
         if (a.start !== b.start) {
             return a.start - b.start;
@@ -382,7 +442,7 @@ export class PiiScanner {
         if (failed.length > 0) {
             throw new PiiScanError(failed, firstCause);
         }
-        const accepted = resolveOverlaps(collected);
+        const accepted = resolvePiiFindings(collected);
         let sanitizedText = text;
         const surrogates: string[] = [];
         for (let i = accepted.length - 1; i >= 0; i -= 1) {

@@ -7,6 +7,7 @@ export type AuthMode = (typeof AUTH_MODES)[number];
 export const JWT_ALGORITHMS = ['HS256', 'RS256'] as const;
 export type JwtAlgorithm = (typeof JWT_ALGORITHMS)[number];
 export const GUARD_USER_POLICIES = ['direct', 'secret'] as const;
+export const GUARD_MODEL_ENFORCEMENT_MODES = ['advisory', 'block'] as const;
 export const ENTERPRISE_INGEST_AUTH_MODES = ['jwks', 'api_key'] as const;
 export const EVIDENCE_URL_VALIDATION_MODES = ['syntax', 'live'] as const;
 export type EnterpriseIngestAuthMode = (typeof ENTERPRISE_INGEST_AUTH_MODES)[number];
@@ -69,10 +70,13 @@ const environmentSchema = z.object({
     REDIS_URL: z.string().trim().url().optional(),
     PII_CLASSIFIER_URL: secureServiceUrl.optional(),
     PII_CLASSIFIER_API_KEY: z.string().trim().min(16).optional(),
+    PII_CLASSIFIER_MINIMUM_SCORE: z.coerce.number().min(0).max(1).default(0.5),
+    PII_CLASSIFIER_LABEL_THRESHOLDS: z.string().trim().default('{}'),
     GUARD_MODEL_URL: secureServiceUrl.optional(),
     GUARD_MODEL_PATH: z.string().trim().min(1).optional(),
     GUARD_MODEL_SHA256: z.string().trim().regex(/^[a-f0-9]{64}$/).optional(),
     GUARD_MODEL_API_KEY: z.string().trim().min(16).optional(),
+    GUARD_MODEL_ENFORCEMENT: z.enum(GUARD_MODEL_ENFORCEMENT_MODES).default('advisory'),
     GUARD_USER_POLICY: z.enum(GUARD_USER_POLICIES).default('direct'),
     SHADOW_REVIEW_LOG_PATH: z.string().trim().min(1).default('off'),
     SHADOW_REVIEW_SOURCES: z.string().trim().min(1).default('hse_llm,cgoosen_combined'),
