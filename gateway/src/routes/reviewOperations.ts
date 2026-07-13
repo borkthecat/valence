@@ -4,7 +4,7 @@ import express from 'express';
 import type { Logger } from 'pino';
 import type { AuthenticatedRequest } from '../middleware/types';
 
-const OPERATIONS_PATH = /^(?:\/reviews(?:\/[A-Za-z0-9-]+(?:\/(?:claim|release|decision|escalate|reopen|expire|cancel|audit))?)?|\/shadow-runs(?:\/(?:report|export|[A-Za-z0-9-]+(?:\/(?:outcome|compare|replay|expire|delete|audit))?))?)$/;
+const OPERATIONS_PATH = /^(?:\/reviews(?:\/[A-Za-z0-9-]+(?:\/(?:claim|release|decision|escalate|reopen|expire|cancel|audit))?)?|\/shadow-runs(?:\/(?:report|export|[A-Za-z0-9-]+(?:\/(?:outcome|compare|replay|expire|delete|audit))?))?|\/policies(?:\/(?:current|audit)|\/[A-Za-z0-9._-]+\/(?:activate|rollback))?|\/operations\/metrics)$/;
 const OPERATIONS_SCOPES: Record<string, string> = {
     'POST /reviews': 'review:claim',
     'GET /reviews': 'review:read',
@@ -28,6 +28,12 @@ const OPERATIONS_SCOPES: Record<string, string> = {
     'POST /shadow-runs/:id/replay': 'shadow:replay',
     'POST /shadow-runs/:id/expire': 'shadow:retention',
     'POST /shadow-runs/:id/delete': 'shadow:retention',
+    'POST /policies': 'policy:write',
+    'GET /policies/current': 'policy:read',
+    'GET /policies/audit': 'policy:audit',
+    'POST /policies/:version/activate': 'policy:activate',
+    'POST /policies/:version/rollback': 'policy:rollback',
+    'GET /operations/metrics': 'operations:read',
 };
 function requiredScope(req: Request): string | undefined {
     let suffix = req.path;
@@ -36,6 +42,9 @@ function requiredScope(req: Request): string | undefined {
     }
     if (suffix.startsWith('/shadow-runs/') && !['/shadow-runs/report', '/shadow-runs/export'].includes(suffix)) {
         suffix = suffix.replace(/^\/shadow-runs\/[^/]+/, '/shadow-runs/:id');
+    }
+    if (suffix.startsWith('/policies/') && !['/policies/current', '/policies/audit'].includes(suffix)) {
+        suffix = suffix.replace(/^\/policies\/[^/]+/, '/policies/:version');
     }
     return OPERATIONS_SCOPES[`${req.method} ${suffix}`];
 }
@@ -49,7 +58,10 @@ export function createReviewOperationsRouter(options: { baseUrl: string; interna
         if (!OPERATIONS_PATH.test(req.path)) { next(); return; }
         const scope = requiredScope(req);
         const identity = req.valence;
-        const adminScope = req.path.startsWith('/shadow-runs') ? 'shadow:admin' : 'review:admin';
+        const adminScope = req.path.startsWith('/shadow-runs') ? 'shadow:admin'
+            : req.path.startsWith('/policies') ? 'policy:admin'
+            : req.path.startsWith('/operations') ? 'operations:admin'
+            : 'review:admin';
         if (scope === undefined || identity === undefined || (!identity.scopes.includes(scope) && !identity.scopes.includes(adminScope))) {
             options.audit?.record({ type: 'review_authorization_rejected', method: req.method, path: req.path });
             res.status(403).json({ error: 'forbidden' }); return;
@@ -63,7 +75,7 @@ export function createReviewOperationsRouter(options: { baseUrl: string; interna
         const canonical = [timestamp, req.method, `/v1${req.path}`, identity.tenantId, actorId, identity.scopes.join(' '), requestId, traceId, digest].join('\n');
         const signature = createHmac('sha256', options.internalKey).update(canonical).digest('hex');
         try {
-            const upstream = await fetch(new URL(`/v1${req.path}`, options.baseUrl), {
+            const upstream = await fetch(new URL(`/v1${req.url}`, options.baseUrl), {
                 method: req.method,
                 headers: {
                     'content-type': 'application/json',

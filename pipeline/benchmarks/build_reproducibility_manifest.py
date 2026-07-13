@@ -38,14 +38,18 @@ def sha256_tree(path: Path) -> str:
 
 
 def artifact_commit(path: Path) -> str:
+    # Embedding the containing commit creates an unsatisfiable self-reference for
+    # newly added artifacts: committing the generated manifest changes that SHA.
+    # The manifest's own commit identifies the exact snapshot; this field records
+    # whether each artifact belongs to that repository snapshot.
     result = subprocess.run(
-        ["git", "log", "-1", "--format=%H", "--", str(path.relative_to(ROOT))],
+        ["git", "ls-files", "--error-unmatch", str(path.relative_to(ROOT))],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
-    return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else "uncommitted"
+    return "tracked-in-repository" if result.returncode == 0 else "uncommitted"
 
 
 def dataset_revisions(value: Any) -> list[dict[str, str]]:

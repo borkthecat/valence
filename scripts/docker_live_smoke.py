@@ -93,11 +93,29 @@ def run(gateway: str, pipeline: str, key: str, timeout_seconds: float) -> dict[s
     status, report = request_json(f"{gateway}/v1/shadow-runs/report", headers={"x-valence-key": key})
     if status != 200 or report["total_cases"] < 1:
         raise RuntimeError(f"gateway shadow report failed: status={status}, response={report}")
+    policy_version = f"docker-live-{execution_id}"
+    status, staged = request_json(f"{gateway}/v1/policies", "POST", {"version": policy_version, "document": {"review_threshold": 0.5}}, {"x-valence-key": key})
+    if status != 200 or staged["version"] != policy_version:
+        raise RuntimeError(f"gateway policy stage failed: status={status}, response={staged}")
+    status, active = request_json(f"{gateway}/v1/policies/{policy_version}/activate", "POST", {}, {"x-valence-key": key})
+    if status != 200 or not active["active"]:
+        raise RuntimeError(f"gateway policy activation failed: status={status}, response={active}")
+    status, rolled = request_json(f"{gateway}/v1/policies/{policy_version}/rollback", "POST", {}, {"x-valence-key": key})
+    if status != 200 or rolled["version"] != policy_version:
+        raise RuntimeError(f"gateway policy rollback failed: status={status}, response={rolled}")
+    status, policy_audit = request_json(f"{gateway}/v1/policies/audit", headers={"x-valence-key": key})
+    if status != 200 or len(policy_audit["events"]) < 3:
+        raise RuntimeError(f"gateway policy audit failed: status={status}, response={policy_audit}")
+    status, metrics = request_json(f"{gateway}/v1/operations/metrics?baseline_volume=1", headers={"x-valence-key": key})
+    if status != 200 or metrics["shadow_runs"] < 1 or metrics["production_slo_certified"] is not False:
+        raise RuntimeError(f"gateway operations metrics failed: status={status}, response={metrics}")
     return {
         "status": "pass",
         "pipeline_checks": len(smoke["checks"]),
         "shadow_run_id": run_id,
         "shadow_total_cases": report["total_cases"],
+        "policy_version": policy_version,
+        "operations_metrics_verified": True,
     }
 
 

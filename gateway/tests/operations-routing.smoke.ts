@@ -32,6 +32,11 @@ async function run(): Promise<void> {
         assert.equal((await fetch(`${base}/v1/shadow-runs/report`)).status, 403);
         scopes = ['review:admin'];
         assert.equal((await fetch(`${base}/v1/shadow-runs/report`)).status, 403);
+        assert.equal((await fetch(`${base}/v1/policies/current`)).status, 403);
+        scopes = ['operations:read'];
+        assert.equal((await fetch(`${base}/v1/operations/metrics?baseline_volume=10`)).status, 503);
+        scopes = ['policy:rollback'];
+        assert.equal((await fetch(`${base}/v1/policies/v1/rollback`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 503);
     }
     finally {
         await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

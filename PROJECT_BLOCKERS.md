@@ -44,8 +44,8 @@ Use EMSCAD as the first external dataset because it provides 17,880 real job pos
 
 Required next work:
 
-1. Add external verification features to enriched job rows: company domain, contact email domain, posting URL, mismatch flags, optional DNS/HTTP liveness, and domain similarity.
-2. Train the fraud baseline on those enriched rows and compare the precision-recall frontier against the text-only EMSCAD ceiling.
+1. Run the completed DNS/HTTP/RDAP enrichment on a permissioned current job feed; EMSCAD does not contain enough live domains to measure the added signal honestly.
+2. Retrain and compare the enriched precision-recall frontier against the frozen text-only EMSCAD operating point.
 3. Convert the ranking audit queue into a human-labelled 200-item evaluation set, not a judge-only pseudo-label set.
 4. Build a separate ranking dataset only after the fraud baseline is reproducible.
 
@@ -55,7 +55,7 @@ Current implementation support:
 - `pipeline/fraud_evaluator.py` measures binary fraud metrics and Fraud Exposure Rate before and after risk-adjusted reranking.
 - `pipeline/benchmarks/train_emscad_fraud_model.py` now trains a deterministic TF-IDF logistic baseline on a local full EMSCAD CSV.
 - `pipeline/benchmarks/train_emscad_transformer_fraud.py` now provides the stronger DeBERTa-style fraud-training path needed to chase 95% recall/F1 honestly.
-- `pipeline/benchmarks/external_verification_features.py` now builds deterministic external-verification markers and optional live DNS/HTTP checks for enriched job CSVs.
+- `pipeline/benchmarks/external_verification_features.py` now builds deterministic external-verification markers and optional live DNS/HTTP/RDAP checks for enriched job CSVs. RDAP uses the IANA bootstrap registry and a bounded SQLite provider cache without credentials.
 - `pipeline/benchmarks/build_ranking_audit_queue.py` now supports a stratified human review queue: 100 ranker/judge disagreements, 50 top-ranked cases, and 50 bottom-ranked cases.
 - v1.11.6 records a real held-out EMSCAD result: 98.88% accuracy and 88.24% F1. This clears the cold-start blocker, but it does not clear the 95% fraud-quality target.
 - v1.11.7 records a full local DeBERTa-v3-small EMSCAD result: 98.66% accuracy and 85.80% F1. It did not improve the baseline, so the next fraud gains need better labelled features, calibration, or model strategy.
@@ -86,6 +86,6 @@ Required next work:
 
 ## Current Readiness
 
-The repository-required release work is complete: signed review/shadow operations, durable local lifecycle controls, live Docker CI coverage, and complete reproduction specifications for all six current release-evidence artifacts. Run `python pipeline/valence_readiness.py` for the machine-readable status.
+The repository-required release work is complete: signed review/shadow operations, deterministic ATS adapters, metamorphic regression checks, policy rollback, local backup/restore drills, payload-free SLO/drift metrics, RDAP domain evidence, live Docker CI coverage, and complete reproduction specifications for all six current release-evidence artifacts. Run `python pipeline/valence_readiness.py` for the machine-readable status.
 
-Valence remains a research preview rather than an enterprise automatic-enforcement product. The remaining blockers are evidence and deployment inputs that this repository cannot manufacture: real human-labelled outcomes for the review-only guard sources, a double-adjudicated candidate/job benchmark, current job-fraud records with independently verified domain/company evidence, and production persistence, recovery, and SLO measurements. The last independent audit scored the pre-completion baseline at 76/100 research preview, 48/100 shadow readiness, and 30/100 enterprise production; a fresh score should be assigned only after those external results exist.
+Valence remains a research preview rather than an enterprise automatic-enforcement product. Human-labelled outcomes are deliberately the final evidence phase. Other remaining items are deployment facts the repository cannot manufacture: a permissioned current job feed for measured RDAP/domain evidence, managed persistence and secrets, production recovery/SLO measurements, image/OCR product scope, and legal approval. The last independent audit scores are historical pre-completion values and must not be reused as current scores.

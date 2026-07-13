@@ -56,6 +56,14 @@ ATS export -> canonical adapter -> POST /stage5/review
 
 The adapter supplies role requirements and candidates containing stable IDs, evidence-backed skills, experience history, certifications, constraints, and provenance. Until a versioned talent schema replaces the legacy research schema, these belong in bounded `attributes` and `signals` fields and must not be inferred from protected data.
 
+`pipeline/talent_adapters.py` provides deterministic CSV, JSON, and JSONL pre-label intake. It requires stable case, job, and candidate IDs, rejects duplicate case/candidate keys, normalizes skills and bounded experience, and emits separate source and canonical SHA-256 digests. Example:
+
+```bash
+python pipeline/talent_adapters.py --input /approved/ats-export.csv --output .benchmark-data/talent-import.jsonl --manifest .benchmark-data/talent-import-manifest.json --source-system approved-ats
+```
+
+The adapter intentionally does not create labels. `pipeline/fairness_invariants.py` can assert that controlled name, email, phone, or pronoun mutations do not change a supplied deterministic decision function; this is a regression check, not legal or statistical fairness certification.
+
 The ATS, not Valence, stores the final action:
 
 ```json

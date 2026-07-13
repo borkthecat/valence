@@ -5,7 +5,7 @@ services:
     env_file: .env
     environment:
       GATEWAY_PORT: "8080"
-      GATEWAY_API_KEY_SCOPES: ${GATEWAY_API_KEY_SCOPES:-valence:proxy,review:admin,shadow:admin}
+      GATEWAY_API_KEY_SCOPES: ${GATEWAY_API_KEY_SCOPES:-valence:proxy,review:admin,shadow:admin,policy:admin,operations:admin}
       GUARD_USER_POLICY: ${GUARD_USER_POLICY:-direct}
       GUARD_MODEL_PATH: ${GUARD_MODEL_PATH:-models/prompt-injection-guard.json}
       GUARD_MODEL_SHA256: ${GUARD_MODEL_SHA256:-c9e6888213773172ff6127d1165146f02cb03d079d8011b6e20429e0d9bcec02}

@@ -18,7 +18,9 @@ class ExternalProviderCache:
             raise ValueError("minimum interval must be non-negative")
         self.path = path
         self.minimum_interval_seconds = minimum_interval_seconds
-        self._lock = threading.Lock()
+        # Providers may resolve a cached bootstrap document while populating a
+        # cached domain result in the same thread.
+        self._lock = threading.RLock()
         self._last_request = 0.0
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as connection, connection:

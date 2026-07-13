@@ -55,8 +55,8 @@
       "split": {"method": "stratified_random", "seed": 1500, "train": 12516, "validation": 1788, "test": 3576}
     },
     {
-      "artifact": "gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json",
-      "command": "python pipeline/remediation/evaluate_moe_guard.py --matrix .benchmark-data/injection-matrix-v113/matrix.json --model .benchmark-data/mmbert-provenance-guard-v6-full --registry .benchmark-data/mmbert-provenance-guard-v6-enterprise-balanced/registry.json --output gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json",
+      "artifact": "gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json",
+      "command": "python pipeline/remediation/evaluate_moe_guard.py --matrix .benchmark-data/injection-matrix-v113/matrix.json --model .benchmark-data/mmbert-provenance-guard-v6-full --registry .benchmark-data/mmbert-provenance-guard-v6-enterprise-balanced/registry.json --output gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json",
       "inputs": [
         {"path": ".benchmark-data/injection-matrix-v113", "source": "normalized_held_out_matrix", "sha256": "309f694fb155d47da501b2da145d812822f9509599c7abd5146d6c932deaf33e"},
         {"path": ".benchmark-data/mmbert-provenance-guard-v6-full", "source": "model_artifact", "sha256": "2941778eba3fa051fa564436e218b82aac748ea7102916cc5cbf5462c1a6b0c6"},
@@ -65,10 +65,10 @@
       "split": {"method": "source_pinned_held_out_fixtures", "corpora": 15, "train_test_leakage_policy": "normalized_exact_text_global"}
     },
     {
-      "artifact": "gateway/benchmarks/results/v1.13.2-enterprise-operating-standard.json",
-      "command": "python pipeline/remediation/assert_operating_standard.py --report gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json --profile gateway/benchmarks/enterprise-operating-standard.json --output gateway/benchmarks/results/v1.13.2-enterprise-operating-standard.json",
+      "artifact": "gateway/benchmarks/results/v1.13.1-enterprise-operating-standard.json",
+      "command": "python pipeline/remediation/assert_operating_standard.py --report gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json --profile gateway/benchmarks/enterprise-operating-standard.json --output gateway/benchmarks/results/v1.13.1-enterprise-operating-standard.json",
       "inputs": [
-        {"path": "gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json", "source": "evaluation_report", "sha256": "9e67c3fa2deabce9a7b81279798f4fedc1d57926adf3acc8c3a099a9d76662a2"},
+        {"path": "gateway/benchmarks/results/v1.13.1-v6-enterprise-balanced-matrix.json", "source": "evaluation_report", "sha256": "9e67c3fa2deabce9a7b81279798f4fedc1d57926adf3acc8c3a099a9d76662a2"},
         {"path": "gateway/benchmarks/enterprise-operating-standard.json", "source": "operating_profile", "sha256": "cc45616b90309ed5a9b9af655432854d55664a7230482be4f19a83fdcf4ae34d"}
       ],
       "split": {"method": "inherited_from_evaluation_report", "corpora": 15}

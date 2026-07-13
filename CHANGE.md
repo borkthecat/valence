@@ -4,12 +4,18 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+## 1.13.1
+
 - Added a signed, tenant-scoped internal operations service for review and shadow records, including outcome comparison, replay, expiry, cancellation, deletion receipts, audit history, and PII-minimized exports.
 - Linked advisory Stage 5 reviews to durable shadow records and routed review and shadow operations through the authenticated gateway with explicit scopes.
 - Added deterministic lifecycle workers for due-item expiry and stale-claim recovery, with persistent local-mode SQLite storage shared by the Docker topology.
 - Added a benchmark reproducibility catalog covering all 40 checked-in result artifacts and complete commands, input hashes, dataset revisions, and split metadata for all six current release-evidence artifacts.
 - Added an end-to-end Docker smoke test for the gateway, pipeline, and operations service, and made both the live topology and reproducibility manifest release gates in CI.
 - Added a repository-readiness report that distinguishes completed repository work from external evidence still required for production claims.
+- Added deterministic CSV/JSON/JSONL talent adapters, controlled identity-only metamorphic checks, immutable tenant policy activation/rollback, and signed payload-free operations metrics.
+- Added integrity-checked multi-store backup and atomic restore drills with tamper rejection.
+- Added credential-free IANA-bootstrap RDAP domain registration evidence and fixed nested provider-cache deadlocking.
+- Added CI dependency and container image inventories and corrected benchmark/release numbering to the sequential v1.13.1 release.
 
 ## 1.13.0
 
