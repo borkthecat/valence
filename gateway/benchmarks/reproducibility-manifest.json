@@ -1500,7 +1500,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.2-gretel-pii.json",
       "artifact_bytes": 2692,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "2ed42730db3e92d1ee23e9fcefeedc7b933da07f9cdb3d013758b4b3bdd85fae",
       "command": "npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.2-gretel-pii.json",
       "dataset_revisions": [],
