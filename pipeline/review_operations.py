@@ -18,8 +18,8 @@ Status = Literal["pending", "claimed", "in_review", "escalated", "resolved", "re
 
 class Model(BaseModel): model_config = ConfigDict(extra="forbid", frozen=True)
 class CreateReview(Model):
-    tenant_id: str; case_id: str; candidate_id: str; source_request_id: str; policy_version: str; model_version: str
-    model_digest: str; evidence_snapshot_digest: str; reason_codes: tuple[str,...] = (); risk: str; uncertainty: float = Field(default=0,ge=0,le=1); due_at: datetime | None=None; priority: int = Field(default=0,ge=0,le=100)
+    tenant_id: str; case_id: str; candidate_id: str; source_request_id: str; trace_id: str = Field(min_length=1,max_length=128); policy_version: str; model_version: str
+    model_digest: str; evidence_snapshot_digest: str; advisory_output_digest: str; reason_codes: tuple[str,...] = (); risk: str; uncertainty: float = Field(default=0,ge=0,le=1); due_at: datetime | None=None; priority: int = Field(default=0,ge=0,le=100)
 class Decision(Model): resolution: str = Field(min_length=1,max_length=4096); version: int = Field(ge=1)
 class Action(Model): version: int = Field(ge=1)
 class Actor(Model): actor_id: str; tenant_id: str; scopes: frozenset[str]
@@ -45,6 +45,19 @@ class ReviewStore:
             if row:return self._row(row)
             c.execute("INSERT INTO reviews VALUES (?,?,?,?,?,?,?,?,?,?)",(review_id,item.tenant_id,item.model_dump_json(),"pending",None,None,1,now,now,key)); self._event(c,review_id,item.tenant_id,"system","created",{})
             return self._row(c.execute("SELECT * FROM reviews WHERE id=?",(review_id,)).fetchone())
+    def create_many(self, items: tuple[tuple[CreateReview, str], ...]) -> list[dict]:
+        """Atomically create a review-required batch, preserving retry identities."""
+        now=datetime.now(UTC).isoformat(); created: list[dict]=[]
+        with self.db() as c:
+            for item, key in items:
+                row=c.execute("SELECT * FROM reviews WHERE tenant=? AND idempotency=?",(item.tenant_id,key)).fetchone()
+                if row:
+                    created.append(self._row(row)); continue
+                review_id=str(uuid.uuid4())
+                c.execute("INSERT INTO reviews VALUES (?,?,?,?,?,?,?,?,?,?)",(review_id,item.tenant_id,item.model_dump_json(),"pending",None,None,1,now,now,key))
+                self._event(c,review_id,item.tenant_id,"system","created",{})
+                created.append(self._row(c.execute("SELECT * FROM reviews WHERE id=?",(review_id,)).fetchone()))
+        return created
     def get(self, tenant:str, review_id:str)->dict:
         with self.db() as c:
             row=c.execute("SELECT * FROM reviews WHERE id=? AND tenant=?",(review_id,tenant)).fetchone()
