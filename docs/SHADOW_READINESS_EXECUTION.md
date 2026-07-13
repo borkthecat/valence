@@ -20,5 +20,5 @@ organizational authority.
 | PII evaluation | intentionally deferred | Locale/entity corpora and labels | Dataset unavailable | — | External datasets/labels required |
 | Recovery and resilience | not started | Local backup/restore and failure drills | Recovery tests | — | Production RTO/RPO external |
 | CI/release engineering | not started | Fast/full validation workflows and artifacts | CI configuration review | — | Hosted credentials/scanners external |
-| Unified readiness | not started | JSON/Markdown evidence report | Command test | — | Must not score missing evidence as pass |
+| Unified readiness | in progress | `pipeline/valence_readiness.py` emits JSON or Markdown, uses only allowed statuses, and fails its exit code when repository-required work is incomplete | `test_readiness_never_promotes_missing_evidence` | pending commit | Expand capability inventory as remaining workstreams are implemented |
 | Human-labelled benchmark | externally blocked | Calibration and permissioned 200-case dataset | Independent human review | — | Human reviewers, data permissions, legal approval |
