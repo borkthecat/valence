@@ -1623,7 +1623,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-compact-v6-cascade-m050.json",
       "artifact_bytes": 15156,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "9ff4e5a863f0b75b421ed0e961972bd15472d632836cc1b275ccbdd0092b3a56",
       "command": "python pipeline/benchmarks/evaluate_guard_cascade.py --matrix .benchmark-data/injection-matrix-v113/matrix.json --compact-model gateway/models/prompt-injection-guard.json --secondary-model .benchmark-data/mmbert-provenance-guard-v6-full --output gateway/benchmarks/results/v1.13.4-compact-v6-cascade-m050.json --triage-margin -0.5",
       "dataset_revisions": [
@@ -1716,7 +1716,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-compact-v6-cascade.json",
       "artifact_bytes": 15151,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "2ff8d27f9dda11cbe041d02f1ae5bec0ebd4a9484d087ecd67b64a84a0b86be9",
       "command": null,
       "dataset_revisions": [
@@ -1789,7 +1789,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c1-r70.json",
       "artifact_bytes": 742,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "d1e30a5b25eab75be0dd438e8650a5c7741f9009fe9ecd53147eeaefaa348be2",
       "command": null,
       "dataset_revisions": [],
@@ -1801,7 +1801,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c16-r50.json",
       "artifact_bytes": 746,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "cf966e2670117cd5a6ef65b2c715fbd2b98b06295718765f7d08b5bc5fd15d68",
       "command": null,
       "dataset_revisions": [],
@@ -1813,7 +1813,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c2-r70.json",
       "artifact_bytes": 743,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "e131eda00ae83db2329d0ec3c9505257765dca0768eaebb494baed88b549819b",
       "command": null,
       "dataset_revisions": [],
@@ -1825,7 +1825,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c2-r80.json",
       "artifact_bytes": 743,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "0656768880b86970a22fce05aae684232c00c20d978f77eb86b52c12545bf995",
       "command": null,
       "dataset_revisions": [],
@@ -1837,7 +1837,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c32-r50.json",
       "artifact_bytes": 744,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "0b71f67eac8331b89d688e93eb9f59a90360cc7b84f1b0ae8bc8311f4785d843",
       "command": "python pipeline/benchmarks/train_emscad_fraud_model.py --input .benchmark-data/emscad.external.live.csv --output gateway/benchmarks/results/v1.13.4-emscad-group-c32-r50.json --split-strategy group --regularization-c 0.25 --false-positive-cost 32 --minimum-recall 0.5 --top-k 50 --risk-penalty 0.8",
       "dataset_revisions": [],
@@ -1863,7 +1863,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c4-r70.json",
       "artifact_bytes": 743,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "8d6a7d0498b5f4ecac6e1cc69148ec57a50df67caa54dc31e345f2c306b6c170",
       "command": null,
       "dataset_revisions": [],
@@ -1875,7 +1875,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c64-r50.json",
       "artifact_bytes": 730,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "301e67adf49a24691b56d3208cef5cee50f6086627dfdb3f525d8623d1abe135",
       "command": null,
       "dataset_revisions": [],
@@ -1887,7 +1887,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-emscad-group-c8-r50.json",
       "artifact_bytes": 742,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "ab7ac3b2f605f3c4e1fe260bdbdcc33482cb3007df41821509d0233b50af1e0a",
       "command": null,
       "dataset_revisions": [],
@@ -1899,7 +1899,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-esci-weight-sweep.json",
       "artifact_bytes": 568,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "8812fc4acc818e0c21e647719b1d48aac9e82f0775e24fa9efcde35665fe0dd2",
       "command": null,
       "dataset_revisions": [],
@@ -1911,7 +1911,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json",
       "artifact_bytes": 4049,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "f06f5d2dbf28b09bdcb33b08427ed0c2e11d53628c2e45b27735d3f836589f82",
       "command": "python pipeline/benchmarks/calibrate_pii_thresholds.py --input .benchmark-data/gretel-pii-v114-score-cache.jsonl --output gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json --folds 5",
       "dataset_revisions": [],
@@ -1933,7 +1933,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-score-floor.json",
       "artifact_bytes": 2576,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "590e6a91cb1e333c563cedc31d14c3b02f0990b08a7b4f9fc116653994fe7833",
       "command": null,
       "dataset_revisions": [],
@@ -1945,7 +1945,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-gretel-pii-heuristic.json",
       "artifact_bytes": 2274,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "546f6ed1e031f869db080373a098ad1e0326d632a55ffa137c1bae5ec5b144a2",
       "command": null,
       "dataset_revisions": [],
@@ -1957,7 +1957,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.4-pii-locale-heuristic.json",
       "artifact_bytes": 1461,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "b12d75baae5b9932beb23949dff6870213301d660c8bf1460ea07b291040278f",
       "command": null,
       "dataset_revisions": [],
