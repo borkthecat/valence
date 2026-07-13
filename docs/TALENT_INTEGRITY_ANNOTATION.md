@@ -8,7 +8,7 @@ The pilot target is 200 real, permissioned job cases with 10--20 de-identified c
 
 ## Canonical record
 
-Each JSONL line is a `TalentEvaluationRecord` from `pipeline/talent_schema.py`, version `1.0`. It contains job context (role, skills, requirements, constraints, policy version, jurisdiction, region, language); candidate profile and evidence provenance; two or three pseudonymous reviewers; per-candidate labels; adjudication status; and an export/provenance record.
+Each JSONL line is a `TalentEvaluationRecord` from `pipeline/talent_schema.py`, version `1.1`. It contains job context (role, skills, requirements, constraints, policy version, jurisdiction, region, language); candidate claims linked bidirectionally to evidence; two or three pseudonymous independent reviews; separate resolved labels; adjudication status; and typed export provenance.
 
 Evidence items hold source type, content hash, observation time, verification status, and claim references--never raw sensitive documents. The existing Stage 3--5 product-identification profile is a legacy research schema and is not an adapter for this contract.
 
@@ -31,7 +31,7 @@ Every annotation needs a concise evidence-grounded explanation and confidence fr
 1. Run a 10-case calibration exercise, revise this rubric if needed, and exclude calibration cases from the reported pilot score.
 2. Assign two trained reviewers blind to one another and to system output.
 3. Store pseudonymous reviewer IDs in the dataset; keep the identity map access-controlled elsewhere.
-4. Send material disagreements and rationales to a third adjudicator. Mark cases `adjudicated`; otherwise mark them `agreed`.
+4. Preserve every independent reviewer label, confidence, completion time, and rubric version. Send material disagreements and rationales to a third adjudicator. Store the final resolved labels separately, and mark cases `adjudicated`; otherwise mark them `agreed`.
 5. Do not score `pending` cases. Keep an adjudication log with rationale and protocol version.
 6. Freeze dataset and policy versions before evaluation. The 200-case pilot uses `split: "pilot"`; it is not training data.
 
@@ -45,4 +45,4 @@ The evaluated system writes one `TalentEvaluationSubmission` per case, with a co
 python pipeline/talent_evaluator.py pilot-records.jsonl system-submissions.jsonl
 ```
 
-The evaluator rejects missing, duplicate, non-adjudicated, or incomplete cases. It reports ranking agreement, evidence and eligibility safety rates, review routing, uncertainty, and optional slices for job family, seniority, region, language, and profile completeness. Slices diagnose dataset coverage; they are not demographic fairness claims.
+The evaluator rejects missing, duplicate, non-adjudicated, incomplete, non-reproducible, and internally inconsistent cases. It reports relevance-only and eligibility-adjusted ranking metrics; qualified micro and applicable-case macro recall; routing precision/recall; uncertainty diagnostics; reviewer agreement scaffolding; and optional slices for job family, seniority, region, language, and profile completeness. Slices below 30 cases must be labelled exploratory, not used as release gates. Run `python pipeline/talent_dataset_audit.py pilot-records.jsonl` before any benchmark to detect cross-split candidate/evidence reuse, duplicate IDs, policy mixing, and coverage gaps.
