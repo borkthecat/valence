@@ -1398,13 +1398,13 @@ async def verify_endpoint(request: Stage5Request, response: Response) -> Cogniti
 
 
 @app.post("/v1/valence/stage5/review", response_model=StructuredReview)
-async def review_endpoint(request: Stage5Request, response: Response) -> StructuredReview:
+async def review_endpoint(request: Stage5Request, response: Response = Response()) -> StructuredReview:
     try:
         review = await _RUNTIME_VERIFIER.review(request, _RUNTIME_PROXY)
-        request_id = response.headers.get("x-request-id", str(uuid.uuid4()))
-        trace_id = response.headers.get("x-trace-id", request_id)
+        request_id = response.headers.get("x-request-id", str(uuid.uuid4())) if response else str(uuid.uuid4())
+        trace_id = response.headers.get("x-trace-id", request_id) if response else request_id
         task_ids = persist_review_tasks(request, review, request_id, trace_id)
-        if task_ids:
+        if task_ids and response:
             response.headers["x-valence-review-tasks"] = str(len(task_ids))
         return review
     except CognitivePipelineCompromisedError as exc:

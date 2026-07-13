@@ -3,8 +3,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import warnings
 from datetime import UTC, datetime
 
+from starlette.exceptions import StarletteDeprecationWarning
+
+warnings.filterwarnings("ignore", category=StarletteDeprecationWarning, message="Using `httpx` with `starlette.testclient` is deprecated.*")
 from fastapi.testclient import TestClient
 
 from review_operations import CreateReview, ReviewStore, create_app
@@ -57,6 +61,7 @@ def test_review_service_requires_signed_gateway_identity(tmp_path) -> None:
         "X-Trace-Id": "trace-1",
         "X-Valence-Internal-Timestamp": timestamp,
         "X-Valence-Internal-Signature": "forged",
+        "Content-Type": "application/json",
     }
     assert client.post("/v1/reviews", content=body, headers=headers).status_code == 401
     canonical = "\n".join((timestamp, "POST", "/v1/reviews", "tenant-a", "reviewer-a", "review:claim", "request-1", "trace-1", hashlib.sha256(body).hexdigest()))
