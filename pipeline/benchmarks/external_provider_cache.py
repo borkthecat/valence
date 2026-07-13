@@ -5,6 +5,7 @@ import sqlite3
 import threading
 import time
 from collections.abc import Callable
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,7 @@ class ExternalProviderCache:
         self._lock = threading.Lock()
         self._last_request = 0.0
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute("CREATE TABLE IF NOT EXISTS provider_cache (cache_key TEXT PRIMARY KEY, value_json TEXT NOT NULL, expires_at REAL NOT NULL)")
 
     def _connect(self) -> sqlite3.Connection:
@@ -31,7 +32,7 @@ class ExternalProviderCache:
             raise ValueError("provider, key, and positive TTL are required")
         cache_key = f"{provider}:{key}"
         with self._lock:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 cached = connection.execute("SELECT value_json FROM provider_cache WHERE cache_key = ? AND expires_at > ?", (cache_key, time.time())).fetchone()
             if cached:
                 return json.loads(cached[0])
@@ -45,6 +46,6 @@ class ExternalProviderCache:
             except Exception as error:
                 value = {"status": "unknown", "error": type(error).__name__}
             self._last_request = time.monotonic()
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 connection.execute("INSERT OR REPLACE INTO provider_cache VALUES (?, ?, ?)", (cache_key, json.dumps(value, sort_keys=True), time.time() + ttl_seconds))
             return value

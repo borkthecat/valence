@@ -5,14 +5,18 @@ services:
     env_file: .env
     environment:
       GATEWAY_PORT: "8080"
+      GATEWAY_API_KEY_SCOPES: ${GATEWAY_API_KEY_SCOPES:-valence:proxy,review:admin,shadow:admin}
       GUARD_USER_POLICY: ${GUARD_USER_POLICY:-direct}
       GUARD_MODEL_PATH: ${GUARD_MODEL_PATH:-models/prompt-injection-guard.json}
       GUARD_MODEL_SHA256: ${GUARD_MODEL_SHA256:-c9e6888213773172ff6127d1165146f02cb03d079d8011b6e20429e0d9bcec02}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_INGEST_TOPIC: valence-raw-profiles
       REDIS_URL: redis://redis:6379
+      REVIEW_OPERATIONS_URL: http://operations.internal:8091
+      REVIEW_OPERATIONS_INTERNAL_KEY: ${VALENCE_REVIEW_INTERNAL_KEY:-replace-with-an-internal-32-plus-character-secret}
     depends_on:
       - redis
+      - operations
     ports:
       - "8080:8080"
     networks:
@@ -28,12 +32,34 @@ services:
       PROXY_PORT: "8080"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_INGEST_TOPIC: valence-raw-profiles
+      VALENCE_REVIEW_DB_PATH: /data/reviews.sqlite
+      VALENCE_SHADOW_DB_PATH: /data/shadow.sqlite
     depends_on:
       - gateway
     ports:
       - "8090:8090"
     networks:
       - valence-net
+    volumes:
+      - operations-data:/data
+    restart: unless-stopped
+
+  operations:
+    build: ./pipeline
+    image: valence-pipeline:${VALENCE_VERSION:-latest}
+    env_file: .env
+    command: ["uvicorn", "operations_service:app", "--host", "0.0.0.0", "--port", "8091"]
+    environment:
+      VALENCE_REVIEW_INTERNAL_KEY: ${VALENCE_REVIEW_INTERNAL_KEY:-replace-with-an-internal-32-plus-character-secret}
+      VALENCE_OPERATIONS_DB_DIR: /data
+    expose:
+      - "8091"
+    networks:
+      valence-net:
+        aliases:
+          - operations.internal
+    volumes:
+      - operations-data:/data
     restart: unless-stopped
 
   pipeline-worker:
@@ -103,3 +129,6 @@ services:
 networks:
   valence-net:
     driver: bridge
+
+volumes:
+  operations-data:

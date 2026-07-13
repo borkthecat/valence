@@ -2,6 +2,15 @@
 
 This project keeps a change record for released source modifications.
 
+## Unreleased
+
+- Added a signed, tenant-scoped internal operations service for review and shadow records, including outcome comparison, replay, expiry, cancellation, deletion receipts, audit history, and PII-minimized exports.
+- Linked advisory Stage 5 reviews to durable shadow records and routed review and shadow operations through the authenticated gateway with explicit scopes.
+- Added deterministic lifecycle workers for due-item expiry and stale-claim recovery, with persistent local-mode SQLite storage shared by the Docker topology.
+- Added a benchmark reproducibility catalog covering all 40 checked-in result artifacts and complete commands, input hashes, dataset revisions, and split metadata for all six current release-evidence artifacts.
+- Added an end-to-end Docker smoke test for the gateway, pipeline, and operations service, and made both the live topology and reproducibility manifest release gates in CI.
+- Added a repository-readiness report that distinguishes completed repository work from external evidence still required for production claims.
+
 ## 1.13.0
 
 - Repositioned the reusable gateway and governance controls as Valence Core, with Talent Integrity as a reference application.

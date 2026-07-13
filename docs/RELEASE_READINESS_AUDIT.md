@@ -2,6 +2,12 @@
 
 Scope: review of `d39dd17` against `origin/main`, followed by a live Docker validation and the corrective commit `b2f50f2`. This is an evidence-based research-preview assessment, not a compliance certification.
 
+## Completion addendum
+
+The immediate pre-PR engineering items identified by this audit are now implemented on the release-readiness branch: CI performs a live authenticated Docker smoke across the gateway, Stage 5 pipeline, and signed operations service; all current release benchmark artifacts have complete pinned reproduction specifications; and review/shadow records now have a durable local-mode lifecycle with tenant-scoped authorization, audit history, outcome comparison, replay, retention actions, and receipts.
+
+These changes close repository implementation gaps, not external evidence gaps. The scores below describe the audited baseline and have not been inflated. Enterprise readiness remains blocked on real shadow outcomes, independently adjudicated talent labels, current fraud verification data, production persistence/recovery evidence, and production SLOs.
+
 ## Commit review
 
 The architectural split and advisory review contract are directionally correct. The audit found and corrected two policy-boundary defects: model-originated `ineligible` findings now always require human review, and duplicate candidate IDs are rejected during request validation rather than after a model call. The latter is tested in-process and through the Docker API.

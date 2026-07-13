@@ -13,6 +13,8 @@ The repository has a deliberate platform/application boundary:
 
 The gateway can be deployed without the talent pipeline. The reference application demonstrates how Valence Core secures an LLM-assisted decision workflow; it is not required gateway infrastructure.
 
+The Docker topology also includes a private operations service. The gateway signs tenant and actor context before forwarding review or shadow-management requests; direct unsigned access is rejected. This local-mode service uses durable SQLite storage for development and shadow evaluation. Production deployments must replace the shared secret and local database boundary with managed secrets, private networking, and managed persistence.
+
 ## Who it is for
 
 - Security and AI-governance teams protecting existing LLM applications.
@@ -34,6 +36,7 @@ Valence is a research preview. Current benchmark limitations are reported in [BE
 - [Fairness and human-review policy](docs/FAIRNESS.md)
 - [Operations, failure SLOs, and cost measurement](docs/OPERATIONS.md)
 - [Model and data governance](docs/GOVERNANCE.md)
+- [Repository and external-evidence readiness](docs/SHADOW_READINESS_EXECUTION.md)
 
 ## Architecture
 

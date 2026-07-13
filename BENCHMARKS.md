@@ -2,6 +2,18 @@
 
 Measured on July 9, 2026. These results separate internal regression checks from external or independently sourced evaluation data.
 
+## Reproducibility manifest
+
+`gateway/benchmarks/reproducibility-manifest.json` catalogs all 40 checked-in benchmark result artifacts. The six artifacts used as current release evidence include an exact command, dataset/model revision, input hash, and split metadata; the other 34 are explicitly classified as historical archival results rather than release gates.
+
+Validate the checked-in catalog without rerunning heavyweight training:
+
+```bash
+python pipeline/benchmarks/build_reproducibility_manifest.py --check
+```
+
+This proves that the recorded artifact inventory and pinned reproduction specifications agree with the repository. It does not replace downloading licensed/public inputs or rerunning the declared commands when independent result reproduction is required.
+
 ## What the numbers mean
 
 - The Stage 4 synthetic oracle is an internal consistency regression test. It is derived from the same scoring specification as the reranker and does not establish real-world ranking accuracy.

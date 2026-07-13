@@ -1,11 +1,11 @@
 import { createHmac, createHash, randomUUID } from 'node:crypto';
-import type { Request, Response, Router } from 'express';
+import type { NextFunction, Request, Response, Router } from 'express';
 import express from 'express';
 import type { Logger } from 'pino';
 import type { AuthenticatedRequest } from '../middleware/types';
 
-const REVIEW_PATH = /^\/reviews(?:\/[A-Za-z0-9-]+(?:\/(?:claim|release|decision|escalate|reopen|audit))?)?$/;
-const REVIEW_SCOPES: Record<string, string> = {
+const OPERATIONS_PATH = /^(?:\/reviews(?:\/[A-Za-z0-9-]+(?:\/(?:claim|release|decision|escalate|reopen|expire|cancel|audit))?)?|\/shadow-runs(?:\/(?:report|export|[A-Za-z0-9-]+(?:\/(?:outcome|compare|replay|expire|delete|audit))?))?)$/;
+const OPERATIONS_SCOPES: Record<string, string> = {
     'POST /reviews': 'review:claim',
     'GET /reviews': 'review:read',
     'GET /reviews/:id': 'review:read',
@@ -15,21 +15,42 @@ const REVIEW_SCOPES: Record<string, string> = {
     'POST /reviews/:id/decision': 'review:decide',
     'POST /reviews/:id/escalate': 'review:escalate',
     'POST /reviews/:id/reopen': 'review:override',
+    'POST /reviews/:id/expire': 'review:retention',
+    'POST /reviews/:id/cancel': 'review:retention',
+    'POST /shadow-runs': 'shadow:submit',
+    'GET /shadow-runs': 'shadow:read',
+    'GET /shadow-runs/report': 'shadow:read',
+    'GET /shadow-runs/export': 'shadow:audit',
+    'GET /shadow-runs/:id': 'shadow:read',
+    'GET /shadow-runs/:id/audit': 'shadow:audit',
+    'POST /shadow-runs/:id/outcome': 'shadow:outcome',
+    'POST /shadow-runs/:id/compare': 'shadow:compare',
+    'POST /shadow-runs/:id/replay': 'shadow:replay',
+    'POST /shadow-runs/:id/expire': 'shadow:retention',
+    'POST /shadow-runs/:id/delete': 'shadow:retention',
 };
 function requiredScope(req: Request): string | undefined {
-    const suffix = req.path === '/reviews' ? '/reviews' : req.path.replace(/^\/reviews\/[^/]+/, '/reviews/:id');
-    return REVIEW_SCOPES[`${req.method} ${suffix}`];
+    let suffix = req.path;
+    if (suffix.startsWith('/reviews/') && suffix !== '/reviews') {
+        suffix = suffix.replace(/^\/reviews\/[^/]+/, '/reviews/:id');
+    }
+    if (suffix.startsWith('/shadow-runs/') && !['/shadow-runs/report', '/shadow-runs/export'].includes(suffix)) {
+        suffix = suffix.replace(/^\/shadow-runs\/[^/]+/, '/shadow-runs/:id');
+    }
+    return OPERATIONS_SCOPES[`${req.method} ${suffix}`];
 }
 function bodyText(req: Request): string {
+    if (['GET', 'HEAD'].includes(req.method)) return '';
     return req.body === undefined ? '' : JSON.stringify(req.body);
 }
 export function createReviewOperationsRouter(options: { baseUrl: string; internalKey: string; logger: Logger; audit?: { record(event: Record<string, unknown>): void }; }): Router {
     const router = express.Router();
-    router.use(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-        if (!REVIEW_PATH.test(req.path)) { res.status(404).json({ error: 'NOT_FOUND' }); return; }
+    router.use(async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+        if (!OPERATIONS_PATH.test(req.path)) { next(); return; }
         const scope = requiredScope(req);
         const identity = req.valence;
-        if (scope === undefined || identity === undefined || (!identity.scopes.includes(scope) && !identity.scopes.includes('review:admin'))) {
+        const adminScope = req.path.startsWith('/shadow-runs') ? 'shadow:admin' : 'review:admin';
+        if (scope === undefined || identity === undefined || (!identity.scopes.includes(scope) && !identity.scopes.includes(adminScope))) {
             options.audit?.record({ type: 'review_authorization_rejected', method: req.method, path: req.path });
             res.status(403).json({ error: 'forbidden' }); return;
         }

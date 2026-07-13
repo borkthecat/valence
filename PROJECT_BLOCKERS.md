@@ -26,7 +26,7 @@ PIGuard reproduces its upstream NotInject behavior when evaluated canonically on
 Required next work:
 
 1. Fine-tune or replace the compact guard representation for benign trigger-word over-defense. v1.12.0 added 60 benign trigger-word hard negatives plus training/calibration ingestion, but the compact guard stayed flat on NotInject: 61.65% accuracy and 38.35% false-positive rate.
-2. Run the provenance-aware transformer path with Valence provenance tags end to end, then re-run direct, indirect/provenance, secret-exfiltration, and over-defense suites separately.
+2. Use the completed provenance-aware V6 transformer result as the frozen baseline and collect real review-only outcomes for the weak sources before further calibration. Do not retrain against held-out labels.
 3. Keep block and review thresholds separate; do not collapse results into a single pooled score.
 
 Current implementation support:
@@ -70,7 +70,7 @@ Indirect injection is weak because untrusted text is currently represented as pr
 Required next work:
 
 1. Carry provenance as structured fields in benchmark records.
-2. Train/evaluate guards with provenance metadata preserved. The transformer trainer now accepts provenance JSONL, registers provenance special tokens, verifies that those tokens remain atomic, and saves periodic checkpoints, but the full training run still needs to be executed and compared.
+2. Train/evaluate guards with provenance metadata preserved. The full V6 provenance run has completed and is the current frozen risk-calibrated evidence baseline; future work must compare against it on untouched and shadow-labelled splits.
 3. Add fixtures where the same text is benign in a user request but hostile in tool output.
 4. Measure tagged versus untagged performance to prove the schema helps.
 
@@ -84,6 +84,8 @@ Required next work:
 2. If yes, add bounded OCR extraction and treat OCR text as untrusted retrieved content.
 3. If no, keep image work focused on evidence integrity: HTTPS, MIME, size, hash, duplicates, liveness, and provenance.
 
-## Current Score
+## Current Readiness
 
-Valence is approximately 84/100 as an open-source research preview. It is architecturally serious and reproducible, but it is not yet enterprise-grade because the guard model is not validated across provenance-aware indirect injection, secret exfiltration, and benign trigger-word over-defense, and the profile-ranking pipeline still lacks real candidate/job labels.
+The repository-required release work is complete: signed review/shadow operations, durable local lifecycle controls, live Docker CI coverage, and complete reproduction specifications for all six current release-evidence artifacts. Run `python pipeline/valence_readiness.py` for the machine-readable status.
+
+Valence remains a research preview rather than an enterprise automatic-enforcement product. The remaining blockers are evidence and deployment inputs that this repository cannot manufacture: real human-labelled outcomes for the review-only guard sources, a double-adjudicated candidate/job benchmark, current job-fraud records with independently verified domain/company evidence, and production persistence, recovery, and SLO measurements. The last independent audit scored the pre-completion baseline at 76/100 research preview, 48/100 shadow readiness, and 30/100 enterprise production; a fresh score should be assigned only after those external results exist.

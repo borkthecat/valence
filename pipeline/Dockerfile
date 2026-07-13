@@ -15,6 +15,10 @@ RUN python -W error -m py_compile \
     stage3_hydrator.py \
     stage4_razor_reranker.py \
     stage5_cognitive_verifier.py \
+    operations_service.py \
+    internal_service_auth.py \
+    review_operations.py \
+    shadow_operations.py \
     stream_worker.py \
     && python -W error -c "import stage3_hydrator, stage4_razor_reranker, stage5_cognitive_verifier, stream_worker"
 

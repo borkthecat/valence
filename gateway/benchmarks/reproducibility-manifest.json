@@ -1,0 +1,1512 @@
+{
+  "artifacts": [
+    {
+      "artifact": "gateway/benchmarks/results/v1.11-injection-matrix.json",
+      "artifact_bytes": 14305,
+      "artifact_commit": "04d0570e521d28dbc7ad1f6e9211e745531d2ba4",
+      "artifact_sha256": "20127b93c5045252febc467fe8d98137745fb80c1575dd895e1e990bb2787722",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.2-injection-matrix.json",
+      "artifact_bytes": 14590,
+      "artifact_commit": "cad79b9f63e678d965c2fedd09f1794974c682a3",
+      "artifact_sha256": "ffd798b60b4309f46be8f16bafe8fbf366f5219140b5f91a746a24bd24df158d",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.3-injection-matrix.json",
+      "artifact_bytes": 16462,
+      "artifact_commit": "06ccf8f1e4a8b6c73cf3b9cf54881c8558339002",
+      "artifact_sha256": "0377d7e285938dc2824ed8a1f0dd4c54fb105eaf151eccd4cfaf9d8ce2a327a6",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.3-notinject.json",
+      "artifact_bytes": 960,
+      "artifact_commit": "06ccf8f1e4a8b6c73cf3b9cf54881c8558339002",
+      "artifact_sha256": "1d4bd5d12d66c98ffeec280537772f4673b8eca144961f3895a8b26a8a300508",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "leolee99/NotInject",
+          "revision": "847ae76cf8fea5ed325429e569ae8cfef022d2e0"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.3-piguard-notinject-no-prefix.json",
+      "artifact_bytes": 1775,
+      "artifact_commit": "9ced65dcaa6b86c4c309b861a10597ec87178b7c",
+      "artifact_sha256": "d52c49fd8eea614ea5c5ad285c8d43f96b00ede341e013ee1c2a62af6b3d6946",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "leolee99/NotInject",
+          "revision": "847ae76cf8fea5ed325429e569ae8cfef022d2e0"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.6-emscad-trained-fraud.json",
+      "artifact_bytes": 572,
+      "artifact_commit": "9e0baa16f63f58bbe10689ae76203d40a52af6e2",
+      "artifact_sha256": "080f550b7fdf2ab5c15754b7e9de09701665b15032d6813220eb9963b45de4cb",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.7-emscad-deberta-fraud.json",
+      "artifact_bytes": 552,
+      "artifact_commit": "b2a8d7023c9ee6372c75b06e08a28668190b0b02",
+      "artifact_sha256": "5c62482db040ad562a6322a4de32ed8b77612bba6768daee28d71d5c52501b1e",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.8-emscad-deberta-weighted-fraud.json",
+      "artifact_bytes": 597,
+      "artifact_commit": "09b9f59ec19ac8e983cc572505f8c236f2c1aed9",
+      "artifact_sha256": "3492c104744c1ee935cbd4a003de32eec4c68c5f939a033bf67cce6bbedbb97f",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.8-emscad-tfidf-metadata-fraud.json",
+      "artifact_bytes": 571,
+      "artifact_commit": "09b9f59ec19ac8e983cc572505f8c236f2c1aed9",
+      "artifact_sha256": "39cb5ea5780cc956cf48992810dd792caa8edbb7558d0381af64038927e4e57b",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.11.9-emscad-tfidf-external-fraud.json",
+      "artifact_bytes": 560,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "347e32d464ba35f5d4ec92309a6d44cc8c206ed6a790e84e943b1a7b3ee2e618",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-cascade.json",
+      "artifact_bytes": 502,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "08bd9b208b1d8fb80443b2728c3216da12987498d88d193e08bee4d07095f45d",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-deberta-weighted-current.json",
+      "artifact_bytes": 586,
+      "artifact_commit": "5024a9e79a3d38729eea102c345caa3d7c8b8291",
+      "artifact_sha256": "22d1e9899049f2992df150896ecd263adf4206951f021ebc14881f657360bb71",
+      "command": "python pipeline/benchmarks/train_emscad_transformer_fraud.py --input .benchmark-data/emscad.csv --output gateway/benchmarks/results/v1.12.0-emscad-deberta-weighted-current.json --model-output .benchmark-data/emscad-deberta-weighted-v112 --base-model microsoft/deberta-v3-small --epochs 3 --batch-size 8 --max-length 384 --seed 1500",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "stratified_random",
+        "seed": 1500,
+        "test": 3576,
+        "train": 12516,
+        "validation": 1788
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-ensemble.json",
+      "artifact_bytes": 3505,
+      "artifact_commit": "5024a9e79a3d38729eea102c345caa3d7c8b8291",
+      "artifact_sha256": "2a34d34b569cb3dc906378663970b3dfcd393ee88873006ab3968385513ed3ad",
+      "command": "python pipeline/benchmarks/evaluate_emscad_ensemble.py --input .benchmark-data/emscad.csv --transformer-model .benchmark-data/emscad-deberta-weighted-v112 --output gateway/benchmarks/results/v1.12.0-emscad-ensemble.json --batch-size 16 --max-length 384 --max-fpr 0.003526300323244196",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        },
+        {
+          "path": ".benchmark-data/emscad-deberta-weighted-v112",
+          "sha256": "21e5dee4af70a6e9f6fd5a483d0a800e9ff5c614c4deb7fc50c80b678adefd08",
+          "source": "local_model_artifact"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "stratified_random",
+        "seed": 1500,
+        "test": 3576,
+        "train": 12516,
+        "validation": 1788
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-false-negative-analysis.json",
+      "artifact_bytes": 24286,
+      "artifact_commit": "5024a9e79a3d38729eea102c345caa3d7c8b8291",
+      "artifact_sha256": "413ce33d345b09a725d0a883b639fc460431801a36657be7fc05aca47bc80848",
+      "command": "python pipeline/benchmarks/analyze_emscad_false_negatives.py --input .benchmark-data/emscad.csv --output-json gateway/benchmarks/results/v1.12.0-emscad-false-negative-analysis.json --output-markdown gateway/benchmarks/results/v1.12.0-emscad-false-negative-analysis.md --false-negatives-csv gateway/benchmarks/results/v1.12.0-emscad-false-negatives.csv",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "stratified_random",
+        "seed": 1500,
+        "test": 3576,
+        "train": 12516,
+        "validation": 1788
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-false-negative-analysis.md",
+      "artifact_bytes": 2462,
+      "artifact_commit": "5024a9e79a3d38729eea102c345caa3d7c8b8291",
+      "artifact_sha256": "196e819f178b28aa89d127896361de009e9fad9380a5cc3e2c5dfe95217ee163",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-false-negatives.csv",
+      "artifact_bytes": 4415,
+      "artifact_commit": "5024a9e79a3d38729eea102c345caa3d7c8b8291",
+      "artifact_sha256": "9d44ac8773b03bcc719b736b53fe5ba9f0fee372c308bdc4634b4789989bab6c",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-emscad-tfidf-current.json",
+      "artifact_bytes": 571,
+      "artifact_commit": "5024a9e79a3d38729eea102c345caa3d7c8b8291",
+      "artifact_sha256": "b819ef356b1864eaa9488eeb945081e4364177bfc1ea28a538aada80009924f3",
+      "command": "python pipeline/benchmarks/train_emscad_fraud_model.py --input .benchmark-data/emscad.csv --output gateway/benchmarks/results/v1.12.0-emscad-tfidf-current.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/emscad.csv",
+          "sha256": "cec194ca0185a973d9c339d7d83c43d80fb65b2efdcd5f5a7a12c80c85cae3e2",
+          "source": "EMSCAD"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "stratified_random",
+        "seed": 1500,
+        "test": 3576,
+        "train": 12516,
+        "validation": 1788
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-notinject-hardnegative-calibrated-guard.json",
+      "artifact_bytes": 1765,
+      "artifact_commit": "5024a9e79a3d38729eea102c345caa3d7c8b8291",
+      "artifact_sha256": "55d9ded0dad77814ea52be65e057df2d118098aec4fa6f7a25193b3fa4f667ae",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "leolee99/NotInject",
+          "revision": "847ae76cf8fea5ed325429e569ae8cfef022d2e0"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-v7-calibrated-matrix.json",
+      "artifact_bytes": 14187,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "819f5705971fbdc81a5ce8d1e125eef6cc13981d214398418417fcab258156e1",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.0-v7-precision-fpr-gate.json",
+      "artifact_bytes": 1140,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "2a74f5290aeeb5367bee35d217c76188da754cb2fadb88266c1ac0c139e98850",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.1-emscad-stateful-layers.json",
+      "artifact_bytes": 268,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "cd55afe3c90833e45c04c175e685fe1d102d07bc7ba810ea99b0426ea7633b77",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.1-v6-per-corpus-calibrated-matrix.json",
+      "artifact_bytes": 14598,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "0a852966cc975a7797d2c2c36769cb01aed71ab6edab4233d49739ed36de83c2",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.1-v6-per-corpus-precision-fpr-gate.json",
+      "artifact_bytes": 781,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "57718061a60f513eb5123bfd175280959aa10392272cfbeac236608eb8572bf0",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.2-v6-moe-matrix.json",
+      "artifact_bytes": 12698,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "4fc78b0cfd5fa05fb61db5023219423cbc4e3037508c02c77412f692889627b2",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.2-v6-moe-precision-fpr-gate.json",
+      "artifact_bytes": 781,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "1ae73ecdd8eb5bdbebdb8c99a8a063a879602fd657e37c092fa2f1d21e1ba8a1",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.3-v6-text-moe-matrix.json",
+      "artifact_bytes": 12663,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "608019478856f2878424b31cd11d972d41cc9248401c6499010862f183832925",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.3-v6-text-moe-precision-fpr-gate.json",
+      "artifact_bytes": 538,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "0b119114c63901821725c0072d93cece87fa33cdede3a792d1d4c6f511d03b67",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.4-v6-text-moe-conservative-matrix.json",
+      "artifact_bytes": 12661,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "938228eb5f706518a786b8716931dabffacb83fae3bf3569eb345acd85933780",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.4-v6-text-moe-conservative-precision-fpr-gate.json",
+      "artifact_bytes": 540,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "fdc108a98dac21d5d72a18a6c4ee398fd63bebf187c1442b4bf522cd2a6b4971",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.5-v6-public-benign-moe-matrix.json",
+      "artifact_bytes": 12654,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "30db4d31ff665e2919ac53a817135cbcdcd45a08cca033f7b9afe8612f03aeff",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.5-v6-public-benign-moe-precision-fpr-gate.json",
+      "artifact_bytes": 428,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "23900a6cc94752152c68ee7949b921e626dcc103c287e76ac0497360d0f3efc7",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.6-v6-public-benign-moe-conservative-matrix.json",
+      "artifact_bytes": 12667,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "df507d69f3beba0cd65684ee27451fcdaec627f879af06549db94bafd597edc8",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.7-v6-public-svm-hybrid-matrix.json",
+      "artifact_bytes": 12652,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "94daa0b8c1063d66c7f53e9b300952f44c74df12547edccc707de5bb01810f30",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.8-v6-merged-public-moe-matrix.json",
+      "artifact_bytes": 12638,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "aea12bdc48f484ae79ed0e7a49377aa816f1d0853f968b6f644c8154a61a5f94",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.9-protectai-cgoosen_guard.json",
+      "artifact_bytes": 509,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "13d8359f614768a2c8627429a0ebed47c13e89642f0905880ab3c6f316902bd0",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.12.9-protectai-jcanode.json",
+      "artifact_bytes": 502,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "cfafc7aa222c236e8ddb693aeab319f5203a35784e758438643625d9ba766dfe",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.0-v6-all-public-moe-matrix.json",
+      "artifact_bytes": 12652,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "ce2dfa10e35086d53451b3c69165ef89aeb7dc037a5d01988ae0adf387e70146",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.1-v6-enterprise-selective-matrix.json",
+      "artifact_bytes": 12654,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "cf69152126bd054961b4d6181424dffc1e7eb82cf1b72aba10ab1597047781fb",
+      "command": null,
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.2-enterprise-operating-standard.json",
+      "artifact_bytes": 6561,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "ca01d34f38dcc2dd9edf3285a36e3eded3ca54a3b912acfe1e947632bf98aabd",
+      "command": "python pipeline/remediation/assert_operating_standard.py --report gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json --profile gateway/benchmarks/enterprise-operating-standard.json --output gateway/benchmarks/results/v1.13.2-enterprise-operating-standard.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": "gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json",
+          "sha256": "9e67c3fa2deabce9a7b81279798f4fedc1d57926adf3acc8c3a099a9d76662a2",
+          "source": "evaluation_report"
+        },
+        {
+          "path": "gateway/benchmarks/enterprise-operating-standard.json",
+          "sha256": "cc45616b90309ed5a9b9af655432854d55664a7230482be4f19a83fdcf4ae34d",
+          "source": "operating_profile"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "corpora": 15,
+        "method": "inherited_from_evaluation_report"
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json",
+      "artifact_bytes": 12656,
+      "artifact_commit": "a27769f4c6f3c681a89d0284d0798ee0bd1fa9c7",
+      "artifact_sha256": "9e67c3fa2deabce9a7b81279798f4fedc1d57926adf3acc8c3a099a9d76662a2",
+      "command": "python pipeline/remediation/evaluate_moe_guard.py --matrix .benchmark-data/injection-matrix-v113/matrix.json --model .benchmark-data/mmbert-provenance-guard-v6-full --registry .benchmark-data/mmbert-provenance-guard-v6-enterprise-balanced/registry.json --output gateway/benchmarks/results/v1.13.2-v6-enterprise-balanced-matrix.json",
+      "dataset_revisions": [
+        {
+          "dataset": "S-Labs/prompt-injection-dataset",
+          "revision": "002a9dd18514abd021869823d6b0429b38606d99"
+        },
+        {
+          "dataset": "Shomi28/prompt-injection-dataset",
+          "revision": "0146454c8404a347ccc170a0291bcec932252fef"
+        },
+        {
+          "dataset": "Smooth-3/llm-prompt-injection-attacks",
+          "revision": "dd47798b64ebf0e833ecdbff6b1d73be3e440581"
+        },
+        {
+          "dataset": "beratcmn/turkish-prompt-injections",
+          "revision": "c40c38f8ca632052fbfec19e90fab31fce33eda1"
+        },
+        {
+          "dataset": "cgoosen/llm_guard_dataset",
+          "revision": "b18903ecf0bd6e95ef6f1cdfb691dae7df2851e4"
+        },
+        {
+          "dataset": "cgoosen/prompt_injection_combined",
+          "revision": "483296fde129d392d73077ad0c5d1175087cd9aa"
+        },
+        {
+          "dataset": "darkknight25/Prompt_Injection_Benign_Prompt_Dataset",
+          "revision": "a0fc54fb563468a7fd64a9412718ce7cdb366666"
+        },
+        {
+          "dataset": "deepset/prompt-injections",
+          "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+        },
+        {
+          "dataset": "hse-llm/prompt-injections",
+          "revision": "6619b5e0f7a907404b8b81df6aa97c2114dd27a1"
+        },
+        {
+          "dataset": "jackhhao/jailbreak-classification",
+          "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+        },
+        {
+          "dataset": "jcanode/safeguard-prompt-injection",
+          "revision": "61fbe3588450fa9b47ac1176ca7b5d2cc932344c"
+        },
+        {
+          "dataset": "neuralchemy/Prompt-injection-dataset",
+          "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+        },
+        {
+          "dataset": "rikka-snow/prompt-injection-multilingual",
+          "revision": "f1ad1f3dd44581f53a4c67e96a9dde2fb419ee5b"
+        },
+        {
+          "dataset": "wambosec/prompt-injections",
+          "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+        },
+        {
+          "dataset": "wambosec/prompt-injections-subtle",
+          "revision": "cd789a6e362aa72624d7f835c5270c8c3bdaf524"
+        }
+      ],
+      "inputs": [
+        {
+          "path": ".benchmark-data/injection-matrix-v113",
+          "sha256": "309f694fb155d47da501b2da145d812822f9509599c7abd5146d6c932deaf33e",
+          "source": "normalized_held_out_matrix"
+        },
+        {
+          "path": ".benchmark-data/mmbert-provenance-guard-v6-full",
+          "sha256": "2941778eba3fa051fa564436e218b82aac748ea7102916cc5cbf5462c1a6b0c6",
+          "source": "model_artifact"
+        },
+        {
+          "path": ".benchmark-data/mmbert-provenance-guard-v6-enterprise-balanced/registry.json",
+          "sha256": "e0701a66ba7522ad03f6f850b8ad98bf1c2b3f03066a1163934d880feeb7cfee",
+          "source": "expert_registry"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "corpora": 15,
+        "method": "source_pinned_held_out_fixtures",
+        "train_test_leakage_policy": "normalized_exact_text_global"
+      }
+    }
+  ],
+  "results_directory": "gateway/benchmarks/results",
+  "schema_version": "1.0",
+  "summary": {
+    "artifacts": 40,
+    "historical_archival": 34,
+    "incomplete_release_artifacts": [],
+    "missing_release_artifacts": [],
+    "release_evidence": 6,
+    "release_evidence_complete": 6,
+    "release_ready": true
+  }
+}

@@ -80,3 +80,34 @@ jobs:
 
       - name: Execute Multi-Stage Production Build
         run: docker compose build
+
+      - name: Start Production Topology
+        run: docker compose up -d
+
+      - name: Execute Live Docker Smoke
+        run: python scripts/docker_live_smoke.py --timeout-seconds 120
+
+      - name: Capture Container Logs on Failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop Production Topology
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  benchmark-reproducibility-check:
+    name: Benchmark Reproducibility Manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify Checked-In Benchmark Provenance
+        run: python pipeline/benchmarks/build_reproducibility_manifest.py --check

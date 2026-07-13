@@ -23,7 +23,6 @@ import { disconnectProducer } from './services/kafkaProducer';
 import { HttpClassifierClient, HttpGuardModelClient, LocalGuardModelClient } from './services/modelClients';
 const JSON_BODY_LIMIT = `${environment.MAX_PAYLOAD_KB}kb`;
 const SHUTDOWN_GRACE_MS = 10000;
-const DEFAULT_PROXY_SCOPE = 'valence:proxy';
 let activeVault: TokenVaultBackend | null = null;
 
 function createConfiguredVault(): TokenVaultBackend {
@@ -83,7 +82,7 @@ export function buildApp(logger: Logger): Express {
         tenantContext: {
             tenantId: 'api-key',
             actorId: 'api-key-service',
-            scopes: [environment.JWT_REQUIRED_SCOPE ?? DEFAULT_PROXY_SCOPE],
+            scopes: environment.GATEWAY_API_KEY_SCOPES.split(/[\s,]+/).filter(Boolean),
         },
         onRejected: (context) => {
             logger.warn({

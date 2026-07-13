@@ -14,6 +14,20 @@ An ATS adapter sends one role and a bounded candidate set using the canonical Ta
 
 An ATS or approved adapter publishes a batch through the ingestion API. Valence validates records, adds deterministic identities, and writes Kafka messages. Workers stage a complete batch in Redis, isolate poison records in the DLQ, and produce Stage 5-ready pools. Operators must set Kafka retention, Redis TTL, DLQ access, replay authorization, and deletion rules to match the tenant agreement.
 
+## Review and shadow operations
+
+The Compose topology runs a private `operations` service for durable review and shadow records. Public callers authenticate at the gateway. The gateway derives tenant, actor, and scopes from verified credentials and signs the forwarded request with `REVIEW_OPERATIONS_INTERNAL_KEY`; the operations service rejects missing, stale, or invalid signatures. Keep `operations.internal` on a private network and rotate the internal key through the deployment secret manager.
+
+The default store is a SQLite database on the `operations-data` volume. It supports restart-safe local shadow evaluation, immutable audit events, expiry/cancellation/deletion receipts, outcome comparisons, replay, and minimized export. It is not the recommended multi-host production database. A production deployment must supply managed persistence, backups, tested restore, legal-hold policy, and organization-approved retention periods.
+
+Run the local live topology gate with:
+
+```bash
+docker compose up -d
+python scripts/docker_live_smoke.py
+docker compose down --volumes --remove-orphans
+```
+
 ## Adapter boundary
 
 Workday, Greenhouse, Lever, Ashby, CSV, and HR-XML representations must be converted outside the policy engine. An adapter is responsible for field mapping, units, locale, provenance, and explicit missingness; it must never invent eligibility or evidence. New adapters should emit the canonical schema and pass contract fixtures before being advertised as supported.
@@ -27,3 +41,4 @@ Workday, Greenhouse, Lever, Ashby, CSV, and HR-XML representations must be conve
 - Append-only audit export and declared retention/deletion periods.
 - Human-review ownership, escalation, appeal, and outage procedures.
 - Shadow deployment and measured SLOs before any decision impact.
+- A private operations network, rotated `REVIEW_OPERATIONS_INTERNAL_KEY`, and least-privilege `GATEWAY_API_KEY_SCOPES`.

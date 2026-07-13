@@ -20,8 +20,8 @@ const portSchema = z.coerce
     .max(65535, 'port must be <= 65535');
 const secureServiceUrl = z.string().trim().url().refine((value) => {
     const parsed = new URL(value);
-    return parsed.protocol === 'https:' || (parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname));
-}, 'service URL must use HTTPS, except for loopback development services');
+    return parsed.protocol === 'https:' || (parsed.protocol === 'http:' && (['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname) || parsed.hostname.endsWith('.internal')));
+}, 'service URL must use HTTPS, except for loopback or private .internal services');
 const environmentSchema = z.object({
     PORT: portSchema.default(8443),
     GATEWAY_PORT: portSchema.optional(),
@@ -53,6 +53,7 @@ const environmentSchema = z.object({
         .string()
         .trim()
         .min(MIN_GATEWAY_KEY_LENGTH, `GATEWAY_API_KEY must be at least ${MIN_GATEWAY_KEY_LENGTH} characters (require high-entropy keys)`),
+    GATEWAY_API_KEY_SCOPES: z.string().trim().min(1).default('valence:proxy'),
     SECURITY_MODE: z.enum(SECURITY_MODES).default('FAIL_CLOSED'),
     AUTH_MODE: z.enum(AUTH_MODES).default('api_key'),
     JWT_ALGORITHM: z.enum(JWT_ALGORITHMS).default('HS256'),
