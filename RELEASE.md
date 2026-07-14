@@ -4,6 +4,9 @@ Current release target: `v1.13.5` cross-dataset evidence research preview
 
 ## v1.13.5
 
+- Adds an optional independently hosted transformer NER sidecar and gateway ensemble route for person-name detection. Its separate Nemotron measurement is advisory-only: 44.85% precision, 27.80% recall, and 34.33% F1 for person spans.
+- Adds ignored local Apify/WhoisJSON live-job collection and a dual-review OpenAI ranking pseudo-label runner. Both outputs are explicitly release-ineligible: the live actor sample lacked domain evidence, and LLM labels are not human labels.
+
 - Adds a deterministic, fail-closed exporter for the CC-BY-4.0 NVIDIA Nemotron-PII test split and corrects the benchmark contract to recognize its own `GENERIC_SECRET` enforcement class.
 - Runs the existing GLiNER gateway adapter against 1,000 held-out Nemotron records using thresholds frozen from Gretel calibration: 74.78% precision, 55.91% recall, and 63.99% F1 across 8,168 spans. The heuristic result is 93.57% precision, 13.72% recall, and 23.94% F1.
 - Records this as synthetic cross-dataset research evidence only. It does not pass the PII gate or replace jurisdictional, human-reviewed, or production-shadow evaluation.

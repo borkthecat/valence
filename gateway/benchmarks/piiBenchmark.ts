@@ -126,6 +126,7 @@ async function run(): Promise<void> {
     }
     const detectors: PiiDetector[] = [new HeuristicPiiDetector()];
     const classifierUrl = process.env['PII_CLASSIFIER_URL'];
+    const secondaryClassifierUrl = process.env['PII_SECONDARY_CLASSIFIER_URL'];
     const predictionCacheOutput = process.env['PII_PREDICTION_CACHE_OUTPUT'];
     const predictionCache: Array<{
         record_id: string;
@@ -147,6 +148,22 @@ async function run(): Promise<void> {
                 ? {}
                 : { apiKey: process.env['PII_CLASSIFIER_API_KEY'] }),
         }), { minimumScore, categoryMinimumScores }));
+    }
+    if (secondaryClassifierUrl !== undefined) {
+        const minimumScore = Number(process.env['PII_CLASSIFIER_MINIMUM_SCORE'] ?? '0.5');
+        if (!(minimumScore >= 0 && minimumScore <= 1)) {
+            throw new RangeError('PII_CLASSIFIER_MINIMUM_SCORE must be between 0 and 1');
+        }
+        const categoryMinimumScores = parsePiiCategoryThresholds(
+            process.env['PII_CLASSIFIER_LABEL_THRESHOLDS'] ?? '{}',
+        );
+        detectors.push(new EmbeddingClassifierDetector(new HttpClassifierClient({
+            url: secondaryClassifierUrl,
+            timeoutMs: Number(process.env['MODEL_SERVICE_TIMEOUT_MS'] ?? '3000'),
+            ...(process.env['PII_SECONDARY_CLASSIFIER_API_KEY'] === undefined
+                ? {}
+                : { apiKey: process.env['PII_SECONDARY_CLASSIFIER_API_KEY'] }),
+        }), { name: 'secondary-ner-classifier', minimumScore, categoryMinimumScores }));
     }
     const reader = createInterface({
         input: createReadStream(resolve(input), { encoding: 'utf8' }),

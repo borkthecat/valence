@@ -70,6 +70,8 @@ const environmentSchema = z.object({
     REDIS_URL: z.string().trim().url().optional(),
     PII_CLASSIFIER_URL: secureServiceUrl.optional(),
     PII_CLASSIFIER_API_KEY: z.string().trim().min(16).optional(),
+    PII_SECONDARY_CLASSIFIER_URL: secureServiceUrl.optional(),
+    PII_SECONDARY_CLASSIFIER_API_KEY: z.string().trim().min(16).optional(),
     PII_CLASSIFIER_MINIMUM_SCORE: z.coerce.number().min(0).max(1).default(0.5),
     PII_CLASSIFIER_LABEL_THRESHOLDS: z.string().trim().default('{}'),
     GUARD_MODEL_URL: secureServiceUrl.optional(),

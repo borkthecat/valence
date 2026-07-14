@@ -18,6 +18,7 @@ env/
 .pytest_cache/
 .benchmark-data/
 .valence-data/
+data/raw/
 VALENCE-SETUP-HELP.html
 
 # Secrets and local environment
