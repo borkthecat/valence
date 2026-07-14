@@ -8,6 +8,7 @@ Current release target: `v1.13.5` cross-dataset evidence research preview
 - Adds ignored local Apify/WhoisJSON live-job collection and a dual-review OpenAI ranking pseudo-label runner. Both outputs are explicitly release-ineligible: the live actor sample lacked domain evidence, and LLM labels are not human labels.
 - Adds a local Label Studio-ready hybrid human review pack for PII and ranking. It excludes gold labels from reviewer exports, creates deterministic double-blind calibration assignments, enforces ranking Cohen's kappa >=0.80 before the pilot, and writes unresolved differences for adjudication. Human review remains required before any release claim.
 - Adds a localhost-only, persistent Label Studio Compose environment and a PowerShell launcher that verifies the blind PII task pack before serving it. Review data remains in ignored local storage and is never committed.
+- Adds an offset-safe GLiNER-to-Label-Studio exporter for Markdown source text. It normalizes before inference, gives every result UUID, and rejects any span that fails exact `clean_text[start:end]` equality.
 
 - Adds a deterministic, fail-closed exporter for the CC-BY-4.0 NVIDIA Nemotron-PII test split and corrects the benchmark contract to recognize its own `GENERIC_SECRET` enforcement class.
 - Runs the existing GLiNER gateway adapter against 1,000 held-out Nemotron records using thresholds frozen from Gretel calibration: 74.78% precision, 55.91% recall, and 63.99% F1 across 8,168 spans. The heuristic result is 93.57% precision, 13.72% recall, and 23.94% F1.

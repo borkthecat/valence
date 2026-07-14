@@ -14,6 +14,15 @@ Assess only supplied job and candidate evidence. `hard_eligibility` is `pass` wh
 
 ## Build the blind review pack
 
+For raw Markdown or poorly formatted source material, first create a fresh, offset-safe GLiNER task export. The exporter removes Markdown only when it is syntax, collapses whitespace into one deterministic line, runs GLiNER on that exact line, asserts `clean_text[start:end] == entity["text"]`, and logs/discards every invalid span.
+
+```powershell
+python -m pip install -r requirements-pii-classifier.txt
+python scripts/export_gliner_label_studio.py raw-records.jsonl review-pack/gliner-tasks.json
+```
+
+Use `review/label-studio/pii-config.xml` when importing `gliner-tasks.json`. Never run inference on raw text and then display normalized text: the exporter's `data.text` is the same `clean_text` used by GLiNER.
+
 PII source records and the prediction cache are local inputs. The builder strips `entities`, `truth`, and every other gold-label field before it writes a task. The default PII selection concentrates on spans with model confidence from 0.30 through 0.70. Add `--include-high-confidence-pii` only after that uncertainty queue is exhausted.
 
 ```powershell
