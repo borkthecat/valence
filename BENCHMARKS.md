@@ -47,7 +47,9 @@ Per detected category (generic-sensitive and person-name spans are also included
 | Phone | 93.9% | 89.5% | 91.6% |
 | Password | 33.3% | 71.4% | 45.5% |
 
-The v1.13.4 run preserves 100% taxonomy accounting and replaces same-set threshold reporting with deterministic record-hash five-fold calibration. Its 71.70% out-of-fold F1 is slightly below the earlier 72.07% post-hoc value and is the more honest estimate. Context and entropy filters raise the heuristic-only path from 92.66% precision, 17.85% recall, and 29.93% F1 to 94.49%, 24.25%, and 38.59%. Person names and broad generic identifiers remain the dominant misses. A deterministic six-locale Faker suite reaches 100% precision, 55.00% recall, and 70.97% F1, but is synthetic regression evidence only. Production promotion still requires untouched, independently annotated locale/jurisdiction test sets. Checked-in current evidence includes `v1.13.4-gretel-pii-heuristic.json`, `v1.13.4-gretel-pii-gliner-oof-calibration.json`, and `v1.13.4-pii-locale-heuristic.json`.
+The v1.13.4 run preserves 100% taxonomy accounting and replaces same-set threshold reporting with deterministic record-hash five-fold calibration. Its 71.70% out-of-fold F1 is slightly below the earlier 72.07% post-hoc value and is the more honest estimate. Context and entropy filters raise the heuristic-only path from 92.66% precision, 17.85% recall, and 29.93% F1 to 94.49%, 24.25%, and 38.59%. Person names and broad generic identifiers remain the dominant misses. A deterministic six-locale Faker suite reaches 100% precision, 55.00% recall, and 70.97% F1, but is synthetic regression evidence only.
+
+v1.13.5 adds a separately sourced cross-dataset check: 1,000 deterministically selected records from the held-out NVIDIA Nemotron-PII test split, with 8,168 spans mapped to the gateway taxonomy. The GLiNER thresholds are frozen from Gretel five-fold calibration and are not tuned on Nemotron. This produces 74.78% precision, 55.91% recall, and 63.99% F1; the heuristic alone produces 93.57% precision, 13.72% recall, and 23.94% F1. Both corpora are synthetic, so this is research-only distribution-shift evidence, not a locale, shadow, or production release gate. It independently confirms poor person-name generalization (14.61% recall) and keeps promotion closed.
 
 Reproduce:
 
@@ -56,6 +58,7 @@ python pipeline/benchmarks/export_gretel_pii.py --rows 1000 --output .benchmark-
 PII_PREDICTION_CACHE_OUTPUT=../.benchmark-data/gretel-pii-v114-score-cache.jsonl PII_CLASSIFIER_URL=http://127.0.0.1:8765/v1/classify PII_CLASSIFIER_MINIMUM_SCORE=0 npm --prefix gateway run benchmark:pii -- ../.benchmark-data/gretel-pii-1000.jsonl 1000 benchmarks/results/v1.13.4-gretel-pii-gliner-score-floor.json
 python pipeline/benchmarks/calibrate_pii_thresholds.py --input .benchmark-data/gretel-pii-v114-score-cache.jsonl --output gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json --folds 5
 python pipeline/benchmarks/generate_pii_locale_suite.py --output .benchmark-data/pii-locale-suite-v114.jsonl --records-per-locale 40
+python pipeline/benchmarks/export_nemotron_pii.py --rows 1000 --output .benchmark-data/nemotron-pii-test-1000.jsonl
 ```
 
 ## Prompt injection

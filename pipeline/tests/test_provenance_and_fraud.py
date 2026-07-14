@@ -19,6 +19,7 @@ from benchmarks.generate_guard_hard_negatives import generate_records as generat
 from benchmarks.build_ranking_judge_tasks import build_tasks
 from benchmarks.calibrate_pii_thresholds import calibrate as calibrate_pii
 from benchmarks.generate_pii_locale_suite import generate as generate_pii_locale_suite
+from benchmarks.export_nemotron_pii import normalize_record as normalize_nemotron_pii_record
 from benchmarks.adjudicate_ranking_silver import adjudicate as adjudicate_silver
 from benchmarks.evaluate_guard_cascade import compact_margin
 from benchmarks.train_emscad_fraud_model import evaluate as evaluate_trained_fraud_model
@@ -204,6 +205,19 @@ def test_pii_locale_suite_has_exact_synthetic_spans() -> None:
     for record in records:
         entity = record["entities"][0]
         assert record["text"][entity["start"]:entity["end"]]
+
+
+def test_nemotron_pii_export_preserves_offsets_and_maps_full_taxonomy() -> None:
+    record = normalize_nemotron_pii_record({
+        "uid": "fixture",
+        "text": "Ada at ada@example.com has 4111 1111 1111 1111.",
+        "spans": "[{'start': 0, 'end': 3, 'label': 'first_name'}, {'start': 7, 'end': 22, 'label': 'email'}, {'start': 27, 'end': 46, 'label': 'credit_debit_card'}]",
+        "locale": "us",
+        "domain": "Life",
+    })
+
+    assert [entity["label"] for entity in record["entities"]] == ["PERSON_NAME", "EMAIL", "CREDIT_CARD"]
+    assert record["text"][7:22] == "ada@example.com"
 
 
 def test_transformer_guard_reads_provenance_tokens(tmp_path: Path) -> None:

@@ -24,6 +24,17 @@ Valence does not treat synthetic scale tests as universal accuracy evidence. Lar
 
 Valence supplies the secure classifier client and benchmark contract. Model training remains a separate, versioned ML process so weights, tokenizer, dataset revision, calibration thresholds, and model cards can be reviewed independently of the gateway.
 
+## NVIDIA Nemotron-PII
+
+- Owner: NVIDIA
+- Source: https://huggingface.co/datasets/nvidia/Nemotron-PII
+- License: CC-BY-4.0
+- Scale: 100,000 synthetic span-annotated test records
+- Use: independent synthetic cross-dataset PII evaluation only
+- Current evidence: a deterministic 1,000-record test subset maps 8,168 spans to the current gateway taxonomy. Gretel-frozen GLiNER thresholds yield 74.78% precision, 55.91% recall, and 63.99% F1; this is explicitly not release evidence.
+
+`pipeline/benchmarks/export_nemotron_pii.py` validates all source offsets and fails if a source label is unmapped. It uses SHA-256 ordering of source UIDs, so the selected prefix is reproducible without fitting or selecting thresholds on the test records.
+
 `pipeline/benchmarks/generate_pii_locale_suite.py` uses pinned Faker 40.28.1 to create deterministic `en_US`, `es_ES`, `fr_FR`, `de_DE`, `ja_JP`, and `ar_AA` exact-span fixtures. These fixtures test locale handling and scanner regressions only; generated values are explicitly marked release-ineligible. The official CMU Enron corpus was reviewed as a possible organic source, but its historical mail, redaction, and annotation limitations do not make it broad PII ground truth. The gated LMSYS Chat 1M terms do not permit vendoring it as a public project fixture.
 
 ## Prompt-Injection Matrix

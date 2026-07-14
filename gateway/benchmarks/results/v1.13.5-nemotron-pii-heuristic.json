@@ -1,0 +1,100 @@
+{
+  "benchmark": "pii-span-detection",
+  "detector": "heuristic-static",
+  "classifierConfigured": false,
+  "records": 1000,
+  "allGroundTruthEntities": 8168,
+  "supportedGroundTruthEntities": 8168,
+  "labelCoverage": 1,
+  "exactSpanMetricsOnSupportedLabels": {
+    "truePositive": 1121,
+    "falsePositive": 77,
+    "falseNegative": 7047,
+    "precision": 0.9357262103505843,
+    "recall": 0.13724289911851126,
+    "f1": 0.23937646807601962
+  },
+  "perLabel": {
+    "API_KEY": {
+      "truePositive": 16,
+      "falsePositive": 4,
+      "falseNegative": 24,
+      "precision": 0.8,
+      "recall": 0.4,
+      "f1": 0.5333333333333333
+    },
+    "GENERIC_SECRET": {
+      "truePositive": 388,
+      "falsePositive": 1,
+      "falseNegative": 5083,
+      "precision": 0.9974293059125964,
+      "recall": 0.0709193931639554,
+      "f1": 0.1324232081911263
+    },
+    "EMAIL": {
+      "truePositive": 488,
+      "falsePositive": 2,
+      "falseNegative": 5,
+      "precision": 0.9959183673469387,
+      "recall": 0.9898580121703854,
+      "f1": 0.9928789420142421
+    },
+    "CREDIT_CARD": {
+      "truePositive": 13,
+      "falsePositive": 10,
+      "falseNegative": 125,
+      "precision": 0.5652173913043478,
+      "recall": 0.09420289855072464,
+      "f1": 0.16149068322981366
+    },
+    "PASSWORD": {
+      "truePositive": 5,
+      "falsePositive": 1,
+      "falseNegative": 121,
+      "precision": 0.8333333333333334,
+      "recall": 0.03968253968253968,
+      "f1": 0.07575757575757576
+    },
+    "PERSON_NAME": {
+      "truePositive": 0,
+      "falsePositive": 0,
+      "falseNegative": 1410,
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    },
+    "PHONE": {
+      "truePositive": 84,
+      "falsePositive": 13,
+      "falseNegative": 202,
+      "precision": 0.865979381443299,
+      "recall": 0.2937062937062937,
+      "f1": 0.4386422976501305
+    },
+    "SSN": {
+      "truePositive": 73,
+      "falsePositive": 13,
+      "falseNegative": 0,
+      "precision": 0.8488372093023255,
+      "recall": 1,
+      "f1": 0.9182389937106918
+    },
+    "IP_ADDRESS": {
+      "truePositive": 54,
+      "falsePositive": 24,
+      "falseNegative": 27,
+      "precision": 0.6923076923076923,
+      "recall": 0.6666666666666666,
+      "f1": 0.6792452830188679
+    },
+    "ACCESS_TOKEN": {
+      "truePositive": 0,
+      "falsePositive": 9,
+      "falseNegative": 50,
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    }
+  },
+  "unsupportedGroundTruthByLabel": {}
+}

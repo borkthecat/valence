@@ -1965,17 +1965,67 @@
       "release_evidence": false,
       "reproducibility_status": "archived_incomplete",
       "split": null
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.5-nemotron-pii-gliner-gretel-frozen-thresholds.json",
+      "artifact_bytes": 2581,
+      "artifact_commit": "uncommitted",
+      "artifact_sha256": "0b20ef8294d34ea54474aaf115478d0df8aa7326d56b5395f6a5feb554beb9be",
+      "command": "PII_CLASSIFIER_URL=http://127.0.0.1:8091/v1/classify MODEL_SERVICE_TIMEOUT_MS=30000 PII_CLASSIFIER_MINIMUM_SCORE=0 PII_CLASSIFIER_LABEL_THRESHOLDS='<thresholds from v1.13.4-gretel-pii-gliner-oof-calibration.json>' npm --prefix gateway run benchmark:pii -- ../.benchmark-data/nemotron-pii-test-1000.jsonl 1000 benchmarks/results/v1.13.5-nemotron-pii-gliner-gretel-frozen-thresholds.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/nemotron-pii-test-1000.jsonl",
+          "sha256": "0b9d7335ae6d8195a629fd9a9555d9b325dbd7b159e1c85a63c87bb644871fa4",
+          "source": "nvidia/Nemotron-PII test split"
+        },
+        {
+          "path": "gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json",
+          "sha256": "f06f5d2dbf28b09bdcb33b08427ed0c2e11d53628c2e45b27735d3f836589f82",
+          "source": "frozen Gretel out-of-fold threshold artifact"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "sha256_uid_ordered_prefix",
+        "purpose": "independent_synthetic_cross_dataset_evaluation_not_release_gate",
+        "rows": 1000,
+        "thresholds": "frozen_from_separate_gretel_calibration"
+      }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.5-nemotron-pii-heuristic.json",
+      "artifact_bytes": 2475,
+      "artifact_commit": "uncommitted",
+      "artifact_sha256": "dda0a14d41ff2b07900fc2fc27d0c22121693e3d8ab62ffce065812848663ec7",
+      "command": "python pipeline/benchmarks/export_nemotron_pii.py --rows 1000 --output .benchmark-data/nemotron-pii-test-1000.jsonl && npm --prefix gateway run benchmark:pii -- ../.benchmark-data/nemotron-pii-test-1000.jsonl 1000 benchmarks/results/v1.13.5-nemotron-pii-heuristic.json",
+      "dataset_revisions": [],
+      "inputs": [
+        {
+          "path": ".benchmark-data/nemotron-pii-test-1000.jsonl",
+          "sha256": "0b9d7335ae6d8195a629fd9a9555d9b325dbd7b159e1c85a63c87bb644871fa4",
+          "source": "nvidia/Nemotron-PII test split"
+        }
+      ],
+      "release_evidence": true,
+      "reproducibility_status": "complete",
+      "split": {
+        "method": "sha256_uid_ordered_prefix",
+        "purpose": "independent_synthetic_cross_dataset_evaluation_not_release_gate",
+        "rows": 1000
+      }
     }
   ],
   "results_directory": "gateway/benchmarks/results",
   "schema_version": "1.0",
   "summary": {
-    "artifacts": 60,
+    "artifacts": 62,
     "historical_archival": 46,
     "incomplete_release_artifacts": [],
     "missing_release_artifacts": [],
-    "release_evidence": 14,
-    "release_evidence_complete": 14,
+    "release_evidence": 16,
+    "release_evidence_complete": 16,
     "release_ready": true
   }
 }

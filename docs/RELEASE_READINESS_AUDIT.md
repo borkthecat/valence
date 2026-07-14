@@ -1,6 +1,10 @@
 # Release Readiness Audit — 2026-07-13
 
-Scope: the original review of `d39dd17` plus the v1.13.4 calibration addendum. This is an evidence-based research-preview assessment, not a compliance certification.
+Scope: the original review of `d39dd17` plus the v1.13.4 and v1.13.5 calibration addenda. This is an evidence-based research-preview assessment, not a compliance certification.
+
+## v1.13.5 cross-dataset addendum
+
+The PII path now has a second, separate synthetic test distribution. A deterministic 1,000-record NVIDIA Nemotron-PII test subset contains 8,168 mapped spans. The GLiNER configuration uses thresholds frozen from the five-fold Gretel calibration and reaches 74.78% precision, 55.91% recall, and 63.99% F1; heuristic-only detection reaches 93.57% precision, 13.72% recall, and 23.94% F1. This does not raise readiness: it confirms weaker generalization, especially for person names (14.61% recall), and keeps the gate closed.
 
 ## v1.13.4 calibration addendum
 
@@ -26,7 +30,7 @@ The review endpoint is exercised through HTTP under the mock provider. It is not
 | --- | --- | --- | --- |
 | Core gateway | Request-scoped restoration, tenant tests, fail-closed streaming, strict schemas, audit chain | Key rotation, vault revocation, outage/recovery evidence, multi-host SLOs | Strong gateway research preview; limited deployment after shadow operations evidence |
 | Injection guard | Per-corpus reporting, provenance routing, train-only calibration, negative benchmark honesty | Indirect/secret coverage, NotInject over-defense, public corpora do not represent production tool traffic | Useful review/telemetry guard, not autonomous enterprise blocker |
-| PII/tokenization | Scoped vault, streaming reconstruction, production HTTP classifier path, CUDA GLiNER service, full-taxonomy gate | Out-of-fold exact-span F1 71.70% across 100% of declared taxonomy; person and generic identifier performance and real locale evidence remain weak | Secure transport mechanism; detector remains experimental |
+| PII/tokenization | Scoped vault, streaming reconstruction, production HTTP classifier path, CUDA GLiNER service, full-taxonomy gate | Gretel out-of-fold F1 71.70%; separate Nemotron F1 63.99%; person and generic identifier performance and real locale evidence remain weak | Secure transport mechanism; detector remains experimental |
 | Talent Integrity | Bounded review contract, dual-review/adjudication lifecycle, group-held-out EMSCAD baseline, ranking evaluator | No independently adjudicated candidate-job pilot or current verified fraud feed | Safe orchestration demonstration, not a validated ranker |
 
 More infrastructure, ranking fields, synthetic profiles, generic LLM size, or dashboards should be deferred. They would not repair missing labels, weak attack distribution coverage, or absent operational evidence. Raw multimodal processing should also wait for an OCR threat/cost model.
@@ -96,7 +100,7 @@ Every release dataset needs a card, license, collection period, provenance/check
 | Architecture | 82 | Clear security boundaries; talent schema is still legacy |
 | Security design | 84 | Strong scoped tokenization and fail-closed posture; operational controls incomplete |
 | Security-model effectiveness | 60 | Direct performance useful; indirect, secret, and benign FPR fail enterprise gates |
-| PII protection | 70 | Restoration design is strong and taxonomy accounting is complete; out-of-fold full-taxonomy F1 is 71.70%, still below promotion gates |
+| PII protection | 65 | Restoration design and taxonomy accounting are strong, but frozen-threshold cross-dataset F1 is 63.99% and remains below promotion gates |
 | Ranking validity | 25 | No real candidate-job ground truth |
 | Fraud detection | 60 | Zero-overlap EMSCAD precision-first group F1 is 75.08%; current verified external evidence is still absent |
 | Testing/reproducibility | 88 | Broad tests, pinned public sources, release-evidence manifests, and live Docker CI; production datasets remain external |
@@ -106,4 +110,4 @@ Every release dataset needs a card, license, collection period, provenance/check
 | Documentation | 84 | Honest and clear; some implementation remains aspirational |
 | Product clarity | 76 | Core/reference-app split is much clearer, but legacy schema confuses the talent story |
 
-Overall: **76/100 research preview**, **48/100 shadow readiness**, **30/100 enterprise production**. After the independently adjudicated talent pilot plus provenance/over-defense security milestone: realistically **82–85 research preview** and **60–65 shadow readiness**. Higher scores depend on real labelled and shadow data, not more generic code.
+Overall: **75/100 research preview**, **48/100 shadow readiness**, **30/100 enterprise production**. The new cross-dataset PII score improves confidence in the measurement, not readiness. After the independently adjudicated talent pilot plus provenance/over-defense security milestone: realistically **82-85 research preview** and **60-65 shadow readiness**. Higher scores depend on real labelled and shadow data, not more generic code.

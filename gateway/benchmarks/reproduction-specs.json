@@ -176,6 +176,35 @@
         }
       ],
       "split": {"method": "stratified_group", "seed": 1500, "groups": 4942, "train": 13440, "validation": 1559, "test": 2881, "train_test_group_overlap": 0}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.5-nemotron-pii-heuristic.json",
+      "command": "python pipeline/benchmarks/export_nemotron_pii.py --rows 1000 --output .benchmark-data/nemotron-pii-test-1000.jsonl && npm --prefix gateway run benchmark:pii -- ../.benchmark-data/nemotron-pii-test-1000.jsonl 1000 benchmarks/results/v1.13.5-nemotron-pii-heuristic.json",
+      "inputs": [
+        {
+          "path": ".benchmark-data/nemotron-pii-test-1000.jsonl",
+          "sha256": "0b9d7335ae6d8195a629fd9a9555d9b325dbd7b159e1c85a63c87bb644871fa4",
+          "source": "nvidia/Nemotron-PII test split"
+        }
+      ],
+      "split": {"method": "sha256_uid_ordered_prefix", "rows": 1000, "purpose": "independent_synthetic_cross_dataset_evaluation_not_release_gate"}
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.5-nemotron-pii-gliner-gretel-frozen-thresholds.json",
+      "command": "PII_CLASSIFIER_URL=http://127.0.0.1:8091/v1/classify MODEL_SERVICE_TIMEOUT_MS=30000 PII_CLASSIFIER_MINIMUM_SCORE=0 PII_CLASSIFIER_LABEL_THRESHOLDS='<thresholds from v1.13.4-gretel-pii-gliner-oof-calibration.json>' npm --prefix gateway run benchmark:pii -- ../.benchmark-data/nemotron-pii-test-1000.jsonl 1000 benchmarks/results/v1.13.5-nemotron-pii-gliner-gretel-frozen-thresholds.json",
+      "inputs": [
+        {
+          "path": ".benchmark-data/nemotron-pii-test-1000.jsonl",
+          "sha256": "0b9d7335ae6d8195a629fd9a9555d9b325dbd7b159e1c85a63c87bb644871fa4",
+          "source": "nvidia/Nemotron-PII test split"
+        },
+        {
+          "path": "gateway/benchmarks/results/v1.13.4-gretel-pii-gliner-oof-calibration.json",
+          "sha256": "f06f5d2dbf28b09bdcb33b08427ed0c2e11d53628c2e45b27735d3f836589f82",
+          "source": "frozen Gretel out-of-fold threshold artifact"
+        }
+      ],
+      "split": {"method": "sha256_uid_ordered_prefix", "rows": 1000, "thresholds": "frozen_from_separate_gretel_calibration", "purpose": "independent_synthetic_cross_dataset_evaluation_not_release_gate"}
     }
   ]
 }

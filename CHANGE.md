@@ -4,6 +4,11 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+## 1.13.5
+
+- Added deterministic NVIDIA Nemotron-PII test export with strict source-span validation and full source-label mapping.
+- Corrected `GENERIC_SECRET` exact-span accounting and recorded a frozen-threshold cross-dataset PII evaluation without promoting synthetic evidence to a release claim.
+
 ## 1.13.4
 
 - Added context and entropy validation for password and identifier PII, conservative Unicode person-name boundary alignment, and privacy-safe prediction-cache export.

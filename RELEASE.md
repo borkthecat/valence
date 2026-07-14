@@ -1,6 +1,12 @@
 # Release Process
 
-Current release target: `v1.13.4` calibrated evidence research preview
+Current release target: `v1.13.5` cross-dataset evidence research preview
+
+## v1.13.5
+
+- Adds a deterministic, fail-closed exporter for the CC-BY-4.0 NVIDIA Nemotron-PII test split and corrects the benchmark contract to recognize its own `GENERIC_SECRET` enforcement class.
+- Runs the existing GLiNER gateway adapter against 1,000 held-out Nemotron records using thresholds frozen from Gretel calibration: 74.78% precision, 55.91% recall, and 63.99% F1 across 8,168 spans. The heuristic result is 93.57% precision, 13.72% recall, and 23.94% F1.
+- Records this as synthetic cross-dataset research evidence only. It does not pass the PII gate or replace jurisdictional, human-reviewed, or production-shadow evaluation.
 
 ## v1.13.4
 
@@ -73,7 +79,7 @@ cp .env.example .env
 docker compose build
 ```
 
-This builds `valence-gateway:1.13.4` and `valence-pipeline:1.13.4` through `VALENCE_VERSION`.
+This builds `valence-gateway:1.13.5` and `valence-pipeline:1.13.5` through `VALENCE_VERSION`.
 
 Local no-cost smoke stack:
 
@@ -84,8 +90,8 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env
 ## Tag
 
 ```bash
-git tag -a v1.13.4 -m "Valence v1.13.4"
-git push origin main v1.13.4
+git tag -a v1.13.5 -m "Valence v1.13.5"
+git push origin main v1.13.5
 ```
 
 ## Release Notes
