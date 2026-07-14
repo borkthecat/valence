@@ -31,6 +31,8 @@ Valence is a research preview. Current benchmark limitations are reported in [BE
 - [Talent Integrity boundaries and decision policy](docs/TALENT_INTEGRITY.md)
 - [Talent Integrity pilot annotation protocol](docs/TALENT_INTEGRITY_ANNOTATION.md)
 - [Hybrid human PII and ranking review workflow](docs/HYBRID_HUMAN_REVIEW.md)
+
+Local reviewer environment: `./scripts/start_hybrid_review_env.ps1` starts a persistent, localhost-only Label Studio instance on `http://127.0.0.1:8081` and verifies the prebuilt PII review pack.
 - [Talent Integrity delivery roadmap](docs/TALENT_INTEGRITY_ROADMAP.md)
 - [Talent Integrity benchmark protocol](docs/TALENT_BENCHMARK_PROTOCOL.md)
 - [Threat model](docs/THREAT_MODEL.md)

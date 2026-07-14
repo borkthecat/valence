@@ -36,13 +36,15 @@ Use `--allow-ranking-smoke` only for a non-release dry run. The output has separ
 
 ## Label Studio
 
-Run a local instance in an approved environment:
+The repository includes a localhost-only, persistent Label Studio environment. Start it once:
 
 ```powershell
-docker run --rm -p 8081:8080 -v "${PWD}/label-studio:/label-studio/data" heartexlabs/label-studio:latest
+.\scripts\start_hybrid_review_env.ps1
 ```
 
-Create one project per reviewer and review type. Use [PII configuration](../review/label-studio/pii-config.xml) for PII and [ranking configuration](../review/label-studio/ranking-config.xml) for ranking. Import the corresponding JSON task file from `review-pack`. Reviewers must not see the AI rationale while deciding; remove that optional field from the input pair file if the UI exposes it.
+Open `http://127.0.0.1:8081` and create the local Label Studio owner account. Create two separate PII projects named `Valence PII Reviewer A` and `Valence PII Reviewer B`; use [PII configuration](../review/label-studio/pii-config.xml), then import the printed Reviewer A or Reviewer B task file respectively. Do not share project access or exports between reviewers. The project storage is local-only under ignored `.valence-data/label-studio`.
+
+Create ranking projects only after the approved 210-job pair file exists. Use [ranking configuration](../review/label-studio/ranking-config.xml) and the corresponding blind ranking task files. Reviewers must not see the AI rationale while deciding; remove that optional field from the input pair file if the UI exposes it.
 
 Both reviewers label the 30 deterministic calibration jobs first. Export completed annotations as Label Studio JSON and reconcile them:
 
