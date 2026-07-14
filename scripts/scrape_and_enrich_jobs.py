@@ -15,7 +15,7 @@ import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 
 from apify_client import ApifyClient
 import requests
@@ -25,6 +25,8 @@ GENERIC_EMAIL_DOMAINS = frozenset({
     "gmail.com", "googlemail.com", "hotmail.com", "outlook.com", "yahoo.com",
     "icloud.com", "aol.com", "proton.me", "protonmail.com", "mail.com",
 })
+JOB_BOARD_DOMAINS = frozenset({"linkedin.com", "indeed.com", "ziprecruiter.com", "glassdoor.com", "monster.com"})
+ATS_DOMAINS = frozenset({"greenhouse.io", "lever.co", "workday.com", "myworkdayjobs.com", "smartrecruiters.com", "jobvite.com", "icims.com", "ashbyhq.com"})
 
 
 def load_local_environment(path: Path) -> None:
@@ -72,6 +74,78 @@ def first_url(record: dict[str, Any]) -> str | None:
     if isinstance(company, dict):
         return first_text(company, "website", "url", "companyUrl")
     return None
+
+
+def apply_url(record: dict[str, Any]) -> str | None:
+    return first_text(record, "applyUrl", "apply_url", "applicationUrl", "application_url", "redirectUrl", "redirect_url", "jobUrl", "job_url", "url", "link")
+
+
+def _domain_matches(domain: str, candidates: frozenset[str]) -> bool:
+    return any(domain == candidate or domain.endswith(f".{candidate}") for candidate in candidates)
+
+
+def _search_href_domain(href: str) -> str | None:
+    parsed = urlparse(href)
+    if parsed.hostname and parsed.hostname.endswith("duckduckgo.com"):
+        redirect = parse_qs(parsed.query).get("uddg", [None])[0]
+        return normalize_domain(unquote(redirect)) if redirect else None
+    return normalize_domain(href)
+
+
+class CompanyDomainResolver:
+    """Resolve company domains with explicit provenance and a bounded public-search fallback."""
+    def __init__(self, cache_path: Path, search_fallback: bool, min_interval_seconds: float = 0.5) -> None:
+        self.cache_path = cache_path
+        self.search_fallback = search_fallback
+        self.min_interval_seconds = min_interval_seconds
+        self.cache = self._load_cache()
+        self._last_request = 0.0
+
+    def _load_cache(self) -> dict[str, dict[str, str | None]]:
+        try:
+            value = json.loads(self.cache_path.read_text(encoding="utf-8")) if self.cache_path.exists() else {}
+            return value if isinstance(value, dict) else {}
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def save(self) -> None:
+        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+        self.cache_path.write_text(json.dumps(self.cache, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+    def resolve(self, company_name: str, website: str | None, apply: str | None) -> dict[str, str | None]:
+        direct = normalize_domain(website)
+        if direct and not _domain_matches(direct, JOB_BOARD_DOMAINS | ATS_DOMAINS):
+            return {"company_domain": direct, "apply_domain": normalize_domain(apply), "source": "payload_website"}
+        apply_domain = normalize_domain(apply)
+        if apply_domain and not _domain_matches(apply_domain, JOB_BOARD_DOMAINS | ATS_DOMAINS):
+            return {"company_domain": apply_domain, "apply_domain": apply_domain, "source": "apply_url"}
+        key = company_name.strip().lower()
+        cached = self.cache.get(key)
+        if cached is not None:
+            return {**cached, "apply_domain": apply_domain}
+        result = {"company_domain": None, "apply_domain": apply_domain, "source": "unresolved"}
+        if self.search_fallback and key:
+            delay = self.min_interval_seconds - (time.monotonic() - self._last_request)
+            if delay > 0:
+                time.sleep(delay)
+            try:
+                response = requests.get(
+                    "https://html.duckduckgo.com/html/",
+                    params={"q": f"{company_name} official website"},
+                    headers={"User-Agent": "ValenceResearchBot/1.0 (+https://github.com/borkthecat/valence)"},
+                    timeout=5,
+                )
+                self._last_request = time.monotonic()
+                response.raise_for_status()
+                for href in re.findall(r'href=["\']([^"\']+)', response.text, flags=re.IGNORECASE):
+                    domain = _search_href_domain(href)
+                    if domain and not _domain_matches(domain, JOB_BOARD_DOMAINS | ATS_DOMAINS | frozenset({"duckduckgo.com"})):
+                        result = {"company_domain": domain, "apply_domain": apply_domain, "source": "duckduckgo_official_site_candidate"}
+                        break
+            except requests.RequestException:
+                pass
+        self.cache[key] = {"company_domain": result["company_domain"], "source": result["source"]}
+        return result
 
 
 def first_contact_email(record: dict[str, Any], description: str) -> str | None:
@@ -162,11 +236,12 @@ class WhoisJsonClient:
         return result
 
 
-def enrich_record(record: dict[str, Any], whois: WhoisJsonClient, today: date, low_assurance_registrars: set[str]) -> dict[str, Any]:
+def enrich_record(record: dict[str, Any], whois: WhoisJsonClient, resolver: CompanyDomainResolver, today: date, low_assurance_registrars: set[str]) -> dict[str, Any]:
     company_name = first_text(record, "companyName", "company_name", "company") or ""
     description = first_text(record, "descriptionText", "description", "jobDescription", "job_description") or ""
     website = first_url(record)
-    domain = normalize_domain(website)
+    resolved = resolver.resolve(company_name, website, apply_url(record))
+    domain = resolved["company_domain"]
     contact_email = first_contact_email(record, description)
     contact_domain = normalize_domain(contact_email)
     lookup = whois.lookup(domain) if domain else {"status": "not_checked", "created": None, "registrar": None}
@@ -194,6 +269,8 @@ def enrich_record(record: dict[str, Any], whois: WhoisJsonClient, today: date, l
         "posting_url": first_text(record, "url", "jobUrl", "job_url", "link"),
         "company_website": website,
         "company_domain": domain,
+        "company_domain_source": resolved["source"],
+        "apply_domain": resolved["apply_domain"],
         "contact_email_domain": contact_domain,
         "whois_status": lookup["status"],
         "domain_created": lookup.get("created"),
@@ -224,10 +301,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Collect live remote jobs and enrich them with cached WhoisJSON data")
     parser.add_argument("--output", type=Path, default=Path("data/raw/live_enriched_jobs.json"))
     parser.add_argument("--cache", type=Path, default=Path("data/raw/whois-json-cache.json"))
+    parser.add_argument("--domain-cache", type=Path, default=Path("data/raw/company-domain-cache.json"))
     parser.add_argument("--actor", default="automation-lab/linkedin-jobs-scraper")
     parser.add_argument("--limit", type=int, default=200)
     parser.add_argument("--actor-input", default='{"searchQuery":"remote","location":"Remote","maxJobs":200}')
     parser.add_argument("--low-assurance-registrar", action="append", default=[])
+    parser.add_argument("--disable-search-fallback", action="store_true")
     parser.add_argument("--env-file", type=Path, default=Path(".env.local"))
     args = parser.parse_args()
     if not 1 <= args.limit <= 500:
@@ -244,10 +323,12 @@ def main() -> int:
     if not isinstance(actor_input, dict):
         raise ValueError("--actor-input must be a JSON object")
     whois = WhoisJsonClient(whois_token, args.cache)
+    resolver = CompanyDomainResolver(args.domain_cache, not args.disable_search_fallback)
     today = datetime.now(UTC).date()
     registrars = {value.strip().lower() for value in args.low_assurance_registrar if value.strip()}
-    records = [enrich_record(item, whois, today, registrars) for item in collect_items(ApifyClient(apify_token), args.actor, actor_input, args.limit)]
+    records = [enrich_record(item, whois, resolver, today, registrars) for item in collect_items(ApifyClient(apify_token), args.actor, actor_input, args.limit)]
     whois.save()
+    resolver.save()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps({"schema_version": 1, "collected_at": datetime.now(UTC).isoformat(), "records": records}, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"records": len(records), "output": str(args.output), "label": "unknown", "releaseGateEligible": False}, sort_keys=True))
