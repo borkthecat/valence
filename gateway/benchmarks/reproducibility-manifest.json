@@ -2015,13 +2015,25 @@
         "purpose": "independent_synthetic_cross_dataset_evaluation_not_release_gate",
         "rows": 1000
       }
+    },
+    {
+      "artifact": "gateway/benchmarks/results/v1.13.5-nemotron-pii-secondary-ner.json",
+      "artifact_bytes": 2555,
+      "artifact_commit": "tracked-in-repository",
+      "artifact_sha256": "360d045e551cd17b9585a80814f70ff159e4bec17e5e46c550eb46890148c51a",
+      "command": null,
+      "dataset_revisions": [],
+      "inputs": [],
+      "release_evidence": false,
+      "reproducibility_status": "archived_incomplete",
+      "split": null
     }
   ],
   "results_directory": "gateway/benchmarks/results",
   "schema_version": "1.0",
   "summary": {
-    "artifacts": 62,
-    "historical_archival": 46,
+    "artifacts": 63,
+    "historical_archival": 47,
     "incomplete_release_artifacts": [],
     "missing_release_artifacts": [],
     "release_evidence": 16,
