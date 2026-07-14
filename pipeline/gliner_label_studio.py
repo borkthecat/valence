@@ -11,9 +11,6 @@ from typing import Any, Protocol
 
 LOGGER = logging.getLogger(__name__)
 
-# These expressions remove Markdown delimiters only when they act as syntax.
-# They deliberately preserve punctuation inside values such as email addresses,
-# phone numbers, API keys, and snake_case usernames.
 _FENCED_CODE = re.compile(r"(?m)^\s*(`{3,}|~{3,}).*$\n?")
 _HEADING = re.compile(r"(?m)^\s{0,3}#{1,6}\s+")
 _BLOCKQUOTE = re.compile(r"(?m)^\s{0,3}>\s?")
@@ -93,8 +90,6 @@ def validated_results(cleaned: str, entities: Iterable[dict[str, Any]]) -> list[
                 raise ValueError("missing typed start, end, or text")
             if not 0 <= start < end <= len(cleaned):
                 raise ValueError(f"out-of-range offsets start={start} end={end} length={len(cleaned)}")
-            # Do not normalize either side of this comparison. Exact character
-            # equality is the contract that makes Label Studio offsets safe.
             assert cleaned[start:end] == model_text, (
                 f"offset mismatch expected={model_text!r} actual={cleaned[start:end]!r} "
                 f"start={start} end={end}"

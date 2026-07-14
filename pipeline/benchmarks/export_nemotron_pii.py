@@ -11,8 +11,6 @@ from typing import Any, Iterable
 
 DATASET = "nvidia/Nemotron-PII"
 
-# The gateway evaluates its current compact taxonomy.  Related PII concepts are
-# intentionally collapsed only where the detector has a matching enforcement class.
 LABEL_MAP = {
     "account_number": "GENERIC_SECRET",
     "age": "GENERIC_SECRET",

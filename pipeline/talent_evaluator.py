@@ -280,7 +280,6 @@ def bootstrap_confidence_intervals(records: list[TalentEvaluationRecord], submis
     values: dict[str, list[float]] = {"relevance_ndcg_at_5": [], "policy_adjusted_ndcg_at_5": [], "qualified_recall_at_5_micro": []}
     for _ in range(samples):
         draw = [generator.choice(records) for _ in records]
-        # Cases are copied with unique synthetic identifiers so evaluate can retain strict duplicate checks.
         copied = [record.model_copy(update={"case_id": f"bootstrap-{index}"}) for index, record in enumerate(draw)]
         copied_submissions = [by_case[record.case_id].model_copy(update={"case_id": f"bootstrap-{index}"}) for index, record in enumerate(draw)]
         report = evaluate(copied, copied_submissions)

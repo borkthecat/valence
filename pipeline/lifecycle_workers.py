@@ -6,7 +6,6 @@ from shadow_operations import ShadowStore
 def run_review_lifecycle(store:ReviewStore,tenant:str,now:datetime,batch_size:int=100,stale_claim_seconds:int=900)->dict[str,int]:
  expired=stale=0
  for item in store.list(tenant,None,batch_size,0):
-  # payload remains private; only state changes and immutable audit events occur.
   due=item.get('due_at')
   if due and datetime.fromisoformat(due.replace('Z','+00:00'))<=now and item['status'] not in {'expired','cancelled','resolved'}:
    store.transition(tenant,item['review_id'],'worker','expire',item['version']);expired+=1

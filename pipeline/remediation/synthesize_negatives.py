@@ -52,9 +52,6 @@ def main() -> int:
     args = parser.parse_args()
     if args.per_target <= 0 or args.anchors <= 0:
         raise ValueError("sample counts must be positive")
-    # Variations are sourced only from target training rows, so target test hashes
-    # are the relevant leakage boundary. Loading every corpus test split here can
-    # exceed memory on the large pinned datasets without adding protection.
     test_hashes: set[bytes] = set()
     for target in TARGETS:
         corpus = load_corpus(args.cache, target)
