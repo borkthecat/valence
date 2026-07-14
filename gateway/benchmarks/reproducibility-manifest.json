@@ -1969,9 +1969,9 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.5-nemotron-pii-gliner-gretel-frozen-thresholds.json",
       "artifact_bytes": 2581,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "0b20ef8294d34ea54474aaf115478d0df8aa7326d56b5395f6a5feb554beb9be",
-      "command": "PII_CLASSIFIER_URL=http://127.0.0.1:8091/v1/classify MODEL_SERVICE_TIMEOUT_MS=30000 PII_CLASSIFIER_MINIMUM_SCORE=0 PII_CLASSIFIER_LABEL_THRESHOLDS='<thresholds from v1.13.4-gretel-pii-gliner-oof-calibration.json>' npm --prefix gateway run benchmark:pii -- ../.benchmark-data/nemotron-pii-test-1000.jsonl 1000 benchmarks/results/v1.13.5-nemotron-pii-gliner-gretel-frozen-thresholds.json",
+      "command": "PII_CLASSIFIER_URL=http://127.0.0.1:8091/v1/classify MODEL_SERVICE_TIMEOUT_MS=30000 PII_CLASSIFIER_MINIMUM_SCORE=0 PII_CLASSIFIER_LABEL_THRESHOLDS='{\"ACCESS_TOKEN\":0.9915000796318054,\"API_KEY\":0.9829370379447937,\"CREDIT_CARD\":0.9,\"EMAIL\":0.95,\"GENERIC_SECRET\":0.6023611426353455,\"IP_ADDRESS\":0.9,\"PASSWORD\":0.8807077407836914,\"PERSON_NAME\":0.9483959674835205,\"PHONE\":0.33682721853256226,\"SSN\":0.892778754234314}' npm --prefix gateway run benchmark:pii -- ../.benchmark-data/nemotron-pii-test-1000.jsonl 1000 benchmarks/results/v1.13.5-nemotron-pii-gliner-gretel-frozen-thresholds.json",
       "dataset_revisions": [],
       "inputs": [
         {
@@ -1997,7 +1997,7 @@
     {
       "artifact": "gateway/benchmarks/results/v1.13.5-nemotron-pii-heuristic.json",
       "artifact_bytes": 2475,
-      "artifact_commit": "uncommitted",
+      "artifact_commit": "tracked-in-repository",
       "artifact_sha256": "dda0a14d41ff2b07900fc2fc27d0c22121693e3d8ab62ffce065812848663ec7",
       "command": "python pipeline/benchmarks/export_nemotron_pii.py --rows 1000 --output .benchmark-data/nemotron-pii-test-1000.jsonl && npm --prefix gateway run benchmark:pii -- ../.benchmark-data/nemotron-pii-test-1000.jsonl 1000 benchmarks/results/v1.13.5-nemotron-pii-heuristic.json",
       "dataset_revisions": [],
