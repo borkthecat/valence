@@ -23,6 +23,8 @@ This is the decisive path from the v1.13.5 research preview to measured shadow r
 
 ## Human-labelled ranking pilot
 
+The repository now includes a local, blind Label Studio review-pack builder, two reviewer configurations, and a reconciliation gate in [Hybrid Human Review](HYBRID_HUMAN_REVIEW.md). It rejects incomplete 210-job inputs, prevents gold-label leakage into reviewer tasks, assigns a deterministic 30-job double-blind calibration subset, and blocks the full review if ranking calibration Cohen's kappa is below 0.80.
+
 1. Obtain approval for 210 real jobs and their candidate pools. Reserve 10 jobs for reviewer calibration and 200 for the pilot. Aim for 10-20 candidates per job; record smaller real pools rather than adding synthetic candidates.
 2. Export only job requirements and candidate evidence permitted for evaluation. Remove names, email, phone, addresses, photos, protected attributes, and irrelevant free text. Replace source documents with approved references and SHA-256 content hashes.
 3. Convert every case to `TalentEvaluationRecord` schema v1.1. Give stable pseudonymous `case_id`, `job_id`, and `candidate_id` values. Populate explicit hard requirements, claims, evidence links, policy version, jurisdiction, source provenance, and `split: "pilot"`.

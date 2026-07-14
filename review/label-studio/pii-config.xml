@@ -1,0 +1,21 @@
+<View>
+  <Header value="PII span review" />
+  <Text name="text" value="$text" />
+  <Labels name="pii" toName="text" allowOverlap="true">
+    <Label value="PERSON_NAME" background="#ef4444" />
+    <Label value="EMAIL" background="#f97316" />
+    <Label value="PHONE" background="#eab308" />
+    <Label value="ADDRESS" background="#84cc16" />
+    <Label value="API_KEY" background="#22c55e" />
+    <Label value="PASSWORD" background="#14b8a6" />
+    <Label value="SSN" background="#06b6d4" />
+    <Label value="CREDIT_CARD" background="#3b82f6" />
+    <Label value="GENERIC_SECRET" background="#8b5cf6" />
+  </Labels>
+  <Choices name="pii_exposed" toName="text" choice="single" required="true">
+    <Choice value="yes" />
+    <Choice value="no" />
+    <Choice value="uncertain" />
+  </Choices>
+  <TextArea name="review_note" toName="text" placeholder="State only ambiguity or evidence needed for adjudication." rows="2" />
+</View>
