@@ -272,9 +272,14 @@ def _ai_annotation_record_id(task: dict[str, Any], index: int) -> str:
     if not isinstance(data, dict):
         raise ValueError(f"source task {index} is missing data")
     record_id = data.get("record_id")
-    if not isinstance(record_id, str) or not record_id:
-        raise ValueError(f"source task {index} requires a stable record ID")
-    return record_id
+    if isinstance(record_id, str) and record_id:
+        return record_id
+    source_id = data.get("source_id")
+    text = data.get("text")
+    if isinstance(source_id, str) and source_id and isinstance(text, str) and text:
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+        return f"{source_id}:{digest}"
+    raise ValueError(f"source task {index} requires a stable record or source ID")
 
 
 def build_pii_ai_annotation_packet(source_tasks: list[dict[str, Any]]) -> list[dict[str, str]]:

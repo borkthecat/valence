@@ -75,6 +75,14 @@ python scripts/export_pii_ai_annotation_packet.py `
   .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-input.json
 ```
 
+To annotate the complete 1,000-record GLiNER export, use this source and output path instead:
+
+```powershell
+python scripts/export_pii_ai_annotation_packet.py `
+  .benchmark-data/review-pack-gliner-v1.13.5/gliner-tasks.json `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-input-1000.json
+```
+
 Give the AI this instruction along with `pii-ai-input.json`:
 
 ```text

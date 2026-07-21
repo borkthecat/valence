@@ -4,6 +4,7 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+- Enabled deterministic full-source AI annotation packets for offset-validated Label Studio tasks that identify records with `source_id`.
 - Added blind external-AI PII annotation export and fail-closed text-only annotation import for validated silver suggestions.
 - Replaced the unsafe positional PII source/cache review-pack join with an offset-validated GLiNER task path, strict stable-ID matching, and a fail-closed Label Studio task auditor.
 

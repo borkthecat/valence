@@ -134,6 +134,22 @@ def test_ai_annotation_import_rejects_nonexistent_text() -> None:
         raise AssertionError("AI text not present in the source must fail")
 
 
+def test_ai_annotation_packet_uses_deterministic_source_id_when_record_id_is_absent() -> None:
+    source = [{
+        "data": {"source_id": "nemotron:source-1", "text": "Ada at ada@example.test"},
+        "predictions": [{"model_version": "gliner", "result": [{
+            "id": "source-entity", "from_name": "pii", "to_name": "text", "type": "labels", "score": 0.5,
+            "value": {"start": 0, "end": 3, "text": "Ada", "labels": ["PERSON_NAME"]},
+        }]}],
+    }]
+    packet = build_pii_ai_annotation_packet(source)
+    assert packet[0]["record_id"].startswith("nemotron:source-1:")
+    tasks = build_pii_tasks_from_ai_annotations(source, [{
+        "record_id": packet[0]["record_id"], "entities": [],
+    }], model_version="external-ai-silver")
+    assert tasks[0]["data"]["record_id"] == packet[0]["record_id"]
+
+
 def test_pii_review_tasks_balance_uncertain_categories() -> None:
     source = [{"id": f"record-{index}", "text": f"record {index}"} for index in range(6)]
     predictions = [
