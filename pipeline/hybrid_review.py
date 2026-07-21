@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
+from gliner_label_studio import clean_text
 
 PII_LABELS = {
     "PERSON_NAME",
@@ -20,6 +22,13 @@ PII_LABELS = {
     "CREDIT_CARD",
     "GENERIC_SECRET",
 }
+
+_AI_EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+_AI_API_KEY = re.compile(r"^[A-Za-z0-9_-]{16,}$")
+_AI_PLACEHOLDER = re.compile(
+    r"^(?:address|credit card|email|not applicable|not provided|phone(?: number)?|return address|unknown)$",
+    re.IGNORECASE,
+)
 
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -296,6 +305,27 @@ def build_pii_ai_annotation_packet(source_tasks: list[dict[str, Any]]) -> list[d
     return _stable_order(packet, "record_id")
 
 
+def build_pii_ai_annotation_source(source_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    tasks: list[dict[str, Any]] = []
+    record_ids: set[str] = set()
+    for index, row in enumerate(source_rows):
+        source_id = row.get("id") or row.get("record_id")
+        if not isinstance(source_id, str) or not source_id:
+            raise ValueError(f"source record {index} requires a stable ID")
+        text = clean_text(_text(row, "text"))
+        record_id = f"{source_id}:{hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]}"
+        if record_id in record_ids:
+            raise ValueError(f"source record {index} reuses deterministic record ID {record_id}")
+        record_ids.add(record_id)
+        tasks.append({
+            "data": {"record_id": record_id, "source_id": source_id, "text": text},
+            "meta": {"review_kind": "pii", "review_stage": "ai_source", "model_assisted": False, "gold_labels_included": False},
+            "predictions": [{"model_version": "normalized-source", "result": []}],
+        })
+    audit_pii_label_studio_tasks(tasks)
+    return sorted(tasks, key=lambda task: task["data"]["record_id"])
+
+
 def _ai_span(text: str, record_id: str, entity: dict[str, Any]) -> dict[str, Any]:
     label, entity_text, occurrence = entity.get("label"), entity.get("text"), entity.get("occurrence", 1)
     if not isinstance(label, str) or label not in PII_LABELS:
@@ -324,8 +354,57 @@ def _ai_span(text: str, record_id: str, entity: dict[str, Any]) -> dict[str, Any
     }
 
 
+def _ai_entity_issue(entity: dict[str, Any]) -> str | None:
+    label = entity["value"]["labels"][0]
+    text = entity["value"]["text"]
+    digits = "".join(character for character in text if character.isdigit())
+    if text != text.strip() or text.endswith(":") or _AI_PLACEHOLDER.fullmatch(text):
+        return "header_or_placeholder"
+    if label == "EMAIL" and not _AI_EMAIL.fullmatch(text):
+        return "malformed_email"
+    if label == "PHONE" and (any(character.isalpha() for character in text) or not 7 <= len(digits) <= 15):
+        return "malformed_phone"
+    if label == "API_KEY" and not _AI_API_KEY.fullmatch(text):
+        return "malformed_api_key"
+    if label == "CREDIT_CARD" and not 12 <= len(digits) <= 19:
+        return "malformed_credit_card"
+    if label == "ADDRESS" and (text.startswith(("http://", "https://")) or text.startswith("[")):
+        return "malformed_address"
+    if label == "PERSON_NAME" and (not any(character.isalpha() for character in text) or "@" in text):
+        return "malformed_person_name"
+    if label == "PASSWORD" and (len(text) < 8 or text.lower() in {"password", "not applicable", "not provided"}):
+        return "malformed_password"
+    if label == "SSN" and not 8 <= len(digits) <= 18:
+        return "malformed_ssn"
+    return None
+
+
+def audit_pii_ai_annotations(source_tasks: list[dict[str, Any]], ai_annotations: list[dict[str, Any]]) -> dict[str, Any]:
+    packet = build_pii_ai_annotation_packet(source_tasks)
+    source_by_id = {row["record_id"]: row for row in packet}
+    annotation_ids = {row.get("record_id") for row in ai_annotations if isinstance(row, dict)}
+    if annotation_ids != set(source_by_id) or len(annotation_ids) != len(ai_annotations):
+        raise ValueError("AI annotations must cover every source record exactly once")
+    reasons: Counter[str] = Counter()
+    spans = 0
+    for annotation in ai_annotations:
+        record_id = annotation["record_id"]
+        entities = annotation.get("entities")
+        if not isinstance(entities, list):
+            raise ValueError(f"AI annotation {record_id} is missing entities")
+        for entity in entities:
+            if not isinstance(entity, dict):
+                raise ValueError(f"AI annotation {record_id} contains an invalid entity")
+            result = _ai_span(source_by_id[record_id]["text"], record_id, entity)
+            spans += 1
+            issue = _ai_entity_issue(result)
+            if issue:
+                reasons[issue] += 1
+    return {"tasks": len(packet), "spans": spans, "implausible_spans": sum(reasons.values()), "issues": dict(sorted(reasons.items()))}
+
+
 def build_pii_tasks_from_ai_annotations(
-    source_tasks: list[dict[str, Any]], ai_annotations: list[dict[str, Any]], *, model_version: str,
+    source_tasks: list[dict[str, Any]], ai_annotations: list[dict[str, Any]], *, model_version: str, discard_implausible: bool = False,
 ) -> list[dict[str, Any]]:
     """Convert text-only AI annotations into offset-validated silver Label Studio tasks."""
     if not model_version.strip():
@@ -351,6 +430,8 @@ def build_pii_tasks_from_ai_annotations(
     for row in packet:
         annotation = annotations_by_id[row["record_id"]]
         results = [_ai_span(row["text"], row["record_id"], entity) for entity in annotation["entities"]]
+        if discard_implausible:
+            results = [result for result in results if _ai_entity_issue(result) is None]
         ordered = sorted(results, key=lambda result: (result["value"]["start"], result["value"]["end"], result["value"]["labels"][0]))
         for previous, current in zip(ordered, ordered[1:]):
             if current["value"]["start"] < previous["value"]["end"]:

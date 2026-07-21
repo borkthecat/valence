@@ -1,5 +1,3 @@
-"""Export normalized PII text for an independent AI annotation pass."""
-
 from __future__ import annotations
 
 import argparse

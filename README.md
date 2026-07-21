@@ -47,8 +47,8 @@ npm run typecheck
 npm test
 
 cd ../pipeline
-python -m pip install -r requirements-dev.txt
-python -W error -m pytest -q
+python -m pip install -r ../requirements-benchmark.txt
+python -W error -m pytest tests -q
 ```
 
 Copy `.env.example` to `.env` before running a non-demo stack. Keep production secrets and managed persistence outside the repository.
@@ -68,7 +68,7 @@ python -m pip install -r requirements-pii-classifier.txt
 python scripts/export_gliner_label_studio.py input.jsonl review-pack/gliner-tasks.json
 ```
 
-The exporter normalizes text before GLiNER inference and drops spans that fail exact character-offset validation. The local starter emits only an audit-verified review pack.
+The exporter normalizes text before GLiNER inference and drops spans that fail exact character-offset validation. The local starter emits only an audit-verified review pack. AI annotations are silver suggestions and require review before any evaluation claim.
 
 ## Documentation
 

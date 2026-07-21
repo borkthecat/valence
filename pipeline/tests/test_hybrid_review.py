@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from hybrid_review import (
     audit_pii_label_studio_tasks,
+    audit_pii_ai_annotations,
     build_pii_ai_annotation_packet,
+    build_pii_ai_annotation_source,
     build_pii_tasks,
     build_pii_tasks_from_ai_annotations,
     build_pii_tasks_from_label_studio,
@@ -134,6 +136,28 @@ def test_ai_annotation_import_rejects_nonexistent_text() -> None:
         raise AssertionError("AI text not present in the source must fail")
 
 
+def test_ai_annotation_quality_filter_discards_unambiguous_false_positives() -> None:
+    source = [{
+        "data": {"record_id": "record-1", "text": "Address: Ada at ada@example.test phone 555-123-4567"},
+        "predictions": [{"model_version": "gliner", "result": []}],
+    }]
+    annotations = [{
+        "record_id": "record-1",
+        "entities": [
+            {"label": "ADDRESS", "text": "Address:"},
+            {"label": "EMAIL", "text": "ada@example.test"},
+            {"label": "PHONE", "text": "555-123-4567"},
+        ],
+    }]
+    report = audit_pii_ai_annotations(source, annotations)
+    assert report["issues"] == {"header_or_placeholder": 1}
+    tasks = build_pii_tasks_from_ai_annotations(
+        source, annotations, model_version="external-ai-silver", discard_implausible=True,
+    )
+    labels = [result["value"]["labels"][0] for result in tasks[0]["predictions"][0]["result"]]
+    assert labels == ["EMAIL", "PHONE"]
+
+
 def test_ai_annotation_packet_uses_deterministic_source_id_when_record_id_is_absent() -> None:
     source = [{
         "data": {"source_id": "nemotron:source-1", "text": "Ada at ada@example.test"},
@@ -148,6 +172,17 @@ def test_ai_annotation_packet_uses_deterministic_source_id_when_record_id_is_abs
         "record_id": packet[0]["record_id"], "entities": [],
     }], model_version="external-ai-silver")
     assert tasks[0]["data"]["record_id"] == packet[0]["record_id"]
+
+
+def test_ai_annotation_source_rebuilds_normalized_deterministic_records() -> None:
+    tasks = build_pii_ai_annotation_source([{
+        "id": "source-1",
+        "text": "### Contact\n\nAda at ada@example.test",
+    }])
+    assert tasks[0]["data"]["source_id"] == "source-1"
+    assert tasks[0]["data"]["text"] == "Contact Ada at ada@example.test"
+    assert tasks[0]["data"]["record_id"].startswith("source-1:")
+    assert audit_pii_label_studio_tasks(tasks) == {"tasks": 1, "spans": 0, "unique_result_ids": 0}
 
 
 def test_pii_review_tasks_balance_uncertain_categories() -> None:

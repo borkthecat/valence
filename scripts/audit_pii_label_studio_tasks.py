@@ -1,5 +1,3 @@
-"""Verify that Label Studio PII task offsets match their displayed text exactly."""
-
 from __future__ import annotations
 
 import argparse

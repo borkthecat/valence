@@ -100,8 +100,31 @@ python scripts/import_pii_ai_annotations.py `
   .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-tasks-reviewer_a.json `
   .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-output.json `
   .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-silver-tasks.json `
-  --model-version external-ai-silver
+  --model-version external-ai-silver `
+  --discard-implausible
 python scripts/audit_pii_label_studio_tasks.py .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-silver-tasks.json
+```
+
+When the original GLiNER task export is unavailable, rebuild the normalized source from the deterministic Nemotron JSONL before importing the AI response. The command rejects any ID mismatch.
+
+```powershell
+python scripts/build_pii_ai_annotation_source.py `
+  .benchmark-data/nemotron-pii-test-1000.jsonl `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-source-1000.json `
+  --expected-annotations C:/Users/reade/Downloads/pii-ai-output-final.json
+```
+
+Import the complete response with the conservative silver filter and persist the quality report:
+
+```powershell
+python scripts/import_pii_ai_annotations.py `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-source-1000.json `
+  C:/Users/reade/Downloads/pii-ai-output-final.json `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-filtered-1000.json `
+  --model-version external-ai-silver-final `
+  --discard-implausible `
+  --quality-report .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-quality-1000.json
+python scripts/audit_pii_label_studio_tasks.py .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-filtered-1000.json
 ```
 
 Create ranking projects only after the approved 210-job pair file exists. Use [ranking configuration](../review/label-studio/ranking-config.xml) and the corresponding blind ranking task files. Reviewers must not see the AI rationale while deciding; remove that optional field from the input pair file if the UI exposes it.

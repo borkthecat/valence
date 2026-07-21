@@ -21,6 +21,17 @@ This is the decisive path from the v1.13.5 research preview to measured shadow r
 4. **Human ranking pilot.** Run the exact workflow below. Do not train on the pilot. Use it to choose error priorities and to decide whether a larger 1,000-2,000-job benchmark is justified.
 5. **Shadow proof.** Run the candidate guard, fraud cascade, and ranking submission side by side with existing operations for at least one frozen window. Log recommendations only. Measure overrides, review rate, false blocks, drift, latency, dependency failure, and restoration errors.
 
+## Completion checklist
+
+- [x] Repository release controls: deterministic data adapters, reproducibility manifest, test suite, signed operations paths, local review environment, and fail-closed review imports are implemented and CI-verified.
+- [x] PII review preparation: normalize text before inference, reject mismatched offsets, prevent source/prediction positional joins, and treat all external-AI annotations as validated silver suggestions only.
+- [x] PII AI batch intake: rebuild deterministic normalized source tasks, verify full record-ID coverage, write a quality report, and discard unambiguous malformed suggestions before Label Studio import.
+- [ ] PII human evidence: complete independent annotation and adjudication on approved data, then evaluate exact spans on a held-out set. Do not train on the held-out set.
+- [ ] Ranking human evidence: complete the 210-job pilot with two independent reviewers and adjudication, freeze the manifest, then run the existing evaluator.
+- [ ] Fraud evidence: collect permissioned current listings with external verification signals and evaluate by company/domain/campaign and time-window holdout.
+- [ ] Guard shadow evidence: run review-only traffic shadowing for a frozen window and measure false blocks, overrides, drift, latency, dependency failures, and recovery.
+- [ ] Promotion decision: keep every component advisory until its individual metric, data-quality, and operational gates pass. No pooled metric overrides a failed critical slice.
+
 ## Human-labelled ranking pilot
 
 The repository now includes a local, blind Label Studio review-pack builder, two reviewer configurations, and a reconciliation gate in [Hybrid Human Review](HYBRID_HUMAN_REVIEW.md). It rejects incomplete 210-job inputs, prevents gold-label leakage into reviewer tasks, assigns a deterministic 30-job double-blind calibration subset, and blocks the full review if ranking calibration Cohen's kappa is below 0.80.
