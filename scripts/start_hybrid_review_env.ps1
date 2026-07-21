@@ -13,13 +13,12 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required. Install and start Docker Desktop, then rerun this script."
 }
 
-$pack = Join-Path $root ".benchmark-data/review-pack-pii-v1.13.5-calibration-$PiiLimit"
+$pack = Join-Path $root ".benchmark-data/review-pack-pii-offset-validated-calibration-$PiiLimit"
 $reviewerA = Join-Path $pack "pii-tasks-reviewer_a.json"
 $reviewerB = Join-Path $pack "pii-tasks-reviewer_b.json"
 if ($RebuildPiiPack -or -not (Test-Path $reviewerA) -or -not (Test-Path $reviewerB)) {
     python scripts/build_hybrid_review_pack.py `
-        --pii-source .benchmark-data/nemotron-pii-test-1000.jsonl `
-        --pii-predictions .benchmark-data/gretel-pii-v114-score-cache.jsonl `
+        --pii-label-studio-tasks .benchmark-data/review-pack-gliner-v1.13.5/gliner-tasks.json `
         --pii-limit $PiiLimit `
         --pii-calibration-count $PiiLimit `
         --output-dir $pack

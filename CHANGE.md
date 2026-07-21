@@ -4,6 +4,8 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+- Replaced the unsafe positional PII source/cache review-pack join with an offset-validated GLiNER task path, strict stable-ID matching, and a fail-closed Label Studio task auditor.
+
 ## 1.13.5
 
 - Added deterministic NVIDIA Nemotron-PII test export with strict source-span validation and full source-label mapping.

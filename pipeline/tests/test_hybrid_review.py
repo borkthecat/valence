@@ -1,23 +1,94 @@
 from __future__ import annotations
 
-from hybrid_review import build_pii_tasks, build_ranking_tasks, cohen_kappa
+from hybrid_review import audit_pii_label_studio_tasks, build_pii_tasks, build_pii_tasks_from_label_studio, build_ranking_tasks, cohen_kappa
 
 
 def test_pii_review_tasks_never_export_gold_entities() -> None:
     tasks = build_pii_tasks(
-        [{"id": "source-1", "text": "Contact Ada at ada@example.test", "entities": [{"start": 8, "end": 11, "label": "PERSON_NAME"}]}],
+        [{"id": "record-0", "text": "Contact Ada at ada@example.test", "entities": [{"start": 8, "end": 11, "label": "PERSON_NAME"}]}],
         [{"record_id": "record-0", "truth": [{"start": 8, "end": 11, "category": "PERSON_NAME"}], "predictions": [{"start": 8, "end": 11, "category": "PERSON_NAME", "score": 0.5}]}],
         limit=1, calibration_count=1, uncertain_only=True,
     )
-    assert tasks[0]["data"]["record_id"] == "source-1"
+    assert tasks[0]["data"]["record_id"] == "record-0"
     assert tasks[0]["meta"]["gold_labels_included"] is False
     assert "entities" not in tasks[0]["data"]
     assert "truth" not in str(tasks[0])
     assert tasks[0]["predictions"][0]["result"][0]["value"]["labels"] == ["PERSON_NAME"]
 
 
+def test_pii_review_tasks_reject_mismatched_source_and_prediction_ids() -> None:
+    try:
+        build_pii_tasks(
+            [{"id": "nemotron:source-1", "text": "Contact Ada"}],
+            [{"record_id": "record-0", "predictions": []}],
+            limit=1, calibration_count=1, uncertain_only=True,
+        )
+    except ValueError as error:
+        assert "same ID" in str(error)
+    else:
+        raise AssertionError("mismatched source and prediction IDs must fail")
+
+
+def test_pii_review_tasks_reject_source_without_stable_id() -> None:
+    try:
+        build_pii_tasks(
+            [{"text": "Contact Ada"}],
+            [{"record_id": "record-0", "predictions": []}],
+            limit=1, calibration_count=1, uncertain_only=True,
+        )
+    except ValueError as error:
+        assert "stable ID" in str(error)
+    else:
+        raise AssertionError("source without stable ID must fail")
+
+
+def test_offset_validated_label_studio_tasks_are_safe_for_review() -> None:
+    source = [{
+        "data": {"source_id": "source-1", "text": "Ada at ada@example.test"},
+        "predictions": [{"model_version": "gliner", "result": [{
+            "id": "entity-1", "from_name": "pii", "to_name": "text", "type": "labels", "score": 0.5,
+            "value": {"start": 0, "end": 3, "text": "Ada", "labels": ["PERSON_NAME"]},
+        }]}],
+    }]
+    tasks = build_pii_tasks_from_label_studio(source, limit=1, calibration_count=1)
+    assert tasks[0]["data"]["text"] == "Ada at ada@example.test"
+    assert audit_pii_label_studio_tasks(tasks) == {"tasks": 1, "spans": 1, "unique_result_ids": 1}
+
+
+def test_offset_validated_label_studio_tasks_reject_mismatched_span() -> None:
+    source = [{
+        "data": {"source_id": "source-1", "text": "Ada at ada@example.test"},
+        "predictions": [{"model_version": "gliner", "result": [{
+            "id": "entity-1", "from_name": "pii", "to_name": "text", "type": "labels", "score": 0.5,
+            "value": {"start": 0, "end": 3, "text": "Wrong", "labels": ["PERSON_NAME"]},
+        }]}],
+    }]
+    try:
+        build_pii_tasks_from_label_studio(source, limit=1, calibration_count=1)
+    except ValueError as error:
+        assert "offsets" in str(error)
+    else:
+        raise AssertionError("mismatched span must fail")
+
+
+def test_offset_validated_label_studio_tasks_require_stable_source_id() -> None:
+    source = [{
+        "data": {"text": "Ada at ada@example.test"},
+        "predictions": [{"model_version": "gliner", "result": [{
+            "id": "entity-1", "from_name": "pii", "to_name": "text", "type": "labels", "score": 0.5,
+            "value": {"start": 0, "end": 3, "text": "Ada", "labels": ["PERSON_NAME"]},
+        }]}],
+    }]
+    try:
+        build_pii_tasks_from_label_studio(source, limit=1, calibration_count=1)
+    except ValueError as error:
+        assert "stable source ID" in str(error)
+    else:
+        raise AssertionError("source task without stable ID must fail")
+
+
 def test_pii_review_tasks_balance_uncertain_categories() -> None:
-    source = [{"id": f"source-{index}", "text": f"record {index}"} for index in range(6)]
+    source = [{"id": f"record-{index}", "text": f"record {index}"} for index in range(6)]
     predictions = [
         {"record_id": "record-0", "predictions": [{"start": 0, "end": 1, "category": "PERSON_NAME", "score": 0.5}]},
         {"record_id": "record-1", "predictions": [{"start": 0, "end": 1, "category": "PERSON_NAME", "score": 0.49}]},

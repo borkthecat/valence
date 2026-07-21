@@ -68,6 +68,59 @@ def _prediction_result(text: str, prediction: dict[str, Any]) -> list[dict[str, 
     return result
 
 
+def _valid_label_studio_span(text: str, result: dict[str, Any]) -> dict[str, Any]:
+    value = result.get("value")
+    if not isinstance(value, dict):
+        raise ValueError("PII result is missing a value object")
+    start, end, span_text = value.get("start"), value.get("end"), value.get("text")
+    labels = value.get("labels")
+    if not isinstance(start, int) or not isinstance(end, int) or not isinstance(span_text, str):
+        raise ValueError("PII result is missing typed offsets or text")
+    if not isinstance(labels, list) or len(labels) != 1 or labels[0] not in PII_LABELS:
+        raise ValueError("PII result has an unsupported category")
+    if not 0 <= start < end <= len(text) or text[start:end] != span_text:
+        raise ValueError("PII result offsets do not exactly match task text")
+    score = result.get("score", 0.0)
+    if not isinstance(score, (int, float)) or not 0 <= float(score) <= 1:
+        raise ValueError("PII result has an invalid score")
+    return {
+        "id": str(result.get("id") or hashlib.sha256(f"{start}:{end}:{labels[0]}".encode("utf-8")).hexdigest()),
+        "from_name": "pii",
+        "to_name": "text",
+        "type": "labels",
+        "value": {"start": start, "end": end, "text": span_text, "labels": labels},
+        "score": float(score),
+    }
+
+
+def audit_pii_label_studio_tasks(tasks: list[dict[str, Any]]) -> dict[str, int]:
+    if not tasks:
+        raise ValueError("PII task export is empty")
+    result_ids: set[str] = set()
+    spans = 0
+    for index, task in enumerate(tasks):
+        if any(key in task for key in ("annotations", "truth", "entities", "gold")):
+            raise ValueError(f"task {index} contains forbidden reviewer or gold fields")
+        data = task.get("data")
+        if not isinstance(data, dict) or not isinstance(data.get("text"), str) or not data["text"]:
+            raise ValueError(f"task {index} is missing display text")
+        predictions = task.get("predictions")
+        if not isinstance(predictions, list) or len(predictions) != 1 or not isinstance(predictions[0], dict):
+            raise ValueError(f"task {index} must contain exactly one model prediction")
+        results = predictions[0].get("result")
+        if not isinstance(results, list):
+            raise ValueError(f"task {index} prediction is missing results")
+        for result in results:
+            if not isinstance(result, dict):
+                raise ValueError(f"task {index} contains an invalid result")
+            valid = _valid_label_studio_span(data["text"], result)
+            if valid["id"] in result_ids:
+                raise ValueError(f"task {index} reuses a result ID")
+            result_ids.add(valid["id"])
+            spans += 1
+    return {"tasks": len(tasks), "spans": spans, "unique_result_ids": len(result_ids)}
+
+
 def _pii_sampling_key(row: dict[str, Any]) -> tuple[float, str]:
     uncertainty = min(
         abs(float(span["score"]) - 0.5)
@@ -139,10 +192,13 @@ def build_pii_tasks(
     by_cache_id = {str(row.get("record_id")): row for row in prediction_rows}
     eligible: list[dict[str, Any]] = []
     for index, source in enumerate(source_rows):
-        record_id = str(source.get("id") or source.get("record_id") or f"record-{index}")
-        prediction = by_cache_id.get(record_id) or by_cache_id.get(f"record-{index}")
+        explicit_id = source.get("id") or source.get("record_id")
+        if not isinstance(explicit_id, str) or not explicit_id:
+            raise ValueError(f"source record {index} requires a stable ID for prediction matching")
+        record_id = explicit_id
+        prediction = by_cache_id.get(record_id)
         if prediction is None:
-            continue
+            raise ValueError(f"source record {record_id} has no prediction with the same ID")
         text = _text(source, "text")
         spans = _prediction_result(text, prediction)
         uncertain = any(0.3 <= float(span["score"]) <= 0.7 for span in spans)
@@ -167,6 +223,47 @@ def build_pii_tasks(
             "predictions": [{"model_version": "valence-pii-ensemble", "result": row["spans"]}],
         }
         tasks.append(task)
+    return tasks
+
+
+def build_pii_tasks_from_label_studio(
+    source_tasks: list[dict[str, Any]],
+    *,
+    limit: int,
+    calibration_count: int,
+    minimum_score: float = 0.3,
+) -> list[dict[str, Any]]:
+    if not 0 <= minimum_score <= 1:
+        raise ValueError("minimum_score must be between 0 and 1")
+    audit_pii_label_studio_tasks(source_tasks)
+    eligible: list[dict[str, Any]] = []
+    for index, source_task in enumerate(source_tasks):
+        data = source_task["data"]
+        text = data["text"]
+        explicit_source_id = data.get("source_id") or data.get("record_id")
+        if not isinstance(explicit_source_id, str) or not explicit_source_id:
+            raise ValueError(f"source task {index} requires a stable source ID")
+        source_id = explicit_source_id
+        results = source_task["predictions"][0]["result"]
+        spans = [_valid_label_studio_span(text, result) for result in results if float(result.get("score", 0.0)) >= minimum_score]
+        uncertain = any(0.3 <= float(span["score"]) <= 0.7 for span in spans)
+        if not uncertain:
+            continue
+        record_id = f"{source_id}:{hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]}"
+        eligible.append({"record_id": record_id, "text": text, "spans": spans, "uncertain": True})
+    if not eligible:
+        raise ValueError("no uncertain PII tasks remain after score filtering")
+    selected = _select_diverse_pii_rows(eligible, limit)
+    calibration_ids = {row["record_id"] for row in _stable_order(selected, "record_id")[:calibration_count]}
+    tasks = [
+        {
+            "data": {"record_id": row["record_id"], "text": row["text"], "ai_span_count": len(row["spans"])},
+            "meta": {"review_kind": "pii", "review_stage": "calibration" if row["record_id"] in calibration_ids else "pilot", "priority": "uncertain", "model_assisted": True, "gold_labels_included": False},
+            "predictions": [{"model_version": "valence-gliner-offset-validated", "result": row["spans"]}],
+        }
+        for row in selected
+    ]
+    audit_pii_label_studio_tasks(tasks)
     return tasks
 
 

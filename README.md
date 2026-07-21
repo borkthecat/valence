@@ -68,7 +68,7 @@ python -m pip install -r requirements-pii-classifier.txt
 python scripts/export_gliner_label_studio.py input.jsonl review-pack/gliner-tasks.json
 ```
 
-The exporter normalizes text before GLiNER inference and drops spans that fail exact character-offset validation.
+The exporter normalizes text before GLiNER inference and drops spans that fail exact character-offset validation. The local starter emits only an audit-verified review pack.
 
 ## Documentation
 
