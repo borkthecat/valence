@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [switch]$RebuildPiiPack
+    [switch]$RebuildPiiPack,
+    [ValidateRange(1, 500)]
+    [int]$PiiLimit = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,15 +13,16 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "Docker Desktop is required. Install and start Docker Desktop, then rerun this script."
 }
 
-$pack = Join-Path $root ".benchmark-data/review-pack-pii-v1.13.5"
+$pack = Join-Path $root ".benchmark-data/review-pack-pii-v1.13.5-calibration-$PiiLimit"
 $reviewerA = Join-Path $pack "pii-tasks-reviewer_a.json"
 $reviewerB = Join-Path $pack "pii-tasks-reviewer_b.json"
 if ($RebuildPiiPack -or -not (Test-Path $reviewerA) -or -not (Test-Path $reviewerB)) {
     python scripts/build_hybrid_review_pack.py `
         --pii-source .benchmark-data/nemotron-pii-test-1000.jsonl `
         --pii-predictions .benchmark-data/gretel-pii-v114-score-cache.jsonl `
-        --pii-limit 500 `
-        --output-dir .benchmark-data/review-pack-pii-v1.13.5
+        --pii-limit $PiiLimit `
+        --pii-calibration-count $PiiLimit `
+        --output-dir $pack
     if ($LASTEXITCODE -ne 0) { throw "Unable to build the PII review pack." }
 }
 
@@ -42,6 +45,7 @@ if (-not $ready) {
 }
 
 Write-Output "Label Studio is ready at http://127.0.0.1:8081"
+Write-Output "PII calibration tasks per reviewer: $PiiLimit"
 Write-Output "Reviewer A import: $reviewerA"
 Write-Output "Reviewer B import: $reviewerB"
 Write-Output "PII configuration: $root/review/label-studio/pii-config.xml"

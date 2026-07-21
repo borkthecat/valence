@@ -45,11 +45,13 @@ Use `--allow-ranking-smoke` only for a non-release dry run. The output has separ
 
 ## Label Studio
 
-The repository includes a localhost-only, persistent Label Studio environment. Start it once:
+The repository includes a localhost-only, persistent Label Studio environment. Start the default 30-task calibration pack:
 
 ```powershell
 .\scripts\start_hybrid_review_env.ps1
 ```
+
+Use `-PiiLimit 500 -RebuildPiiPack` only after the calibration rubric is stable and the full PII review pass is required.
 
 Open `http://127.0.0.1:8081` and create the local Label Studio owner account. Create two separate PII projects named `Valence PII Reviewer A` and `Valence PII Reviewer B`; use [PII configuration](../review/label-studio/pii-config.xml), then import the printed Reviewer A or Reviewer B task file respectively. Do not share project access or exports between reviewers. The project storage is local-only under ignored `.valence-data/label-studio`.
 
