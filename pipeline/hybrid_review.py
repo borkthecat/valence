@@ -267,6 +267,98 @@ def build_pii_tasks_from_label_studio(
     return tasks
 
 
+def _ai_annotation_record_id(task: dict[str, Any], index: int) -> str:
+    data = task.get("data")
+    if not isinstance(data, dict):
+        raise ValueError(f"source task {index} is missing data")
+    record_id = data.get("record_id")
+    if not isinstance(record_id, str) or not record_id:
+        raise ValueError(f"source task {index} requires a stable record ID")
+    return record_id
+
+
+def build_pii_ai_annotation_packet(source_tasks: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Export clean text only so an independent AI cannot copy prior suggestions."""
+    audit_pii_label_studio_tasks(source_tasks)
+    packet: list[dict[str, str]] = []
+    record_ids: set[str] = set()
+    for index, task in enumerate(source_tasks):
+        record_id = _ai_annotation_record_id(task, index)
+        if record_id in record_ids:
+            raise ValueError(f"source task {index} reuses record ID {record_id}")
+        record_ids.add(record_id)
+        packet.append({"record_id": record_id, "text": task["data"]["text"]})
+    return _stable_order(packet, "record_id")
+
+
+def _ai_span(text: str, record_id: str, entity: dict[str, Any]) -> dict[str, Any]:
+    label, entity_text, occurrence = entity.get("label"), entity.get("text"), entity.get("occurrence", 1)
+    if not isinstance(label, str) or label not in PII_LABELS:
+        raise ValueError(f"AI annotation {record_id} has an unsupported label")
+    if not isinstance(entity_text, str) or not entity_text:
+        raise ValueError(f"AI annotation {record_id} is missing exact entity text")
+    if not isinstance(occurrence, int) or occurrence < 1:
+        raise ValueError(f"AI annotation {record_id} has an invalid occurrence")
+    starts: list[int] = []
+    start = text.find(entity_text)
+    while start >= 0:
+        starts.append(start)
+        start = text.find(entity_text, start + len(entity_text))
+    if len(starts) < occurrence:
+        raise ValueError(f"AI annotation {record_id} text does not match occurrence {occurrence}")
+    start = starts[occurrence - 1]
+    end = start + len(entity_text)
+    result_id = hashlib.sha256(f"{record_id}:{start}:{end}:{label}".encode("utf-8")).hexdigest()
+    return {
+        "id": result_id,
+        "from_name": "pii",
+        "to_name": "text",
+        "type": "labels",
+        "value": {"start": start, "end": end, "text": entity_text, "labels": [label]},
+        "score": 1.0,
+    }
+
+
+def build_pii_tasks_from_ai_annotations(
+    source_tasks: list[dict[str, Any]], ai_annotations: list[dict[str, Any]], *, model_version: str,
+) -> list[dict[str, Any]]:
+    """Convert text-only AI annotations into offset-validated silver Label Studio tasks."""
+    if not model_version.strip():
+        raise ValueError("model_version is required")
+    packet = build_pii_ai_annotation_packet(source_tasks)
+    source_by_id = {row["record_id"]: row for row in packet}
+    annotations_by_id: dict[str, dict[str, Any]] = {}
+    for index, annotation in enumerate(ai_annotations):
+        if not isinstance(annotation, dict):
+            raise ValueError(f"AI annotation {index} must be an object")
+        record_id = annotation.get("record_id")
+        entities = annotation.get("entities")
+        if not isinstance(record_id, str) or record_id not in source_by_id:
+            raise ValueError(f"AI annotation {index} has an unknown record ID")
+        if not isinstance(entities, list):
+            raise ValueError(f"AI annotation {record_id} is missing entities")
+        if record_id in annotations_by_id:
+            raise ValueError(f"AI annotation {record_id} appears more than once")
+        annotations_by_id[record_id] = annotation
+    if set(annotations_by_id) != set(source_by_id):
+        raise ValueError("AI annotations must cover every source record exactly once")
+    tasks: list[dict[str, Any]] = []
+    for row in packet:
+        annotation = annotations_by_id[row["record_id"]]
+        results = [_ai_span(row["text"], row["record_id"], entity) for entity in annotation["entities"]]
+        ordered = sorted(results, key=lambda result: (result["value"]["start"], result["value"]["end"], result["value"]["labels"][0]))
+        for previous, current in zip(ordered, ordered[1:]):
+            if current["value"]["start"] < previous["value"]["end"]:
+                raise ValueError(f"AI annotation {row['record_id']} contains overlapping entities")
+        tasks.append({
+            "data": {"record_id": row["record_id"], "text": row["text"], "ai_span_count": len(ordered)},
+            "meta": {"review_kind": "pii", "review_stage": "ai_silver", "model_assisted": True, "human_review_required": True, "gold_labels_included": False},
+            "predictions": [{"model_version": model_version, "result": ordered}],
+        })
+    audit_pii_label_studio_tasks(tasks)
+    return tasks
+
+
 def _nested_text(row: dict[str, Any], parent: str, keys: tuple[str, ...]) -> str | None:
     nested = row.get(parent)
     if not isinstance(nested, dict):

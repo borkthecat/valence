@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from hybrid_review import audit_pii_label_studio_tasks, build_pii_tasks, build_pii_tasks_from_label_studio, build_ranking_tasks, cohen_kappa
+from hybrid_review import (
+    audit_pii_label_studio_tasks,
+    build_pii_ai_annotation_packet,
+    build_pii_tasks,
+    build_pii_tasks_from_ai_annotations,
+    build_pii_tasks_from_label_studio,
+    build_ranking_tasks,
+    cohen_kappa,
+)
 
 
 def test_pii_review_tasks_never_export_gold_entities() -> None:
@@ -85,6 +93,45 @@ def test_offset_validated_label_studio_tasks_require_stable_source_id() -> None:
         assert "stable source ID" in str(error)
     else:
         raise AssertionError("source task without stable ID must fail")
+
+
+def test_ai_annotation_import_computes_offsets_from_exact_text() -> None:
+    source = [{
+        "data": {"record_id": "record-1", "text": "Ada emailed Ada at ada@example.test"},
+        "predictions": [{"model_version": "gliner", "result": [{
+            "id": "source-entity", "from_name": "pii", "to_name": "text", "type": "labels", "score": 0.5,
+            "value": {"start": 0, "end": 3, "text": "Ada", "labels": ["PERSON_NAME"]},
+        }]}],
+    }]
+    assert build_pii_ai_annotation_packet(source) == [{"record_id": "record-1", "text": "Ada emailed Ada at ada@example.test"}]
+    tasks = build_pii_tasks_from_ai_annotations(source, [{
+        "record_id": "record-1",
+        "entities": [
+            {"label": "PERSON_NAME", "text": "Ada", "occurrence": 2},
+            {"label": "EMAIL", "text": "ada@example.test"},
+        ],
+    }], model_version="external-ai-silver")
+    results = tasks[0]["predictions"][0]["result"]
+    assert [(result["value"]["start"], result["value"]["text"]) for result in results] == [(12, "Ada"), (19, "ada@example.test")]
+    assert tasks[0]["meta"]["human_review_required"] is True
+
+
+def test_ai_annotation_import_rejects_nonexistent_text() -> None:
+    source = [{
+        "data": {"record_id": "record-1", "text": "Ada at ada@example.test"},
+        "predictions": [{"model_version": "gliner", "result": [{
+            "id": "source-entity", "from_name": "pii", "to_name": "text", "type": "labels", "score": 0.5,
+            "value": {"start": 0, "end": 3, "text": "Ada", "labels": ["PERSON_NAME"]},
+        }]}],
+    }]
+    try:
+        build_pii_tasks_from_ai_annotations(source, [{
+            "record_id": "record-1", "entities": [{"label": "PERSON_NAME", "text": "Wrong"}],
+        }], model_version="external-ai-silver")
+    except ValueError as error:
+        assert "does not match" in str(error)
+    else:
+        raise AssertionError("AI text not present in the source must fail")
 
 
 def test_pii_review_tasks_balance_uncertain_categories() -> None:

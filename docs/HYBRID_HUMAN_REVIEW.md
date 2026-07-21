@@ -65,6 +65,37 @@ Open `http://127.0.0.1:8081` and create the local Label Studio owner account. Cr
 
 Do not import `review-pack-pii-v1.13.5-calibration-30`; its suggestions were generated from an unsafe source/cache pairing and are invalid for review.
 
+### Independent AI first pass
+
+An AI can create silver suggestions, but it cannot replace a human-labelled release set. Export a blind packet with no existing GLiNER suggestions, upload that file to the AI tool, then save the AI response as JSON. The importer computes offsets locally from exact quoted text and rejects mismatches, unknown records, overlaps, missing records, and unsupported labels.
+
+```powershell
+python scripts/export_pii_ai_annotation_packet.py `
+  .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-tasks-reviewer_a.json `
+  .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-input.json
+```
+
+Give the AI this instruction along with `pii-ai-input.json`:
+
+```text
+Return only a JSON array. Preserve every record_id exactly. For each record, return
+{"record_id":"...","entities":[{"label":"PERSON_NAME","text":"exact substring","occurrence":1}]}.
+Allowed labels: PERSON_NAME, EMAIL, PHONE, ADDRESS, API_KEY, PASSWORD, SSN, CREDIT_CARD, GENERIC_SECRET.
+Quote entity text exactly as it appears in text. Do not return offsets, explanations, Markdown, or any other fields.
+Use an empty entities array when there is no PII.
+```
+
+Import the response as silver suggestions, never as ground truth:
+
+```powershell
+python scripts/import_pii_ai_annotations.py `
+  .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-tasks-reviewer_a.json `
+  .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-output.json `
+  .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-silver-tasks.json `
+  --model-version external-ai-silver
+python scripts/audit_pii_label_studio_tasks.py .benchmark-data/review-pack-pii-offset-validated-calibration-30/pii-ai-silver-tasks.json
+```
+
 Create ranking projects only after the approved 210-job pair file exists. Use [ranking configuration](../review/label-studio/ranking-config.xml) and the corresponding blind ranking task files. Reviewers must not see the AI rationale while deciding; remove that optional field from the input pair file if the UI exposes it.
 
 Both reviewers label the 30 deterministic calibration jobs first. Export completed annotations as Label Studio JSON and reconcile them:
