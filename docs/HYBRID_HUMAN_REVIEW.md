@@ -23,7 +23,7 @@ python scripts/export_gliner_label_studio.py raw-records.jsonl review-pack/gline
 
 Use `review/label-studio/pii-config.xml` when importing `gliner-tasks.json`. Never run inference on raw text and then display normalized text: the exporter's `data.text` is the same `clean_text` used by GLiNER.
 
-PII source records and the prediction cache are local inputs. The builder strips `entities`, `truth`, and every other gold-label field before it writes a task. The default PII selection concentrates on spans with model confidence from 0.30 through 0.70. Add `--include-high-confidence-pii` only after that uncertainty queue is exhausted.
+PII source records and the prediction cache are local inputs. The builder strips `entities`, `truth`, and every other gold-label field before it writes a task. The default PII selection concentrates on spans with model confidence from 0.30 through 0.70, balances those tasks across predicted categories, and prioritizes scores nearest 0.50. Add `--include-high-confidence-pii` only after that uncertainty queue is exhausted.
 
 ```powershell
 python scripts/build_hybrid_review_pack.py `

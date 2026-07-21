@@ -16,6 +16,21 @@ def test_pii_review_tasks_never_export_gold_entities() -> None:
     assert tasks[0]["predictions"][0]["result"][0]["value"]["labels"] == ["PERSON_NAME"]
 
 
+def test_pii_review_tasks_balance_uncertain_categories() -> None:
+    source = [{"id": f"source-{index}", "text": f"record {index}"} for index in range(6)]
+    predictions = [
+        {"record_id": "record-0", "predictions": [{"start": 0, "end": 1, "category": "PERSON_NAME", "score": 0.5}]},
+        {"record_id": "record-1", "predictions": [{"start": 0, "end": 1, "category": "PERSON_NAME", "score": 0.49}]},
+        {"record_id": "record-2", "predictions": [{"start": 0, "end": 1, "category": "EMAIL", "score": 0.5}]},
+        {"record_id": "record-3", "predictions": [{"start": 0, "end": 1, "category": "EMAIL", "score": 0.49}]},
+        {"record_id": "record-4", "predictions": [{"start": 0, "end": 1, "category": "SSN", "score": 0.5}]},
+        {"record_id": "record-5", "predictions": [{"start": 0, "end": 1, "category": "SSN", "score": 0.49}]},
+    ]
+    tasks = build_pii_tasks(source, predictions, limit=3, calibration_count=3, uncertain_only=True)
+    categories = {task["predictions"][0]["result"][0]["value"]["labels"][0] for task in tasks}
+    assert categories == {"PERSON_NAME", "EMAIL", "SSN"}
+
+
 def test_ranking_pilot_rejects_wrong_job_count() -> None:
     pair = {"job_id": "job-1", "candidate_id": "candidate-1", "job_text": "Need Python", "candidate_text": "Python engineer"}
     try:

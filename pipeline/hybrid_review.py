@@ -68,6 +68,65 @@ def _prediction_result(text: str, prediction: dict[str, Any]) -> list[dict[str, 
     return result
 
 
+def _pii_sampling_key(row: dict[str, Any]) -> tuple[float, str]:
+    uncertainty = min(
+        abs(float(span["score"]) - 0.5)
+        for span in row["spans"]
+        if 0.3 <= float(span["score"]) <= 0.7
+    )
+    return uncertainty, hashlib.sha256(str(row["record_id"]).encode("utf-8")).hexdigest()
+
+
+def _pii_span_category(span: dict[str, Any]) -> str:
+    value = span.get("value")
+    if isinstance(value, dict):
+        labels = value.get("labels")
+        if isinstance(labels, list) and labels and isinstance(labels[0], str):
+            return labels[0]
+    raise ValueError("PII prediction is missing a Label Studio category")
+
+
+def _select_diverse_pii_rows(eligible: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    if limit <= 0 or limit >= len(eligible):
+        return _stable_order(eligible, "record_id")
+    candidates: dict[str, list[dict[str, Any]]] = {}
+    for row in eligible:
+        for category in {_pii_span_category(span) for span in row["spans"] if 0.3 <= float(span["score"]) <= 0.7}:
+            candidates.setdefault(category, []).append(row)
+    for category in candidates:
+        candidates[category].sort(key=_pii_sampling_key)
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[str] = set()
+    positions = {category: 0 for category in candidates}
+    while len(selected) < limit:
+        added = False
+        for category in sorted(candidates):
+            rows = candidates[category]
+            position = positions[category]
+            while position < len(rows) and str(rows[position]["record_id"]) in selected_ids:
+                position += 1
+            positions[category] = position
+            if position >= len(rows):
+                continue
+            row = rows[position]
+            positions[category] += 1
+            selected.append(row)
+            selected_ids.add(str(row["record_id"]))
+            added = True
+            if len(selected) == limit:
+                break
+        if not added:
+            break
+    if len(selected) < limit:
+        for row in sorted(eligible, key=_pii_sampling_key):
+            if str(row["record_id"]) not in selected_ids:
+                selected.append(row)
+                selected_ids.add(str(row["record_id"]))
+                if len(selected) == limit:
+                    break
+    return _stable_order(selected, "record_id")
+
+
 def build_pii_tasks(
     source_rows: list[dict[str, Any]],
     prediction_rows: list[dict[str, Any]],
@@ -92,8 +151,7 @@ def build_pii_tasks(
         eligible.append({"record_id": record_id, "text": text, "spans": spans, "uncertain": uncertain})
     if not eligible:
         raise ValueError("no PII review tasks matched the input and prediction cache")
-    if limit > 0:
-        eligible = _stable_order(eligible, "record_id")[:limit]
+    eligible = _select_diverse_pii_rows(eligible, limit)
     calibration_ids = {row["record_id"] for row in _stable_order(eligible, "record_id")[:calibration_count]}
     tasks: list[dict[str, Any]] = []
     for row in eligible:
