@@ -127,6 +127,15 @@ python scripts/import_pii_ai_annotations.py `
 python scripts/audit_pii_label_studio_tasks.py .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-filtered-1000.json
 ```
 
+For a labeled benchmark only, measure the AI silver suggestions without changing the review pack. This report is diagnostic evidence, not a training input or release gate.
+
+```powershell
+python scripts/audit_pii_ai_silver.py `
+  .benchmark-data/nemotron-pii-test-1000.jsonl `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-filtered-1000.json `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-benchmark-audit-1000.json
+```
+
 Create ranking projects only after the approved 210-job pair file exists. Use [ranking configuration](../review/label-studio/ranking-config.xml) and the corresponding blind ranking task files. Reviewers must not see the AI rationale while deciding; remove that optional field from the input pair file if the UI exposes it.
 
 Both reviewers label the 30 deterministic calibration jobs first. Export completed annotations as Label Studio JSON and reconcile them:

@@ -4,6 +4,7 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+- Added a benchmark-only external-AI PII silver-label overlap audit that cannot alter tasks or training data.
 - Added persisted quality reports for external-AI PII annotation imports.
 - Added an opt-in conservative filter for malformed or placeholder external-AI PII suggestions before Label Studio import.
 - Added deterministic reconstruction of normalized PII annotation sources when ignored GLiNER review artifacts are unavailable.
