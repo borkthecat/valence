@@ -4,6 +4,28 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+- Added deterministic machine-approved PII annotation exports and a matching strict auditor that preserve AI provenance and remain non-human, release-ineligible evidence.
+- Added a benchmark-only external-AI PII silver-label overlap audit that cannot alter tasks or training data.
+- Added persisted quality reports for external-AI PII annotation imports.
+- Added an opt-in conservative filter for malformed or placeholder external-AI PII suggestions before Label Studio import.
+- Added deterministic reconstruction of normalized PII annotation sources when ignored GLiNER review artifacts are unavailable.
+- Enabled deterministic full-source AI annotation packets for offset-validated Label Studio tasks that identify records with `source_id`.
+- Added blind external-AI PII annotation export and fail-closed text-only annotation import for validated silver suggestions.
+- Replaced the unsafe positional PII source/cache review-pack join with an offset-validated GLiNER task path, strict stable-ID matching, and a fail-closed Label Studio task auditor.
+
+## 1.13.5
+
+- Added deterministic NVIDIA Nemotron-PII test export with strict source-span validation and full source-label mapping.
+- Corrected `GENERIC_SECRET` exact-span accounting and recorded a frozen-threshold cross-dataset PII evaluation without promoting synthetic evidence to a release claim.
+
+## 1.13.4
+
+- Added context and entropy validation for password and identifier PII, conservative Unicode person-name boundary alignment, and privacy-safe prediction-cache export.
+- Added deterministic five-fold exact-span threshold calibration and a six-locale Faker regression suite without promoting synthetic data as release evidence.
+- Added compact-to-V6 guard cascade evaluation; the pooled shadow result improves while weak secret-policy corpora remain review-only.
+- Added EMSCAD structural markers, asymmetric false-positive cost training, and a zero-overlap group frontier reaching 90.15% precision at 64.32% recall.
+- Added dual-review ranking task generation, third-review adjudication, and deterministic held-out weight sweeps; all machine-judged labels remain silver and release-ineligible.
+
 ## 1.13.3
 
 - Made guard model findings advisory by default with explicit blocking promotion.

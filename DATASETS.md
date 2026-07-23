@@ -20,9 +20,22 @@ Valence does not treat synthetic scale tests as universal accuracy evidence. Lar
 - License: Apache-2.0
 - Scale: approximately 60,000 synthetic, span-annotated English records
 - Use: training and evaluating a PII classifier connected through `PII_CLASSIFIER_URL`
-- Current evidence: 1,000 rows and 4,314 annotated spans; the v1.13.3 calibrated GLiNER plus heuristic path accounts for the full taxonomy and reaches 72.07% exact-span F1
+- Current evidence: 1,000 rows and 4,314 annotated spans; v1.13.4 five-fold calibration accounts for the full taxonomy and estimates 71.70% out-of-fold exact-span F1
 
 Valence supplies the secure classifier client and benchmark contract. Model training remains a separate, versioned ML process so weights, tokenizer, dataset revision, calibration thresholds, and model cards can be reviewed independently of the gateway.
+
+## NVIDIA Nemotron-PII
+
+- Owner: NVIDIA
+- Source: https://huggingface.co/datasets/nvidia/Nemotron-PII
+- License: CC-BY-4.0
+- Scale: 100,000 synthetic span-annotated test records
+- Use: independent synthetic cross-dataset PII evaluation only
+- Current evidence: a deterministic 1,000-record test subset maps 8,168 spans to the current gateway taxonomy. Gretel-frozen GLiNER thresholds yield 74.78% precision, 55.91% recall, and 63.99% F1; this is explicitly not release evidence.
+
+`pipeline/benchmarks/export_nemotron_pii.py` validates all source offsets and fails if a source label is unmapped. It uses SHA-256 ordering of source UIDs, so the selected prefix is reproducible without fitting or selecting thresholds on the test records.
+
+`pipeline/benchmarks/generate_pii_locale_suite.py` uses pinned Faker 40.28.1 to create deterministic `en_US`, `es_ES`, `fr_FR`, `de_DE`, `ja_JP`, and `ar_AA` exact-span fixtures. These fixtures test locale handling and scanner regressions only; generated values are explicitly marked release-ineligible. The official CMU Enron corpus was reviewed as a possible organic source, but its historical mail, redaction, and annotation limitations do not make it broad PII ground truth. The gated LMSYS Chat 1M terms do not permit vendoring it as a public project fixture.
 
 ## Prompt-Injection Matrix
 
@@ -70,7 +83,7 @@ Dataset files are downloaded only for local benchmarking and are not included in
 
 `pipeline/benchmarks/export_emscad.py` maps EMSCAD rows into Valence rich-profile records with `fraudulent`, `risk_score`, and `source_relevance_score` fields. `pipeline/fraud_evaluator.py` measures fraud precision, recall, F1, false-positive rate, and Fraud Exposure Rate before and after risk-adjusted reranking. The full CSV is not bundled; only a small EMSCAD-shaped fixture is checked in for CI smoke coverage.
 
-`pipeline/benchmarks/train_emscad_fraud_model.py` trains a deterministic TF-IDF logistic baseline against a local EMSCAD CSV. Use `--split-strategy group` for the deployment-oriented company/domain/template holdout; v1.13.3 records 4,935 groups and zero train/test overlap. `pipeline/benchmarks/train_emscad_transformer_fraud.py` retains the historical stratified transformer path. The raw CSV is ignored by git and not redistributed by this project.
+`pipeline/benchmarks/train_emscad_fraud_model.py` trains a deterministic TF-IDF logistic baseline against a local EMSCAD CSV. Use `--split-strategy group` for the deployment-oriented company/domain/template holdout. v1.13.4 includes structural markers and explicit false-positive cost control; the selected run records 4,942 groups and zero train/test overlap. `pipeline/benchmarks/train_emscad_transformer_fraud.py` retains the historical stratified transformer path. The raw CSV is ignored by git and not redistributed by this project.
 
 ## Excluded Defaults
 

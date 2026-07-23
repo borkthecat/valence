@@ -57,6 +57,13 @@ export function buildApp(logger: Logger): Express {
             timeoutMs: environment.MODEL_SERVICE_TIMEOUT_MS,
             ...(environment.PII_CLASSIFIER_API_KEY === undefined ? {} : { apiKey: environment.PII_CLASSIFIER_API_KEY }),
         });
+    const secondaryClassifierClient = environment.PII_SECONDARY_CLASSIFIER_URL === undefined
+        ? undefined
+        : new HttpClassifierClient({
+            url: environment.PII_SECONDARY_CLASSIFIER_URL,
+            timeoutMs: environment.MODEL_SERVICE_TIMEOUT_MS,
+            ...(environment.PII_SECONDARY_CLASSIFIER_API_KEY === undefined ? {} : { apiKey: environment.PII_SECONDARY_CLASSIFIER_API_KEY }),
+        });
     const guardClient = environment.GUARD_MODEL_PATH !== undefined
         ? new LocalGuardModelClient(environment.GUARD_MODEL_PATH, environment.GUARD_MODEL_SHA256)
         : environment.GUARD_MODEL_URL !== undefined
@@ -72,6 +79,13 @@ export function buildApp(logger: Logger): Express {
             minimumScore: environment.PII_CLASSIFIER_MINIMUM_SCORE,
             categoryMinimumScores: parsePiiCategoryThresholds(environment.PII_CLASSIFIER_LABEL_THRESHOLDS),
         }),
+        ...(secondaryClassifierClient === undefined ? [] : [
+            new EmbeddingClassifierDetector(secondaryClassifierClient, {
+                name: 'secondary-ner-classifier',
+                minimumScore: environment.PII_CLASSIFIER_MINIMUM_SCORE,
+                categoryMinimumScores: parsePiiCategoryThresholds(environment.PII_CLASSIFIER_LABEL_THRESHOLDS),
+            }),
+        ]),
     ]);
     const shield = new InjectionShield([
         new HeuristicInjectionDetector(),

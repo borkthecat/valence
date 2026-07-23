@@ -14,10 +14,6 @@ export function routeForTrustedSource(input: ExpertRouteInput, expertSources: Re
     return input.sourceId !== undefined && expertSources.has(input.sourceId) ? 'source-expert' : 'global-v6';
 }
 
-/**
- * Sources without sufficient held-out recall must be observed and reviewed,
- * rather than used as an automatic blocking decision.
- */
 export function decideGuardRoute(
     input: ExpertRouteInput,
     expertSources: ReadonlySet<string>,

@@ -35,6 +35,7 @@ const SUPPORTED_LABELS: Readonly<Record<string, string>> = {
     API_KEY: 'API_KEY',
     ACCESS_TOKEN: 'ACCESS_TOKEN',
     PASSWORD: 'PASSWORD',
+    GENERIC_SECRET: 'GENERIC_SECRET',
     PERSON: 'PERSON_NAME',
     PERSON_NAME: 'PERSON_NAME',
     NAME: 'PERSON_NAME',
@@ -125,6 +126,13 @@ async function run(): Promise<void> {
     }
     const detectors: PiiDetector[] = [new HeuristicPiiDetector()];
     const classifierUrl = process.env['PII_CLASSIFIER_URL'];
+    const secondaryClassifierUrl = process.env['PII_SECONDARY_CLASSIFIER_URL'];
+    const predictionCacheOutput = process.env['PII_PREDICTION_CACHE_OUTPUT'];
+    const predictionCache: Array<{
+        record_id: string;
+        truth: Array<{ start: number; end: number; category: string }>;
+        predictions: Array<{ start: number; end: number; category: string; score: number }>;
+    }> = [];
     if (classifierUrl !== undefined) {
         const minimumScore = Number(process.env['PII_CLASSIFIER_MINIMUM_SCORE'] ?? '0.5');
         if (!(minimumScore >= 0 && minimumScore <= 1)) {
@@ -140,6 +148,22 @@ async function run(): Promise<void> {
                 ? {}
                 : { apiKey: process.env['PII_CLASSIFIER_API_KEY'] }),
         }), { minimumScore, categoryMinimumScores }));
+    }
+    if (secondaryClassifierUrl !== undefined) {
+        const minimumScore = Number(process.env['PII_CLASSIFIER_MINIMUM_SCORE'] ?? '0.5');
+        if (!(minimumScore >= 0 && minimumScore <= 1)) {
+            throw new RangeError('PII_CLASSIFIER_MINIMUM_SCORE must be between 0 and 1');
+        }
+        const categoryMinimumScores = parsePiiCategoryThresholds(
+            process.env['PII_CLASSIFIER_LABEL_THRESHOLDS'] ?? '{}',
+        );
+        detectors.push(new EmbeddingClassifierDetector(new HttpClassifierClient({
+            url: secondaryClassifierUrl,
+            timeoutMs: Number(process.env['MODEL_SERVICE_TIMEOUT_MS'] ?? '3000'),
+            ...(process.env['PII_SECONDARY_CLASSIFIER_API_KEY'] === undefined
+                ? {}
+                : { apiKey: process.env['PII_SECONDARY_CLASSIFIER_API_KEY'] }),
+        }), { name: 'secondary-ner-classifier', minimumScore, categoryMinimumScores }));
     }
     const reader = createInterface({
         input: createReadStream(resolve(input), { encoding: 'utf8' }),
@@ -173,6 +197,21 @@ async function run(): Promise<void> {
             }
         }
         const predictions = new Set(findings.map(findingKey));
+        if (predictionCacheOutput !== undefined) {
+            predictionCache.push({
+                record_id: `record-${records}`,
+                truth: record.entities.flatMap((entity) => {
+                    const category = SUPPORTED_LABELS[entity.label.toUpperCase()];
+                    return category === undefined ? [] : [{ start: entity.start, end: entity.end, category }];
+                }),
+                predictions: findings.map((finding) => ({
+                    start: finding.start,
+                    end: finding.end,
+                    category: finding.category,
+                    score: finding.confidence,
+                })),
+            });
+        }
         for (const prediction of predictions) {
             const label = prediction.split(':', 3)[2] ?? '';
             if (!supportedCategories.has(label)) continue;
@@ -243,6 +282,13 @@ async function run(): Promise<void> {
     const serialized = `${JSON.stringify(report, null, 2)}\n`;
     if (output !== undefined) {
         await writeFile(resolve(output), serialized, 'utf8');
+    }
+    if (predictionCacheOutput !== undefined) {
+        await writeFile(
+            resolve(predictionCacheOutput),
+            `${predictionCache.map((record) => JSON.stringify(record)).join('\n')}\n`,
+            'utf8',
+        );
     }
     process.stdout.write(serialized);
 }

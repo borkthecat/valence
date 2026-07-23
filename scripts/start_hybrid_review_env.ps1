@@ -1,0 +1,51 @@
+[CmdletBinding()]
+param(
+    [switch]$RebuildPiiPack,
+    [ValidateRange(1, 500)]
+    [int]$PiiLimit = 30
+)
+
+$ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $PSScriptRoot
+Set-Location $root
+
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    throw "Docker Desktop is required. Install and start Docker Desktop, then rerun this script."
+}
+
+$pack = Join-Path $root ".benchmark-data/review-pack-pii-offset-validated-calibration-$PiiLimit"
+$reviewerA = Join-Path $pack "pii-tasks-reviewer_a.json"
+$reviewerB = Join-Path $pack "pii-tasks-reviewer_b.json"
+if ($RebuildPiiPack -or -not (Test-Path $reviewerA) -or -not (Test-Path $reviewerB)) {
+    python scripts/build_hybrid_review_pack.py `
+        --pii-label-studio-tasks .benchmark-data/review-pack-gliner-v1.13.5/gliner-tasks.json `
+        --pii-limit $PiiLimit `
+        --pii-calibration-count $PiiLimit `
+        --output-dir $pack
+    if ($LASTEXITCODE -ne 0) { throw "Unable to build the PII review pack." }
+}
+
+New-Item -ItemType Directory -Force -Path .valence-data/label-studio | Out-Null
+docker compose -f docker-compose.review.yml up -d
+if ($LASTEXITCODE -ne 0) { throw "Label Studio did not start." }
+
+$ready = $false
+for ($attempt = 1; $attempt -le 30; $attempt++) {
+    & curl.exe --fail --silent --show-error --max-time 2 --output NUL http://127.0.0.1:8081/user/login/
+    if ($LASTEXITCODE -eq 0) {
+        $ready = $true
+        break
+    }
+    Start-Sleep -Seconds 2
+}
+if (-not $ready) {
+    docker compose -f docker-compose.review.yml logs --tail 40
+    throw "Label Studio did not become reachable on localhost:8081."
+}
+
+Write-Output "Label Studio is ready at http://127.0.0.1:8081"
+Write-Output "PII calibration tasks per reviewer: $PiiLimit"
+Write-Output "Reviewer A import: $reviewerA"
+Write-Output "Reviewer B import: $reviewerB"
+Write-Output "PII configuration: $root/review/label-studio/pii-config.xml"
+Write-Output "Follow docs/HYBRID_HUMAN_REVIEW.md to create the two blind PII projects."

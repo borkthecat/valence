@@ -1,0 +1,100 @@
+{
+  "benchmark": "pii-span-detection",
+  "detector": "heuristic-static+embedding-classifier",
+  "classifierConfigured": true,
+  "records": 1000,
+  "allGroundTruthEntities": 4314,
+  "supportedGroundTruthEntities": 4314,
+  "labelCoverage": 1,
+  "exactSpanMetricsOnSupportedLabels": {
+    "truePositive": 3343,
+    "falsePositive": 28843,
+    "falseNegative": 971,
+    "precision": 0.10386503448704405,
+    "recall": 0.7749188687992582,
+    "f1": 0.1831780821917808
+  },
+  "perLabel": {
+    "GENERIC_SECRET": {
+      "truePositive": 2125,
+      "falsePositive": 22986,
+      "falseNegative": 482,
+      "precision": 0.08462426824897455,
+      "recall": 0.8151131568853088,
+      "f1": 0.1533299660870193
+    },
+    "PASSWORD": {
+      "truePositive": 5,
+      "falsePositive": 2052,
+      "falseNegative": 2,
+      "precision": 0.0024307243558580457,
+      "recall": 0.7142857142857143,
+      "f1": 0.0048449612403100775
+    },
+    "PERSON_NAME": {
+      "truePositive": 225,
+      "falsePositive": 2301,
+      "falseNegative": 385,
+      "precision": 0.08907363420427554,
+      "recall": 0.36885245901639346,
+      "f1": 0.1434948979591837
+    },
+    "EMAIL": {
+      "truePositive": 215,
+      "falsePositive": 522,
+      "falseNegative": 14,
+      "precision": 0.29172320217096337,
+      "recall": 0.9388646288209607,
+      "f1": 0.4451345755693582
+    },
+    "SSN": {
+      "truePositive": 324,
+      "falsePositive": 110,
+      "falseNegative": 37,
+      "precision": 0.7465437788018433,
+      "recall": 0.8975069252077562,
+      "f1": 0.8150943396226416
+    },
+    "API_KEY": {
+      "truePositive": 15,
+      "falsePositive": 595,
+      "falseNegative": 0,
+      "precision": 0.02459016393442623,
+      "recall": 1,
+      "f1": 0.048
+    },
+    "IP_ADDRESS": {
+      "truePositive": 161,
+      "falsePositive": 59,
+      "falseNegative": 26,
+      "precision": 0.7318181818181818,
+      "recall": 0.8609625668449198,
+      "f1": 0.7911547911547911
+    },
+    "PHONE": {
+      "truePositive": 156,
+      "falsePositive": 76,
+      "falseNegative": 15,
+      "precision": 0.6724137931034483,
+      "recall": 0.9122807017543859,
+      "f1": 0.7741935483870969
+    },
+    "CREDIT_CARD": {
+      "truePositive": 117,
+      "falsePositive": 33,
+      "falseNegative": 10,
+      "precision": 0.78,
+      "recall": 0.9212598425196851,
+      "f1": 0.8447653429602889
+    },
+    "ACCESS_TOKEN": {
+      "truePositive": 0,
+      "falsePositive": 109,
+      "falseNegative": 0,
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    }
+  },
+  "unsupportedGroundTruthByLabel": {}
+}

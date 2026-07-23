@@ -1,3 +1,4 @@
 datasets==4.0.0
 pyarrow==21.0.0
 scikit-learn==1.7.1
+Faker==40.28.1

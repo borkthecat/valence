@@ -1,0 +1,13 @@
+<View>
+  <Header value="$job_id - candidate $candidate_id" />
+  <Text name="job" value="$job_text" />
+  <Text name="candidate" value="$candidate_text" />
+  <Header value="Human review" />
+  <Choices name="hard_eligibility" toName="candidate" choice="single" required="true"><Choice value="pass" /><Choice value="fail" /><Choice value="unknown" /></Choices>
+  <Rating name="role_alignment" toName="candidate" maxRating="4" required="true" />
+  <Choices name="seniority_match" toName="candidate" choice="single" required="true"><Choice value="yes" /><Choice value="no" /><Choice value="unknown" /></Choices>
+  <Rating name="tech_stack_coverage" toName="candidate" maxRating="4" required="true" />
+  <Choices name="final_relevance" toName="candidate" choice="single" required="true"><Choice value="0" /><Choice value="1" /><Choice value="2" /><Choice value="3" /></Choices>
+  <Choices name="human_review_required" toName="candidate" choice="single" required="true"><Choice value="yes" /><Choice value="no" /></Choices>
+  <TextArea name="evidence_note" toName="candidate" placeholder="Cite job and candidate evidence; do not infer missing qualifications." rows="3" required="true" />
+</View>
