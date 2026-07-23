@@ -445,6 +445,75 @@ def build_pii_tasks_from_ai_annotations(
     return tasks
 
 
+def machine_approve_pii_silver_tasks(tasks: list[dict[str, Any]], *, approved_by: str) -> list[dict[str, Any]]:
+    if not approved_by.strip():
+        raise ValueError("approved_by is required")
+    audit_pii_label_studio_tasks(tasks)
+    approved: list[dict[str, Any]] = []
+    for task in tasks:
+        clone = json.loads(json.dumps(task))
+        data = clone["data"]
+        record_id = data.get("record_id")
+        if not isinstance(record_id, str) or not record_id:
+            raise ValueError("PII task requires a stable record ID for machine approval")
+        prediction = clone["predictions"][0]
+        model_version = prediction.get("model_version")
+        if not isinstance(model_version, str) or not model_version.strip():
+            raise ValueError(f"PII task {record_id} has no model version")
+        results = [_valid_label_studio_span(data["text"], result) for result in prediction["result"]]
+        clone["annotations"] = [{
+            "id": hashlib.sha256(f"machine-approved:{record_id}:{model_version}".encode("utf-8")).hexdigest(),
+            "completed_by": approved_by,
+            "ground_truth": False,
+            "was_cancelled": False,
+            "result": results,
+        }]
+        clone["meta"] = {
+            **clone.get("meta", {}),
+            "review_stage": "machine_approved",
+            "machine_approved": True,
+            "human_review_required": False,
+            "human_ground_truth": False,
+            "release_eligible": False,
+        }
+        approved.append(clone)
+    audit_machine_approved_pii_tasks(approved)
+    return approved
+
+
+def audit_machine_approved_pii_tasks(tasks: list[dict[str, Any]]) -> dict[str, int]:
+    if not tasks:
+        raise ValueError("machine-approved PII task export is empty")
+    review_tasks: list[dict[str, Any]] = []
+    spans = 0
+    for index, task in enumerate(tasks):
+        clone = {key: value for key, value in task.items() if key != "annotations"}
+        review_tasks.append(clone)
+        meta = task.get("meta")
+        annotations = task.get("annotations")
+        if not isinstance(meta, dict) or meta.get("machine_approved") is not True or meta.get("human_ground_truth") is not False or meta.get("release_eligible") is not False:
+            raise ValueError(f"machine-approved task {index} has invalid provenance metadata")
+        if not isinstance(annotations, list) or len(annotations) != 1 or not isinstance(annotations[0], dict):
+            raise ValueError(f"machine-approved task {index} must contain exactly one annotation")
+        annotation = annotations[0]
+        if annotation.get("ground_truth") is not False or annotation.get("was_cancelled") is not False:
+            raise ValueError(f"machine-approved task {index} has invalid annotation status")
+        data = task.get("data")
+        prediction = task.get("predictions")
+        if not isinstance(data, dict) or not isinstance(data.get("text"), str) or not isinstance(prediction, list) or len(prediction) != 1:
+            raise ValueError(f"machine-approved task {index} has invalid Label Studio structure")
+        results = annotation.get("result")
+        if not isinstance(results, list):
+            raise ValueError(f"machine-approved task {index} annotation is missing results")
+        expected = [_valid_label_studio_span(data["text"], result) for result in prediction[0]["result"]]
+        actual = [_valid_label_studio_span(data["text"], result) for result in results]
+        if actual != expected:
+            raise ValueError(f"machine-approved task {index} annotation differs from its validated prediction")
+        spans += len(actual)
+    audit = audit_pii_label_studio_tasks(review_tasks)
+    return {"tasks": audit["tasks"], "spans": spans, "unique_result_ids": audit["unique_result_ids"]}
+
+
 def _nested_text(row: dict[str, Any], parent: str, keys: tuple[str, ...]) -> str | None:
     nested = row.get(parent)
     if not isinstance(nested, dict):

@@ -4,6 +4,7 @@ This project keeps a change record for released source modifications.
 
 ## Unreleased
 
+- Added deterministic machine-approved PII annotation exports and a matching strict auditor that preserve AI provenance and remain non-human, release-ineligible evidence.
 - Added a benchmark-only external-AI PII silver-label overlap audit that cannot alter tasks or training data.
 - Added persisted quality reports for external-AI PII annotation imports.
 - Added an opt-in conservative filter for malformed or placeholder external-AI PII suggestions before Label Studio import.

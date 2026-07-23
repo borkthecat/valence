@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hybrid_review import (
     audit_pii_label_studio_tasks,
+    audit_machine_approved_pii_tasks,
     audit_pii_ai_annotations,
     build_pii_ai_annotation_packet,
     build_pii_ai_annotation_source,
@@ -10,6 +11,7 @@ from hybrid_review import (
     build_pii_tasks_from_label_studio,
     build_ranking_tasks,
     cohen_kappa,
+    machine_approve_pii_silver_tasks,
 )
 
 
@@ -156,6 +158,23 @@ def test_ai_annotation_quality_filter_discards_unambiguous_false_positives() -> 
     )
     labels = [result["value"]["labels"][0] for result in tasks[0]["predictions"][0]["result"]]
     assert labels == ["EMAIL", "PHONE"]
+
+
+def test_machine_approval_copies_validated_silver_predictions_without_claiming_ground_truth() -> None:
+    source = [{
+        "data": {"record_id": "record-1", "text": "Ada at ada@example.test"},
+        "predictions": [{"model_version": "external-ai-silver", "result": []}],
+    }]
+    silver = build_pii_tasks_from_ai_annotations(source, [{
+        "record_id": "record-1",
+        "entities": [{"label": "PERSON_NAME", "text": "Ada"}],
+    }], model_version="external-ai-silver")
+    approved = machine_approve_pii_silver_tasks(silver, approved_by="external-ai-silver-auto-approval")
+    assert approved[0]["annotations"][0]["ground_truth"] is False
+    assert approved[0]["meta"]["machine_approved"] is True
+    assert approved[0]["meta"]["release_eligible"] is False
+    assert approved[0]["annotations"][0]["result"] == approved[0]["predictions"][0]["result"]
+    assert audit_machine_approved_pii_tasks(approved) == {"tasks": 1, "spans": 1, "unique_result_ids": 1}
 
 
 def test_ai_annotation_packet_uses_deterministic_source_id_when_record_id_is_absent() -> None:

@@ -127,6 +127,16 @@ python scripts/import_pii_ai_annotations.py `
 python scripts/audit_pii_label_studio_tasks.py .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-filtered-1000.json
 ```
 
+To accept every filtered suggestion as a machine-approved Label Studio annotation, retain the original predictions and produce a separate annotation export. This is not human ground truth and remains release-ineligible.
+
+```powershell
+python scripts/approve_pii_ai_silver.py `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-silver-filtered-1000.json `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-machine-approved-1000.json
+python scripts/audit_machine_approved_pii_tasks.py `
+  .benchmark-data/review-pack-gliner-v1.13.5/pii-ai-machine-approved-1000.json
+```
+
 For a labeled benchmark only, measure the AI silver suggestions without changing the review pack. This report is diagnostic evidence, not a training input or release gate.
 
 ```powershell
